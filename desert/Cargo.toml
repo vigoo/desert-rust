@@ -1,0 +1,25 @@
+[package]
+name = "desert"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytes = { version = "1.5.0" }
+castaway = { version = "0.2.2", features = ["std"]}
+dyn-eq = "0.1.3"
+dyn-hash = "0.1.2"
+flate2 = "1.0.28"
+
+bigdecimal = { version = "0.4.2", optional = true }
+chrono = { version = "0.4.31", optional = true }
+chrono-tz = { version = "0.8.5", optional = true }
+uuid = { version = "1.6.1", optional = true }
+
+[dev-dependencies]
+proptest = "1.4.0"
+
+[features]
+default = ["bigdecimal", "chrono", "uuid"]
+bigdecimal = ["dep:bigdecimal"]
+chrono = ["dep:chrono", "dep:chrono-tz"]
+uuid = ["dep:uuid"]

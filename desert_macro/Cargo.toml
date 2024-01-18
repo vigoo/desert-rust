@@ -1,0 +1,18 @@
+[package]
+name = "desert_macro"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+lazy_static = "1.4.0"
+proc-macro2 = "1.0.74"
+quote = "1.0.35"
+syn = { version = "2.0.46", features = ["full"] }
+
+desert = { path = "../desert" }
+
+[dev-dependencies]
+assert2 = "0.3.11"

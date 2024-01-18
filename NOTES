@@ -1,0 +1,14 @@
+For the blog:
+
+- Define BinaryInput and BinaryOutput
+- How we define BinarySerializer and BinaryDeserializer, what's the serialization context trait
+- Show how we can implement it for a few types.
+- We cannot do specialization: introduce the cast! macro (castaway crate)
+- feature dependent modules
+- How can we store arbitrary data in the "refs" support? StorableRef, dyn_eq and dyn_hash crates
+- The derivation macro
+  - converting the evolution attribute into static data
+  - generating code based on the type's shape
+- Testing: proptest
+
+
