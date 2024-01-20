@@ -1,18 +1,22 @@
 use proc_macro::TokenStream;
-use std::collections::HashMap;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{Attribute, Data, DeriveInput, Expr, ExprCall, Lit, LitStr, Meta, Token};
+use std::collections::HashMap;
 use syn::punctuated::Punctuated;
+use syn::{Attribute, Data, DeriveInput, Expr, ExprCall, Lit, LitStr, Meta, Token};
 
 use desert::BinarySerializer;
 
-fn evolution_steps_from_attributes(attrs: Vec<Attribute>) -> (Vec<proc_macro2::TokenStream>, HashMap<String, Expr>) {
+fn evolution_steps_from_attributes(
+    attrs: Vec<Attribute>,
+) -> (Vec<proc_macro2::TokenStream>, HashMap<String, Expr>) {
     let mut evolution_steps = Vec::new();
     let mut field_defaults = HashMap::new();
     for attr in attrs {
         if attr.path().is_ident("evolution") {
-            let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated).expect("evolution steps");
+            let nested = attr
+                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .expect("evolution steps");
             for meta in nested {
                 match meta {
                     Meta::Path(path) => {
@@ -20,7 +24,9 @@ fn evolution_steps_from_attributes(attrs: Vec<Attribute>) -> (Vec<proc_macro2::T
                     }
                     Meta::List(list) => {
                         if list.path.is_ident("FieldAdded") {
-                            let args = list.parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated).expect("FieldAdded arguments");
+                            let args = list
+                                .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
+                                .expect("FieldAdded arguments");
                             if args.len() != 2 {
                                 panic!("Invalid number of arguments for FieldAdded");
                             }
@@ -36,52 +42,50 @@ fn evolution_steps_from_attributes(attrs: Vec<Attribute>) -> (Vec<proc_macro2::T
                             };
                             let field_default = &args[1];
 
-                            println!("FieldAdded: name = {field_name}, default value: {:?}", quote! { #field_default });
+                            println!(
+                                "FieldAdded: name = {field_name}, default value: {:?}",
+                                quote! { #field_default }
+                            );
 
                             field_defaults.insert(field_name.clone(), field_default.clone());
-                            evolution_steps.push(
-                                quote! {
-                                    desert::Evolution::FieldAdded {
-                                        name: #field_name.to_string(),
-                                    }
+                            evolution_steps.push(quote! {
+                                desert::Evolution::FieldAdded {
+                                    name: #field_name.to_string(),
                                 }
-                            );
+                            });
                         } else if list.path.is_ident("FieldMadeOptional") {
-                            let field_name_lit: LitStr = list.parse_args().expect("FieldMadeOptional argument");
+                            let field_name_lit: LitStr =
+                                list.parse_args().expect("FieldMadeOptional argument");
                             let field_name = field_name_lit.value();
                             println!("FieldMadeOptional: name = {field_name}");
 
-                            evolution_steps.push(
-                                quote! {
-                                    desert::Evolution::FieldMadeOptional {
-                                        name: #field_name.to_string(),
-                                    }
+                            evolution_steps.push(quote! {
+                                desert::Evolution::FieldMadeOptional {
+                                    name: #field_name.to_string(),
                                 }
-                            );
+                            });
                         } else if list.path.is_ident("FieldRemoved") {
-                            let field_name_lit: LitStr = list.parse_args().expect("FieldMadeOptional argument");
+                            let field_name_lit: LitStr =
+                                list.parse_args().expect("FieldMadeOptional argument");
                             let field_name = field_name_lit.value();
                             println!("FieldRemoved: name = {field_name}");
 
-                            evolution_steps.push(
-                                quote! {
-                                    desert::Evolution::FieldRemoved {
-                                        name: #field_name.to_string(),
-                                    }
+                            evolution_steps.push(quote! {
+                                desert::Evolution::FieldRemoved {
+                                    name: #field_name.to_string(),
                                 }
-                            );
+                            });
                         } else if list.path.is_ident("FieldMadeTransient") {
-                            let field_name_lit: LitStr = list.parse_args().expect("FieldMadeOptional argument");
+                            let field_name_lit: LitStr =
+                                list.parse_args().expect("FieldMadeOptional argument");
                             let field_name = field_name_lit.value();
                             println!("FieldMadeTransient: name = {field_name}");
 
-                            evolution_steps.push(
-                                quote! {
-                                    desert::Evolution::FieldMadeTransient {
-                                        name: #field_name.to_string(),
-                                    }
+                            evolution_steps.push(quote! {
+                                desert::Evolution::FieldMadeTransient {
+                                    name: #field_name.to_string(),
                                 }
-                            );
+                            });
                         } else {
                             panic!("Invalid evolution step: {:?}", list.path.get_ident());
                         }
@@ -100,7 +104,6 @@ fn evolution_steps_from_attributes(attrs: Vec<Attribute>) -> (Vec<proc_macro2::T
 pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
-
     let (evolution_steps, field_defaults) = evolution_steps_from_attributes(ast.attrs);
     let version = evolution_steps.len();
     let mut push_evolution_steps = Vec::new();
@@ -112,7 +115,10 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
 
     let name = &ast.ident;
     let name_string = name.to_string();
-    let metadata_name = Ident::new(&format!("{name}_metadata").to_uppercase(), Span::call_site());
+    let metadata_name = Ident::new(
+        &format!("{name}_metadata").to_uppercase(),
+        Span::call_site(),
+    );
 
     let mut insert_transient_fields = Vec::new();
     let mut serialization_commands = Vec::new();
@@ -120,14 +126,18 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
     match ast.data {
         Data::Struct(struct_data) => {
             for field in &struct_data.fields {
-                let field_ident = field.ident.as_ref().expect("Field does not have an identifier");
+                let field_ident = field
+                    .ident
+                    .as_ref()
+                    .expect("Field does not have an identifier");
                 let field_name = field_ident.to_string();
 
                 let mut transient = false;
                 for attr in &field.attrs {
-
                     if attr.path().is_ident("transient") {
-                        let args = attr.parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated).expect("FieldAdded arguments");
+                        let args = attr
+                            .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
+                            .expect("FieldAdded arguments");
                         if args.len() != 1 {
                             panic!("#[transient(default)] on fields needs a default value");
                         }
@@ -142,8 +152,8 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
 
                 if !transient {
                     serialization_commands.push(quote! {
-                            serializer.write_field(#field_name, &self.#field_ident)?;
-                        });
+                        serializer.write_field(#field_name, &self.#field_ident)?;
+                    });
                 }
             }
         }

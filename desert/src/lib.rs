@@ -1,3 +1,4 @@
+pub mod adt;
 mod binary_input;
 mod binary_output;
 mod deserializer;
@@ -7,7 +8,6 @@ mod features;
 mod serializer;
 mod state;
 mod storable;
-pub mod adt;
 
 use bytes::{Bytes, BytesMut};
 use std::fmt::{Display, Formatter};

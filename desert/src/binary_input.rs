@@ -1,8 +1,8 @@
-use std::fs::File;
 use crate::error::Result;
 use crate::Error;
 use bytes::{Buf, Bytes};
 use flate2::read::DeflateDecoder;
+use std::fs::File;
 use std::io::Read;
 
 pub trait BinaryInput {
@@ -95,9 +95,7 @@ pub trait BinaryInput {
 
     fn read_var_i32(&mut self) -> Result<i32> {
         let r = self.read_var_u32()?;
-        Ok(
-            ((r >> 1) ^ (-((r & 1) as i32) as u32)) as i32
-        )
+        Ok(((r >> 1) ^ (-((r & 1) as i32) as u32)) as i32)
     }
 
     fn read_compressed(&mut self) -> Result<Vec<u8>> {
@@ -151,9 +149,9 @@ impl BinaryInput for File {
 
 #[cfg(test)]
 mod tests {
+    use crate::{BinaryInput, BinaryOutput};
     use bytes::BytesMut;
     use proptest::prelude::*;
-    use crate::{BinaryInput, BinaryOutput};
 
     proptest! {
         #[test]

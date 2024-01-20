@@ -1,7 +1,7 @@
 use crate::adt::FieldPosition;
+use crate::deserializer::DeserializationContext;
 use crate::serializer::SerializationContext;
 use crate::{BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, DeduplicatedString};
-use crate::deserializer::DeserializationContext;
 
 // TODO: this does not have to be public because we cannot use it in the attribute - need to just document it
 pub enum Evolution {
@@ -75,9 +75,7 @@ impl BinarySerializer for SerializedEvolutionStep {
 }
 
 impl BinaryDeserializer for SerializedEvolutionStep {
-    fn deserialize<Context: DeserializationContext>(
-        context: &mut Context,
-    ) -> crate::Result<Self> {
+    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> crate::Result<Self> {
         let code_or_size = context.input_mut().read_var_i32()?;
         if code_or_size == UNKNOWN {
             return Ok(SerializedEvolutionStep::Unknown);
