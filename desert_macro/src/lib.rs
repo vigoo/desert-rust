@@ -1,4 +1,5 @@
 use proc_macro::TokenStream;
+use std::collections::HashMap;
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use syn::{Attribute, Data, DeriveInput, Expr, ExprCall, Lit, LitStr, Meta, Token};
@@ -6,8 +7,9 @@ use syn::punctuated::Punctuated;
 
 use desert::BinarySerializer;
 
-fn evolution_steps_from_attributes(attrs: Vec<Attribute>) -> Vec<proc_macro2::TokenStream> {
+fn evolution_steps_from_attributes(attrs: Vec<Attribute>) -> (Vec<proc_macro2::TokenStream>, HashMap<String, Expr>) {
     let mut evolution_steps = Vec::new();
+    let mut field_defaults = HashMap::new();
     for attr in attrs {
         if attr.path().is_ident("evolution") {
             let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated).expect("evolution steps");
@@ -36,11 +38,11 @@ fn evolution_steps_from_attributes(attrs: Vec<Attribute>) -> Vec<proc_macro2::To
 
                             println!("FieldAdded: name = {field_name}, default value: {:?}", quote! { #field_default });
 
+                            field_defaults.insert(field_name.clone(), field_default.clone());
                             evolution_steps.push(
                                 quote! {
                                     desert::Evolution::FieldAdded {
                                         name: #field_name.to_string(),
-                                        default: std::sync::Arc::new(#field_default),
                                     }
                                 }
                             );
@@ -91,7 +93,7 @@ fn evolution_steps_from_attributes(attrs: Vec<Attribute>) -> Vec<proc_macro2::To
             }
         }
     }
-    evolution_steps
+    (evolution_steps, field_defaults)
 }
 
 #[proc_macro_derive(BinarySerializer, attributes(evolution, transient))]
@@ -99,7 +101,7 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
 
-    let evolution_steps = evolution_steps_from_attributes(ast.attrs);
+    let (evolution_steps, field_defaults) = evolution_steps_from_attributes(ast.attrs);
     let version = evolution_steps.len();
     let mut push_evolution_steps = Vec::new();
     for evolution_step in evolution_steps {

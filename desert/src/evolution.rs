@@ -1,8 +1,6 @@
 use crate::adt::FieldPosition;
 use crate::serializer::SerializationContext;
 use crate::{BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, DeduplicatedString};
-use std::any::Any;
-use std::sync::Arc;
 use crate::deserializer::DeserializationContext;
 
 // TODO: this does not have to be public because we cannot use it in the attribute - need to just document it
@@ -14,7 +12,6 @@ pub enum Evolution {
     /// New version can still read the old with the use of `default`. Old version can only read if the type is `Option<T>` and the value is `None`.
     FieldAdded {
         name: String,
-        default: Arc<dyn Any + Send + Sync>,
     },
 
     /// Existing non-option field is made optional.

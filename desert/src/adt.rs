@@ -14,7 +14,6 @@ use std::sync::Arc;
 pub struct AdtMetadata {
     version: u8,
     field_generations: HashMap<String, u8>,
-    field_defaults: HashMap<String, Arc<dyn Any + Send + Sync>>,
     made_optional_at: HashMap<String, u8>,
     removed_fields: HashSet<String>,
     constructor_name_to_id: HashMap<String, u32>,
@@ -41,17 +40,6 @@ impl AdtMetadata {
             .filter_map(|(idx, evolution)| {
                 if let Evolution::FieldAdded { name, .. } = evolution {
                     Some((name.clone(), idx as u8))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let field_defaults = evolution_steps
-            .iter()
-            .filter_map(|evolution| {
-                if let Evolution::FieldAdded { name, default } = evolution {
-                    Some((name.clone(), default.clone()))
                 } else {
                     None
                 }
@@ -96,7 +84,6 @@ impl AdtMetadata {
             type_name: type_name.to_string(),
             version: (evolution_steps.len() - 1) as u8,
             field_generations,
-            field_defaults,
             made_optional_at,
             removed_fields,
             constructor_name_to_id,
@@ -107,7 +94,21 @@ impl AdtMetadata {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+pub trait DefaultValue<T> {
+    fn default_value(&self) -> T;
+}
+
+struct ProvidedDefaultValue<T: Clone> {
+    value: T,
+}
+
+impl<T: Clone> DefaultValue<T> for ProvidedDefaultValue<T> {
+    fn default_value(&self) -> T {
+        self.value.clone()
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FieldPosition {
     pub chunk: u8,
     pub position: u8,
@@ -285,14 +286,14 @@ impl<'a, Context: SerializationContext> ChunkedOutput for BufferingChunkedOutput
 
 pub struct ChunkedSerialization<'a, CO: ChunkedOutput> {
     output: &'a mut CO,
-    chunk: u8
+    chunk: u8,
 }
 
 impl<'a, CO: ChunkedOutput> ChunkedSerialization<'a, CO> {
     pub fn new(output: &'a mut CO, chunk: u8) -> Self {
         Self {
             output,
-            chunk
+            chunk,
         }
     }
 }
@@ -398,5 +399,261 @@ pub trait ChunkedInput {
 
     fn stored_version(&self) -> u8;
 
-    fn input_for(&mut self, version: u8) -> &mut Self::Input;
+    fn input_for(&mut self, version: u8) -> Result<&mut Self::Input>;
+    fn state(&self) -> &State;
+    fn state_mut(&mut self) -> &mut State;
+
+    fn made_optional_at(&self) -> &HashMap<FieldPosition, u8>;
+
+    fn removed_fields(&self) -> &HashSet<String>;
+}
+
+pub struct NonChunkedInput<'a, Context: DeserializationContext> {
+    context: &'a mut Context,
+    made_optional_at: HashMap<FieldPosition, u8>,
+    removed_fields: HashSet<String>,
+}
+
+impl<'a, Context: DeserializationContext> NonChunkedInput<'a, Context> {
+    pub fn new(context: &'a mut Context) -> Self {
+        Self {
+            context,
+            made_optional_at: HashMap::new(),
+            removed_fields: HashSet::new(),
+        }
+    }
+}
+
+impl<'a, Context: DeserializationContext> ChunkedInput for NonChunkedInput<'a, Context> {
+    type Input = Context::Input;
+
+    fn stored_version(&self) -> u8 {
+        0
+    }
+
+    fn input_for(&mut self, version: u8) -> Result<&mut Self::Input> {
+        if version == 0 {
+            Ok(self.context.input_mut())
+        } else {
+            Err(Error::DeserializingNonExistingChunk(version))
+        }
+    }
+
+    fn state(&self) -> &State {
+        self.context.state()
+    }
+
+    fn state_mut(&mut self) -> &mut State {
+        self.context.state_mut()
+    }
+
+    fn made_optional_at(&self) -> &HashMap<FieldPosition, u8> {
+        &self.made_optional_at
+    }
+
+    fn removed_fields(&self) -> &HashSet<String> {
+        &self.removed_fields
+    }
+}
+
+pub struct PreloadedChunkedInput<'a, Context: DeserializationContext> {
+    context: &'a mut Context,
+    stored_version: u8,
+    made_optional_at: HashMap<FieldPosition, u8>,
+    removed_fields: HashSet<String>,
+    inputs: Vec<Bytes>,
+}
+
+impl<'a, Context: DeserializationContext> PreloadedChunkedInput<'a, Context> {
+    pub fn new(context: &'a mut Context, stored_version: u8) -> Result<Self> {
+        let mut serialized_evolution_steps = Vec::with_capacity(stored_version as usize + 1);
+        for _ in 0..=stored_version {
+            let serialized_evolution_step = SerializedEvolutionStep::deserialize(context)?;
+            serialized_evolution_steps.push(serialized_evolution_step);
+        }
+
+        let mut inputs = Vec::with_capacity(serialized_evolution_steps.len());
+        let mut made_optional_at = HashMap::new();
+        let mut removed_fields = HashSet::new();
+
+        for (idx, serialized_evolution_step) in serialized_evolution_steps.iter().enumerate() {
+            match serialized_evolution_step {
+                SerializedEvolutionStep::FieldAddedToNewChunk { size } => {
+                    let input = context.input_mut().read_bytes(*size as usize)?;
+                    inputs.push(input.into());
+                }
+                SerializedEvolutionStep::FieldMadeOptional { position } => {
+                    made_optional_at.insert(*position, idx as u8);
+                    inputs.push(Bytes::new());
+                }
+                SerializedEvolutionStep::FieldRemoved { field_name } => {
+                    removed_fields.insert(field_name.clone());
+                    inputs.push(Bytes::new());
+                }
+                _ => {
+                    inputs.push(Bytes::new());
+                }
+            }
+        }
+
+        Ok(Self {
+            context,
+            stored_version,
+            made_optional_at,
+            removed_fields,
+            inputs,
+        })
+    }
+}
+
+impl<'a, Context: DeserializationContext> ChunkedInput for PreloadedChunkedInput<'a, Context> {
+    type Input = Bytes;
+
+    fn stored_version(&self) -> u8 {
+        self.stored_version
+    }
+
+    fn input_for(&mut self, version: u8) -> Result<&mut Self::Input> {
+        if version < self.inputs.len() as u8 {
+            Ok(&mut self.inputs[version as usize])
+        } else {
+            Err(Error::DeserializingNonExistingChunk(version))
+        }
+    }
+
+    fn state(&self) -> &State {
+        self.context.state()
+    }
+
+    fn state_mut(&mut self) -> &mut State {
+        self.context.state_mut()
+    }
+
+    fn made_optional_at(&self) -> &HashMap<FieldPosition, u8> {
+        &self.made_optional_at
+    }
+
+    fn removed_fields(&self) -> &HashSet<String> {
+        &self.removed_fields
+    }
+}
+
+pub struct ChunkedDeserialization<'a, CI: ChunkedInput> {
+    input: &'a mut CI,
+    chunk: u8,
+}
+
+impl<'a, CI: ChunkedInput> ChunkedDeserialization<'a, CI> {
+    pub fn new(input: &'a mut CI, chunk: u8) -> Self {
+        Self {
+            input,
+            chunk,
+        }
+    }
+}
+
+impl<'a, CI: ChunkedInput> DeserializationContext for ChunkedDeserialization<'a, CI> {
+    type Input = CI::Input;
+
+    fn input_mut(&mut self) -> &mut Self::Input {
+        self.input.input_for(self.chunk).unwrap()
+    }
+
+    fn state(&self) -> &State {
+        self.input.state()
+    }
+
+    fn state_mut(&mut self) -> &mut State {
+        self.input.state_mut()
+    }
+}
+
+pub struct AdtDeserializer<'a, Context: DeserializationContext, CI: ChunkedInput> {
+    metadata: &'a AdtMetadata,
+    chunked_input: CI,
+    context: PhantomData<Context>,
+    last_index_per_chunk: HashMap<u8, u8>,
+    field_indices: HashMap<String, FieldPosition>, // TODO: &'static str keys?
+}
+
+impl<'a, 'b, Context: DeserializationContext> AdtDeserializer<'a, Context, NonChunkedInput<'b, Context>> {
+    pub fn new_v0(metadata: &'a AdtMetadata, context: &'b mut Context) -> Result<Self> {
+        let chunked_input = NonChunkedInput::new(context);
+        Ok(Self {
+            metadata,
+            chunked_input,
+            context: PhantomData,
+            last_index_per_chunk: HashMap::new(),
+            field_indices: HashMap::new(),
+        })
+    }
+}
+
+impl<'a, 'b, Context: DeserializationContext> AdtDeserializer<'a, Context, PreloadedChunkedInput<'b, Context>> {
+    pub fn new(metadata: &'a AdtMetadata, context: &'b mut Context, stored_version: u8) -> Result<Self> {
+        let chunked_input = PreloadedChunkedInput::new(context, stored_version)?;
+        Ok(Self {
+            metadata,
+            chunked_input,
+            context: PhantomData,
+            last_index_per_chunk: HashMap::new(),
+            field_indices: HashMap::new(),
+        })
+    }
+}
+
+impl<'a, Context: DeserializationContext, CI: ChunkedInput> AdtDeserializer<'a, Context, CI> {
+    pub fn read_field<T: BinaryDeserializer>(&mut self, field_name: &str, field_default: Option<T>) -> Result<T> {
+        if self.chunked_input.removed_fields().contains(field_name) {
+            Err(Error::FieldRemovedInSerializedVersion(field_name.to_string()))
+        } else {
+            let chunk = *self.metadata.field_generations.get(field_name).unwrap_or(&0);
+            let field_position = self.record_field_index(field_name, chunk);
+            if self.chunked_input.stored_version() < chunk {
+                // Field was not serialized
+                match field_default {
+                    Some(value) => {
+                        Ok(value)
+                    }
+                    None => Err(Error::FieldWithoutDefaultValueIsMissing(field_name.to_string()))
+                }
+            } else {
+                // Field was serialized
+
+                if self.chunked_input.made_optional_at().contains_key(&field_position) {
+                    // The field was made optional in a newer version, so we have to read Option<T>
+
+                    let mut context = ChunkedDeserialization::new(&mut self.chunked_input, chunk);
+                    let is_defined = bool::deserialize(&mut context)?;
+                    if is_defined {
+                        T::deserialize(&mut context)
+                    } else {
+                        Err(Error::NonOptionalFieldSerializedAsNone(field_name.to_string()))
+                    }
+                } else {
+                    let mut context = ChunkedDeserialization::new(&mut self.chunked_input, chunk);
+
+                    T::deserialize(&mut context)
+                }
+            }
+        }
+    }
+
+    fn record_field_index(&mut self, field_name: &str, chunk: u8) -> FieldPosition {
+        match self.last_index_per_chunk.get_mut(&chunk) {
+            Some(last_index) => {
+                let new_index = *last_index + 1;
+                let fp = FieldPosition::new(chunk, new_index);
+                *last_index = new_index;
+                self.field_indices.insert(field_name.to_string(), fp);
+                fp
+            }
+            None => {
+                let fp = FieldPosition::new(chunk, 0);
+                self.last_index_per_chunk.insert(chunk, 0);
+                self.field_indices.insert(field_name.to_string(), fp);
+                fp
+            }
+        }
+    }
 }

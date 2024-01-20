@@ -20,8 +20,12 @@ pub enum Error {
     UnknownFieldReferenceInEvolutionStep(String),
     InvalidConstructorName {
         constructor_name: String,
-        type_name: String
-    }
+        type_name: String,
+    },
+    DeserializingNonExistingChunk(u8),
+    FieldRemovedInSerializedVersion(String),
+    FieldWithoutDefaultValueIsMissing(String),
+    NonOptionalFieldSerializedAsNone(String),
 }
 
 impl Display for Error {
@@ -37,8 +41,12 @@ impl Display for Error {
             Error::FailedToDecodeString(msg) => write!(f, "Failed to decode string: {}", msg),
             Error::InvalidStringId(id) => write!(f, "Invalid string id: {}", id),
             Error::DeserializationFailure(msg) => write!(f, "Deserialization failure: {}", msg),
-            Error::UnknownFieldReferenceInEvolutionStep(msg) => write!(f, "Unknown field reference in evolution step: {}", msg),
-            Error::InvalidConstructorName { constructor_name, type_name } => write!(f, "Invalid constructor name: {} for type: {}", constructor_name, type_name)
+            Error::UnknownFieldReferenceInEvolutionStep(msg) => write!(f, "Unknown field reference in evolution step: {msg}"),
+            Error::InvalidConstructorName { constructor_name, type_name } => write!(f, "Invalid constructor name: {constructor_name} for type: {type_name}"),
+            Error::DeserializingNonExistingChunk(chunk_id) => write!(f, "Deserializing non existing chunk: {chunk_id}"),
+            Error::FieldRemovedInSerializedVersion(field_name) => write!(f, "Field removed in serialized version: {field_name}"),
+            Error::FieldWithoutDefaultValueIsMissing(field_name) => write!(f, "Field without default value is missing: {field_name}"),
+            Error::NonOptionalFieldSerializedAsNone(field_name) => write!(f, "Non optional field serialized as None: {field_name}"),
         }
     }
 }
