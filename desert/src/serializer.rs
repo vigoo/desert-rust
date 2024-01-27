@@ -410,7 +410,7 @@ impl<T: BinarySerializer> BinarySerializer for Vec<T> {
             context
                 .output_mut()
                 .write_var_i32(byte_vec.len().try_into()?);
-            context.output_mut().write_bytes(&byte_vec);
+            context.output_mut().write_bytes(byte_vec);
             Ok(())
         } else {
             serialize_iterator(&mut self.iter(), context)

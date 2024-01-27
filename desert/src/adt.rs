@@ -5,11 +5,10 @@ use crate::serializer::SerializationContext;
 use crate::state::State;
 use crate::{BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, Error, Evolution};
 use bytes::{Bytes, BytesMut};
-use std::any::Any;
+
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::ops::IndexMut;
-use std::sync::Arc;
 
 pub struct AdtMetadata {
     version: u8,

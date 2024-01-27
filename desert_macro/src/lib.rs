@@ -3,9 +3,7 @@ use proc_macro2::{Ident, Span};
 use quote::quote;
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
-use syn::{Attribute, Data, DeriveInput, Expr, ExprCall, Lit, LitStr, Meta, Token};
-
-use desert::BinarySerializer;
+use syn::{Attribute, Data, DeriveInput, Expr, Lit, LitStr, Meta, Token};
 
 fn evolution_steps_from_attributes(
     attrs: Vec<Attribute>,

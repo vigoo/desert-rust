@@ -63,7 +63,7 @@ impl BinaryDeserializer for u8 {
 
 impl BinaryDeserializer for i8 {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        Ok(context.input_mut().read_i8()?)
+        context.input_mut().read_i8()
     }
 }
 
@@ -398,7 +398,7 @@ impl BinaryDeserializer for Bytes {
 impl<T: BinaryDeserializer, const L: usize> BinaryDeserializer for [T; L] {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         let empty: [T; 0] = [];
-        if let Ok(_) = cast!(empty, [u8; 0]) {
+        if cast!(empty, [u8; 0]).is_ok() {
             let length = context.input_mut().read_var_i32()?;
             let bytes = context.input_mut().read_bytes(length as usize)?;
             Ok(unsafe { std::mem::transmute_copy::<_, [T; L]>(&bytes) })

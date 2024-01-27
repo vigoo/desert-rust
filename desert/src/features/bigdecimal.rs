@@ -14,9 +14,9 @@ impl BinarySerializer for BigDecimal {
 impl BinaryDeserializer for BigDecimal {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         let string = String::deserialize(context)?;
-        Ok(string.parse().map_err(|err| {
+        string.parse().map_err(|err| {
             Error::DeserializationFailure(format!("Failed to deserialize BigDecimal: {err}"))
-        })?)
+        })
     }
 }
 

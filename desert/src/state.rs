@@ -5,6 +5,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+#[derive(Default)]
 pub struct State {
     strings_by_id: HashMap<StringId, String>,
     ids_by_string: HashMap<String, StringId>,
@@ -51,19 +52,6 @@ impl State {
     }
 
     pub fn get_ref_by_id(&mut self, id: RefId) -> Option<Rc<dyn StorableRef>> {
-        self.refs_by_id.get(&id).map(|r| r.clone())
-    }
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            strings_by_id: HashMap::new(),
-            ids_by_string: HashMap::new(),
-            last_string_id: StringId::default(),
-            refs_by_id: HashMap::new(),
-            ids_by_ref: HashMap::new(),
-            last_ref_id: RefId::default(),
-        }
+        self.refs_by_id.get(&id).cloned()
     }
 }
