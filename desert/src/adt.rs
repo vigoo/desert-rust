@@ -18,18 +18,12 @@ pub struct AdtMetadata {
     removed_fields: HashSet<String>,
     constructor_name_to_id: HashMap<String, u32>,
     constructor_id_to_name: HashMap<u32, String>,
-    transient_fields: HashMap<String, Arc<dyn Any + Send + Sync>>,
     type_name: String,
     evolution_steps: Vec<Evolution>,
 }
 
 impl AdtMetadata {
-    pub fn new(
-        type_name: &str,
-        evolution_steps: Vec<Evolution>,
-        constructors: &[&str],
-        transient_fields: HashMap<String, Arc<dyn Any + Send + Sync>>,
-    ) -> Self {
+    pub fn new(type_name: &str, evolution_steps: Vec<Evolution>, constructors: &[&str]) -> Self {
         if evolution_steps.len() > 255 {
             panic!("Too many evolution steps");
         }
@@ -88,7 +82,6 @@ impl AdtMetadata {
             removed_fields,
             constructor_name_to_id,
             constructor_id_to_name,
-            transient_fields,
             evolution_steps,
         }
     }
@@ -670,6 +663,44 @@ impl<'a, Context: DeserializationContext, CI: ChunkedInput> AdtDeserializer<'a, 
                     let mut context = ChunkedDeserialization::new(&mut self.chunked_input, chunk);
 
                     T::deserialize(&mut context)
+                }
+            }
+        }
+    }
+
+    pub fn read_optional_field<T: BinaryDeserializer>(
+        &mut self,
+        field_name: &str,
+        field_default: Option<Option<T>>,
+    ) -> Result<Option<T>> {
+        if self.chunked_input.removed_fields().contains(field_name) {
+            Ok(None)
+        } else {
+            let chunk = *self
+                .metadata
+                .field_generations
+                .get(field_name)
+                .unwrap_or(&0);
+            let opt_since = *self.metadata.made_optional_at.get(field_name).unwrap_or(&0);
+
+            self.record_field_index(field_name, chunk);
+            if self.chunked_input.stored_version() < chunk {
+                // This field was not serialized
+                match field_default {
+                    Some(default_value) => Ok(default_value),
+                    None => Err(Error::DeserializationFailure(format!(
+                        "Field {field_name} is not in the stream and does not have a default value"
+                    ))),
+                }
+            } else {
+                // This field was serialized
+
+                if self.chunked_input.stored_version() < opt_since {
+                    let mut context = ChunkedDeserialization::new(&mut self.chunked_input, chunk);
+                    Ok(Some(T::deserialize(&mut context)?))
+                } else {
+                    let mut context = ChunkedDeserialization::new(&mut self.chunked_input, chunk);
+                    Option::<T>::deserialize(&mut context)
                 }
             }
         }

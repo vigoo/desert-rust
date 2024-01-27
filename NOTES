@@ -6,7 +6,7 @@ For the blog:
 - We cannot do specialization: introduce the cast! macro (castaway crate)
 - feature dependent modules
 - How can we store arbitrary data in the "refs" support? StorableRef, dyn_eq and dyn_hash crates
-- we cannot do a usable fields_default map so we pass the values one by one from the macro-generated serializers
+- we cannot do a usable fields_default map so we pass the values one by one from the macro-generated serializers. same for transients
 - the v vs v0 trick and why we need to decide from the outside
 - The derivation macro
   - converting the evolution attribute into static data

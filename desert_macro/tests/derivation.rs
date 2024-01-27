@@ -1,7 +1,7 @@
-use assert2::{assert, check};
-use desert_macro::BinarySerializer;
+use assert2::check;
+use desert_macro::BinaryCodec;
 
-#[derive(Debug, PartialEq, BinarySerializer)]
+#[derive(Debug, PartialEq, BinaryCodec)]
 #[evolution(FieldAdded("x", 0), FieldRemoved("z"))]
 struct Point {
     pub x: i32,

@@ -100,8 +100,8 @@ fn evolution_steps_from_attributes(
     (evolution_steps, field_defaults)
 }
 
-#[proc_macro_derive(BinarySerializer, attributes(evolution, transient))]
-pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(BinaryCodec, attributes(evolution, transient))]
+pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
     let (evolution_steps, field_defaults) = evolution_steps_from_attributes(ast.attrs);
@@ -120,8 +120,8 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
         Span::call_site(),
     );
 
-    let mut insert_transient_fields = Vec::new();
     let mut serialization_commands = Vec::new();
+    let mut deserialization_commands: Vec<proc_macro2::TokenStream> = Vec::new();
 
     match ast.data {
         Data::Struct(struct_data) => {
@@ -132,7 +132,7 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
                     .expect("Field does not have an identifier");
                 let field_name = field_ident.to_string();
 
-                let mut transient = false;
+                let mut transient = None;
                 for attr in &field.attrs {
                     if attr.path().is_ident("transient") {
                         let args = attr
@@ -141,19 +141,38 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
                         if args.len() != 1 {
                             panic!("#[transient(default)] on fields needs a default value");
                         }
-                        let field_default = &args[0];
-                        insert_transient_fields.push(quote! {
-                            transient_fields.insert(#field_name.to_string(), std::sync::Arc::new(#field_default));
-                        });
-
-                        transient = true;
+                        let field_default = args[0].clone();
+                        transient = Some(field_default);
                     }
                 }
 
-                if !transient {
-                    serialization_commands.push(quote! {
-                        serializer.write_field(#field_name, &self.#field_ident)?;
-                    });
+                match transient {
+                    None => {
+                        serialization_commands.push(quote! {
+                            serializer.write_field(#field_name, &self.#field_ident)?;
+                        });
+
+                        // TODO: check if field.ty is Option<T>
+                        // TODO if the field was made optional later, we need to wrap it's default value with Some() when calling read_optional_field
+
+                        match field_defaults.get(&field_name) {
+                            Some(field_default) => {
+                                deserialization_commands.push(quote! {
+                                #field_ident: deserializer.read_field(#field_name, Some(#field_default))?,
+                            });
+                            }
+                            None => {
+                                deserialization_commands.push(quote! {
+                                   #field_ident: deserializer.read_field(#field_name, None)?,
+                                });
+                            }
+                        }
+                    }
+                    Some(transient_default_value) => {
+                        deserialization_commands.push(quote! {
+                          #field_ident: #transient_default_value,
+                        });
+                    }
                 }
             }
         }
@@ -178,14 +197,10 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
                 evolution_steps.push(desert::Evolution::InitialVersion);
                 #(#push_evolution_steps)*
 
-                let mut transient_fields: std::collections::HashMap<String, std::sync::Arc<dyn std::any::Any + Send + Sync>> = std::collections::HashMap::new();
-                #(#insert_transient_fields)*
-
                 desert::adt::AdtMetadata::new(
                     #name_string,
                     evolution_steps,
                     &vec![],
-                    transient_fields,
                 )
             };
         }
@@ -200,7 +215,20 @@ pub fn derive_binary_serializer(input: TokenStream) -> TokenStream {
 
         impl desert::BinaryDeserializer for #name {
             fn deserialize<Context: desert::DeserializationContext>(context: &mut Context) -> desert::Result<Self> {
-                todo!()
+                use desert::BinaryInput;
+
+                let stored_version = context.input_mut().read_u8()?;
+                if stored_version == 0 {
+                    let mut deserializer = desert::adt::AdtDeserializer::new_v0(&#metadata_name, context)?;
+                    Ok(Self {
+                        #(#deserialization_commands)*
+                    })
+                } else {
+                    let mut deserializer = desert::adt::AdtDeserializer::new(&#metadata_name, context, stored_version)?;
+                    Ok(Self {
+                        #(#deserialization_commands)*
+                    })
+                }
             }
         }
     };

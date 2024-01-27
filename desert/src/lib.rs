@@ -19,6 +19,8 @@ pub use error::{Error, Result};
 pub use evolution::Evolution;
 pub use serializer::{serialize_iterator, BinarySerializer, SerializationContext};
 
+pub trait BinaryCodec: BinarySerializer + BinaryDeserializer {}
+
 pub fn serialize<T: BinarySerializer, O: BinaryOutput>(value: &T, output: O) -> Result<O> {
     let mut context = serializer::Serialization::new(output);
     value.serialize(&mut context)?;
