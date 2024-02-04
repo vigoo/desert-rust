@@ -3,7 +3,7 @@ use proc_macro2::{Ident, Span};
 use quote::quote;
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
-use syn::{Attribute, Data, DeriveInput, Expr, Lit, LitStr, Meta, Token};
+use syn::{Attribute, Data, DeriveInput, Expr, Lit, LitStr, Meta, Token, Type};
 
 fn evolution_steps_from_attributes(
     attrs: Vec<Attribute>,
@@ -98,6 +98,7 @@ fn evolution_steps_from_attributes(
     (evolution_steps, field_defaults)
 }
 
+// TODO: attribute to force/disable option field detection for a field (because it's based on names only)
 #[proc_macro_derive(BinaryCodec, attributes(evolution, transient))]
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
@@ -150,19 +151,31 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                             serializer.write_field(#field_name, &self.#field_ident)?;
                         });
 
-                        // TODO: check if field.ty is Option<T>
-                        // TODO if the field was made optional later, we need to wrap it's default value with Some() when calling read_optional_field
-
-                        match field_defaults.get(&field_name) {
-                            Some(field_default) => {
-                                deserialization_commands.push(quote! {
-                                #field_ident: deserializer.read_field(#field_name, Some(#field_default))?,
-                            });
+                        if is_option(&field.ty) {
+                            match field_defaults.get(&field_name) {
+                                Some(field_default) => {
+                                    deserialization_commands.push(quote! {
+                                        #field_ident: deserializer.read_optional_field(#field_name, Some(#field_default))?,
+                                    });
+                                }
+                                None => {
+                                    deserialization_commands.push(quote! {
+                                       #field_ident: deserializer.read_optional_field(#field_name, None)?,
+                                    });
+                                }
                             }
-                            None => {
-                                deserialization_commands.push(quote! {
-                                   #field_ident: deserializer.read_field(#field_name, None)?,
-                                });
+                        } else {
+                            match field_defaults.get(&field_name) {
+                                Some(field_default) => {
+                                    deserialization_commands.push(quote! {
+                                        #field_ident: deserializer.read_field(#field_name, Some(#field_default))?,
+                                    });
+                                }
+                                None => {
+                                    deserialization_commands.push(quote! {
+                                       #field_ident: deserializer.read_field(#field_name, None)?,
+                                    });
+                                }
                             }
                         }
                     }
@@ -232,6 +245,29 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     };
 
     gen.into()
+}
+
+fn is_option(ty: &Type) -> bool {
+    match ty {
+        Type::Group(group) => is_option(&group.elem),
+        Type::Paren(paren) => is_option(&paren.elem),
+        Type::Path(type_path) => {
+            if type_path.qself.is_none() {
+                let idents = type_path
+                    .path
+                    .segments
+                    .iter()
+                    .map(|segment| segment.ident.to_string())
+                    .collect::<Vec<_>>();
+                idents == vec!["Option"]
+                    || idents == vec!["std", "option", "Option"]
+                    || idents == vec!["core", "option", "Option"]
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
 }
 
 fn expr_type(expr: &Expr) -> String {

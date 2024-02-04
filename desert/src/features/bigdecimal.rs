@@ -32,3 +32,44 @@ impl BinaryDeserializer for BigInt {
         Ok(BigInt::from_signed_bytes_be(&bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::roundtrip;
+    use bigdecimal::num_bigint::BigInt;
+    use bigdecimal::{BigDecimal, Num};
+    use proptest::collection::vec;
+    use proptest::prelude::*;
+
+    fn bigdecimal_strategy() -> impl Strategy<Value = BigDecimal> {
+        ((0..u128::MAX), (0..u128::MAX), any::<bool>()).prop_map(|(a, b, has_fractional)| {
+            let a = a.to_string();
+            let b = b.to_string();
+            let string = if has_fractional {
+                format!("{}.{}", a, b)
+            } else {
+                a
+            };
+            string.parse().unwrap()
+        })
+    }
+
+    fn bigint_strategy() -> impl Strategy<Value = BigInt> {
+        vec(any::<u8>(), 1..1000).prop_map(|nums| {
+            let s = nums.into_iter().map(|n| n.to_string()).collect::<String>();
+            BigInt::from_str_radix(&s, 10).unwrap()
+        })
+    }
+
+    proptest! {
+        #[test]
+        fn roundtrip_bigdecimal(value in bigdecimal_strategy()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_bigint(value in bigint_strategy()) {
+            roundtrip(value);
+        }
+    }
+}

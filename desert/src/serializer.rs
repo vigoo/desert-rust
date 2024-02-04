@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use castaway::cast;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -437,6 +437,12 @@ impl<K: BinarySerializer, V: BinarySerializer> BinarySerializer for HashMap<K, V
 }
 
 impl<K: BinarySerializer, V: BinarySerializer> BinarySerializer for BTreeMap<K, V> {
+    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+        serialize_iterator(&mut self.iter(), context)
+    }
+}
+
+impl<T: BinarySerializer> BinarySerializer for LinkedList<T> {
     fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
         serialize_iterator(&mut self.iter(), context)
     }

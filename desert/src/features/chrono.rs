@@ -19,7 +19,7 @@ impl BinarySerializer for Weekday {
 
 impl BinaryDeserializer for Weekday {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        Weekday::from_i8(i8::deserialize(context)?).ok_or_else(|| {
+        Weekday::from_i8(i8::deserialize(context)? - 1).ok_or_else(|| {
             Error::DeserializationFailure("Failed to deserialize Weekday".to_string())
         })
     }
@@ -232,5 +232,35 @@ impl BinaryDeserializer for DateTime<Tz> {
         let naive = NaiveDateTime::deserialize(context)?;
         let tz = Tz::deserialize(context)?;
         Ok(tz.from_utc_datetime(&naive))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::roundtrip;
+    use chrono::{DateTime, FixedOffset, Month, Utc, Weekday};
+    use proptest::prelude::*;
+    use proptest_arbitrary_interop::arb;
+
+    proptest! {
+        #[test]
+        fn roundtrip_weekday(value in arb::<Weekday>()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_month(value in arb::<Month>()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_fixed_offset(value in arb::<FixedOffset>()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_datetime_utc(value in arb::<DateTime<Utc>>()) {
+            roundtrip(value);
+        }
     }
 }

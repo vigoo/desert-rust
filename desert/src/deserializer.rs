@@ -5,7 +5,7 @@ use crate::{DeduplicatedString, Error, StringId};
 use bytes::Bytes;
 use castaway::cast;
 use std::char::DecodeUtf16Error;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
@@ -451,6 +451,12 @@ impl<K: BinaryDeserializer + Eq + Hash, V: BinaryDeserializer> BinaryDeserialize
 }
 
 impl<K: BinaryDeserializer + Ord, V: BinaryDeserializer> BinaryDeserializer for BTreeMap<K, V> {
+    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+        deserialize_iterator(context).collect()
+    }
+}
+
+impl<T: BinaryDeserializer + Eq + Hash> BinaryDeserializer for LinkedList<T> {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         deserialize_iterator(context).collect()
     }

@@ -84,9 +84,12 @@ impl Display for RefId {
 mod tests {
     use crate::{deserialize, serialize_to_bytes, BinaryDeserializer, BinarySerializer};
     use proptest::prelude::*;
+    use std::collections::LinkedList;
     use std::fmt::Debug;
 
-    fn roundtrip<T: BinarySerializer + BinaryDeserializer + Debug + PartialEq>(value: T) {
+    pub(crate) fn roundtrip<T: BinarySerializer + BinaryDeserializer + Debug + PartialEq>(
+        value: T,
+    ) {
         let data = serialize_to_bytes(&value).unwrap();
         let result = deserialize::<T, _>(data).unwrap();
         assert_eq!(value, result);
@@ -247,6 +250,16 @@ mod tests {
 
         #[test]
         fn roundtrip_btreemap(value: std::collections::BTreeMap<String, u32>) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_result(value: Result<u32, String>) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_linked_list(value: LinkedList<String>) {
             roundtrip(value);
         }
     }

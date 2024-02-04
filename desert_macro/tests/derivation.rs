@@ -10,6 +10,16 @@ struct Point {
     cached_str: Option<String>,
 }
 
+#[derive(Debug, PartialEq, BinaryCodec)]
+#[evolution(FieldAdded("x", 0), FieldRemoved("z"), FieldAdded("description", Some("hello".to_string())), FieldMadeOptional("description"))]
+struct Point2 {
+    pub x: i32,
+    pub y: i32,
+    #[transient(None::<String>)]
+    cached_str: Option<String>,
+    pub description: Option<String>,
+}
+
 #[test]
 fn debug() {
     let pt = Point {
@@ -25,4 +35,14 @@ fn debug() {
 
     let pt2 = desert::deserialize(bytes).unwrap();
     check!(pt == pt2);
+
+    let pt3 = Point2 {
+        x: 1,
+        y: -10,
+        cached_str: None,
+        description: Some("Hello world".to_string()),
+    };
+    let bytes2 = desert::serialize_to_bytes(&pt3).unwrap();
+    let pt4 = desert::deserialize(bytes2).unwrap();
+    check!(pt3 == pt4);
 }
