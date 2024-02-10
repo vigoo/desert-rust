@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use castaway::cast;
+use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
 use std::marker::PhantomData;
 use std::rc::Rc;
@@ -9,7 +10,6 @@ use std::time::Duration;
 use crate::binary_output::BinaryOutput;
 use crate::error::Result;
 use crate::state::State;
-use crate::storable::StorableRef;
 use crate::{DeduplicatedString, Error, RefId, StringId};
 
 pub trait BinarySerializer {
@@ -22,13 +22,13 @@ pub trait SerializationContext {
     fn output_mut(&mut self) -> &mut Self::Output;
     fn state_mut(&mut self) -> &mut State;
 
-    fn store_ref_or_object(&mut self, value: Rc<dyn StorableRef>) -> Result<bool> {
+    fn store_ref_or_object(&mut self, value: &impl Any) -> Result<bool> {
         match self.state_mut().store_ref(value) {
             StoreRefResult::RefAlreadyStored { id } => {
                 self.output_mut().write_var_u32(id.0);
                 Ok(false)
             }
-            StoreRefResult::RefIsNew { new_id, value } => {
+            StoreRefResult::RefIsNew { .. } => {
                 self.output_mut().write_var_u32(0);
                 Ok(true)
             }
@@ -77,7 +77,7 @@ pub enum StoreRefResult {
     },
     RefIsNew {
         new_id: RefId,
-        value: Rc<dyn StorableRef>,
+        value: *const dyn Any,
     },
 }
 

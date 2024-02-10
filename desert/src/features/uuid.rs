@@ -24,10 +24,10 @@ impl BinaryDeserializer for Uuid {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::roundtrip;
     use proptest::proptest;
     use proptest_arbitrary_interop::arb;
     use uuid::Uuid;
-    use crate::tests::roundtrip;
 
     proptest! {
         #[test]

@@ -4,6 +4,7 @@ use crate::state::State;
 use crate::{DeduplicatedString, Error, RefId, StringId};
 use bytes::Bytes;
 use castaway::cast;
+use std::any::Any;
 use std::char::DecodeUtf16Error;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
 use std::hash::Hash;
@@ -12,7 +13,6 @@ use std::mem::MaybeUninit;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
-use crate::storable::StorableRef;
 
 pub trait BinaryDeserializer: Sized {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self>;
@@ -25,7 +25,7 @@ pub trait DeserializationContext {
     fn state(&self) -> &State;
     fn state_mut(&mut self) -> &mut State;
 
-    fn try_read_ref(&mut self) -> Result<Option<Rc<dyn StorableRef>>> {
+    fn try_read_ref(&mut self) -> Result<Option<&dyn Any>> {
         let id = self.input_mut().read_var_u32()?;
         if id == 0 {
             Ok(None)

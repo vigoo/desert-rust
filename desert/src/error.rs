@@ -26,7 +26,7 @@ pub enum Error {
     FieldRemovedInSerializedVersion(String),
     FieldWithoutDefaultValueIsMissing(String),
     NonOptionalFieldSerializedAsNone(String),
-    InvalidRefId(RefId)
+    InvalidRefId(RefId),
 }
 
 impl Display for Error {
@@ -64,7 +64,7 @@ impl Display for Error {
             Error::NonOptionalFieldSerializedAsNone(field_name) => {
                 write!(f, "Non optional field serialized as None: {field_name}")
             }
-            Error::InvalidRefId(id) => write!(f, "Invalid reference id: {id}")
+            Error::InvalidRefId(id) => write!(f, "Invalid reference id: {id}"),
         }
     }
 }

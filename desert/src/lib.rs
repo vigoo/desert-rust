@@ -82,13 +82,16 @@ impl Display for RefId {
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-    use crate::{deserialize, serialize_to_bytes, BinaryDeserializer, BinarySerializer, SerializationContext, DeserializationContext};
+    use crate::{
+        deserialize, serialize_to_bytes, BinaryDeserializer, BinarySerializer,
+        DeserializationContext, SerializationContext,
+    };
     use proptest::prelude::*;
+    use std::cell::RefCell;
     use std::collections::LinkedList;
     use std::fmt::Debug;
+    use std::ops::Deref;
     use std::rc::Rc;
-    use crate::storable::StorableRef;
 
     pub(crate) fn roundtrip<T: BinarySerializer + BinaryDeserializer + Debug + PartialEq>(
         value: T,
@@ -267,19 +270,23 @@ mod tests {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[derive(Debug, Clone)]
     struct Node {
         label: String,
-        next: Option<Rc<RefCell<Node>>>
+        next: Option<Rc<RefCell<Node>>>,
     }
 
-    impl BinarySerializer for Node {
-        fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-            self.label.serialize(context)?;
-            match &self.next {
+    impl BinarySerializer for Rc<RefCell<Node>> {
+        fn serialize<Context: SerializationContext>(
+            &self,
+            context: &mut Context,
+        ) -> crate::Result<()> {
+            let node = self.borrow();
+            node.label.serialize(context)?;
+            match &node.next {
                 Some(next) => {
                     true.serialize(context)?;
-                    if context.store_ref_or_object(next.clone())? {
+                    if context.store_ref_or_object(next)? {
                         next.serialize(context)?;
                     }
                 }
@@ -291,30 +298,40 @@ mod tests {
         }
     }
 
-    impl BinaryDeserializer for Node {
-        fn deserialize<Context: DeserializationContext>(context: &mut Context) -> crate::Result<Self> {
+    impl BinaryDeserializer for Rc<RefCell<Node>> {
+        fn deserialize<Context: DeserializationContext>(
+            context: &mut Context,
+        ) -> crate::Result<Self> {
             let label = String::deserialize(context)?;
+            let result = Rc::new(RefCell::new(Node { label, next: None }));
+            context.state_mut().store_ref(&result);
             let has_next = bool::deserialize(context)?;
-            let next = if has_next {
+            if has_next {
                 match context.try_read_ref()? {
-                    Some(next) => Some(Rc::new(next.get().downcast_ref::<Node>().unwrap().clone())),
-                    None => Some(Rc::new(Node::deserialize(context)?)),
+                    Some(next) => {
+                        result.borrow_mut().next =
+                            Some(next.downcast_ref::<Rc<RefCell<Node>>>().unwrap().clone())
+                    }
+                    None => {
+                        result.borrow_mut().next = Some(Rc::<RefCell<Node>>::deserialize(context)?)
+                    }
                 }
-            } else {
-                None
-            };
-            Ok(Node { label, next })
+            }
+            Ok(result)
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[derive(Debug, Clone)]
     struct Root {
-        node: Rc<RefCell<Node>>
+        node: Rc<RefCell<Node>>,
     }
 
     impl BinarySerializer for Root {
-        fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-            if context.store_ref_or_object(self.node.clone())? {
+        fn serialize<Context: SerializationContext>(
+            &self,
+            context: &mut Context,
+        ) -> crate::Result<()> {
+            if context.store_ref_or_object(&self.node)? {
                 self.node.serialize(context)?;
             }
             Ok(())
@@ -322,10 +339,12 @@ mod tests {
     }
 
     impl BinaryDeserializer for Root {
-        fn deserialize<Context: DeserializationContext>(context: &mut Context) -> crate::Result<Self> {
+        fn deserialize<Context: DeserializationContext>(
+            context: &mut Context,
+        ) -> crate::Result<Self> {
             let node = match context.try_read_ref()? {
-                Some(node) => Rc::new(node.get().downcast_ref::<Node>().unwrap().clone()),
-                None => Rc::new(Node::deserialize(context)?),
+                Some(node) => node.downcast_ref::<Rc<RefCell<Node>>>().unwrap().clone(),
+                None => Rc::<RefCell<Node>>::deserialize(context)?,
             };
             Ok(Root { node })
         }
@@ -333,15 +352,37 @@ mod tests {
 
     #[test]
     fn reference_tracking_serializes_cycles() {
-        let mut a = Rc::new(RefCell::new(Node { label: "a".to_string(), next: None }));
-        let mut b = Rc::new(RefCell::new(Node { label: "b".to_string(), next: None }));
-        let mut c = Rc::new(RefCell::new(Node { label: "c".to_string(), next: None }));
+        let a = Rc::new(RefCell::new(Node {
+            label: "a".to_string(),
+            next: None,
+        }));
+        let b = Rc::new(RefCell::new(Node {
+            label: "b".to_string(),
+            next: None,
+        }));
+        let c = Rc::new(RefCell::new(Node {
+            label: "c".to_string(),
+            next: None,
+        }));
 
         a.borrow_mut().next = Some(b.clone());
         b.borrow_mut().next = Some(c.clone());
         c.borrow_mut().next = Some(a.clone());
 
         let root = Root { node: a.clone() };
-        roundtrip(root);
+
+        let data = serialize_to_bytes(&root).unwrap();
+        let _result = deserialize::<Root, _>(data).unwrap();
+
+        let a = root.node;
+        let b = a.borrow().next.clone().unwrap();
+        let c = b.borrow().next.clone().unwrap();
+
+        assert_eq!(a.borrow().label, "a".to_string());
+        assert_eq!(b.borrow().label, "b".to_string());
+        assert_eq!(c.borrow().label, "c".to_string());
+
+        let d = c.borrow().next.clone().unwrap();
+        assert!(std::ptr::eq(d.borrow().deref(), a.borrow().deref()));
     }
 }

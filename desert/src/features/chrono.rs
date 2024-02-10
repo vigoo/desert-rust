@@ -238,13 +238,16 @@ impl BinaryDeserializer for DateTime<Tz> {
 #[cfg(test)]
 mod tests {
     use crate::tests::roundtrip;
-    use chrono::{DateTime, FixedOffset, Local, Month, NaiveDate, NaiveDateTime, TimeZone, Utc, Weekday};
+    use chrono::{
+        DateTime, FixedOffset, Local, Month, NaiveDate, NaiveDateTime, TimeZone, Utc, Weekday,
+    };
     use chrono_tz::Tz;
     use proptest::prelude::*;
     use proptest_arbitrary_interop::arb;
 
     fn datetime_tz_strategy() -> impl Strategy<Value = DateTime<Tz>> {
-        (arb::<NaiveDateTime>(), arb::<Tz>()).prop_map(|(datetime, tz)| tz.from_utc_datetime(&datetime))
+        (arb::<NaiveDateTime>(), arb::<Tz>())
+            .prop_map(|(datetime, tz)| tz.from_utc_datetime(&datetime))
     }
 
     fn datetime_local_strategy() -> impl Strategy<Value = DateTime<Local>> {
@@ -254,9 +257,13 @@ mod tests {
     }
 
     fn datetime_fixed_offset_strategy() -> impl Strategy<Value = DateTime<FixedOffset>> {
-        (arb::<NaiveDateTime>(), (-85_399..86_400)).prop_map(|(naive, offset)|
-            FixedOffset::east_opt(offset).unwrap().from_local_datetime(&naive).single().unwrap()
-        )
+        (arb::<NaiveDateTime>(), (-85_399..86_400)).prop_map(|(naive, offset)| {
+            FixedOffset::east_opt(offset)
+                .unwrap()
+                .from_local_datetime(&naive)
+                .single()
+                .unwrap()
+        })
     }
 
     proptest! {
