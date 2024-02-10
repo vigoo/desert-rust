@@ -7,7 +7,6 @@ mod evolution;
 mod features;
 mod serializer;
 mod state;
-mod storable;
 
 use bytes::{Bytes, BytesMut};
 use std::fmt::{Display, Formatter};
