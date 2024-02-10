@@ -51,7 +51,7 @@ impl State {
         self.strings_by_id.get(&id).map(|s| s.as_str())
     }
 
-    pub fn get_ref_by_id(&mut self, id: RefId) -> Option<Rc<dyn StorableRef>> {
+    pub fn get_ref_by_id(&self, id: RefId) -> Option<Rc<dyn StorableRef>> {
         self.refs_by_id.get(&id).cloned()
     }
 }

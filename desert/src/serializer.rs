@@ -21,6 +21,19 @@ pub trait SerializationContext {
 
     fn output_mut(&mut self) -> &mut Self::Output;
     fn state_mut(&mut self) -> &mut State;
+
+    fn store_ref_or_object(&mut self, value: Rc<dyn StorableRef>) -> Result<bool> {
+        match self.state_mut().store_ref(value) {
+            StoreRefResult::RefAlreadyStored { id } => {
+                self.output_mut().write_var_u32(id.0);
+                Ok(false)
+            }
+            StoreRefResult::RefIsNew { new_id, value } => {
+                self.output_mut().write_var_u32(0);
+                Ok(true)
+            }
+        }
+    }
 }
 
 pub struct Serialization<Output: BinaryOutput> {
@@ -454,7 +467,7 @@ impl<T: BinarySerializer> BinarySerializer for Box<T> {
     }
 }
 
-impl<T: BinarySerializer> BinarySerializer for Rc<T> {
+impl<T: BinarySerializer + ?Sized> BinarySerializer for Rc<T> {
     fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
         (**self).serialize(context)
     }

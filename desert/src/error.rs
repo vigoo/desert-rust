@@ -1,4 +1,4 @@
-use crate::StringId;
+use crate::{RefId, StringId};
 use std::array::TryFromSliceError;
 use std::char::DecodeUtf16Error;
 use std::fmt::{Display, Formatter};
@@ -26,6 +26,7 @@ pub enum Error {
     FieldRemovedInSerializedVersion(String),
     FieldWithoutDefaultValueIsMissing(String),
     NonOptionalFieldSerializedAsNone(String),
+    InvalidRefId(RefId)
 }
 
 impl Display for Error {
@@ -63,6 +64,7 @@ impl Display for Error {
             Error::NonOptionalFieldSerializedAsNone(field_name) => {
                 write!(f, "Non optional field serialized as None: {field_name}")
             }
+            Error::InvalidRefId(id) => write!(f, "Invalid reference id: {id}")
         }
     }
 }

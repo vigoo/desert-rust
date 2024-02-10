@@ -238,9 +238,26 @@ impl BinaryDeserializer for DateTime<Tz> {
 #[cfg(test)]
 mod tests {
     use crate::tests::roundtrip;
-    use chrono::{DateTime, FixedOffset, Month, Utc, Weekday};
+    use chrono::{DateTime, FixedOffset, Local, Month, NaiveDate, NaiveDateTime, TimeZone, Utc, Weekday};
+    use chrono_tz::Tz;
     use proptest::prelude::*;
     use proptest_arbitrary_interop::arb;
+
+    fn datetime_tz_strategy() -> impl Strategy<Value = DateTime<Tz>> {
+        (arb::<NaiveDateTime>(), arb::<Tz>()).prop_map(|(datetime, tz)| tz.from_utc_datetime(&datetime))
+    }
+
+    fn datetime_local_strategy() -> impl Strategy<Value = DateTime<Local>> {
+        (arb::<NaiveDateTime>()).prop_filter_map("valid local datetime", |naive| {
+            Local.from_local_datetime(&naive).single()
+        })
+    }
+
+    fn datetime_fixed_offset_strategy() -> impl Strategy<Value = DateTime<FixedOffset>> {
+        (arb::<NaiveDateTime>(), (-85_399..86_400)).prop_map(|(naive, offset)|
+            FixedOffset::east_opt(offset).unwrap().from_local_datetime(&naive).single().unwrap()
+        )
+    }
 
     proptest! {
         #[test]
@@ -259,7 +276,42 @@ mod tests {
         }
 
         #[test]
+        fn roundtrip_tz(value in arb::<Tz>()) {
+            roundtrip(value);
+        }
+
+        #[test]
         fn roundtrip_datetime_utc(value in arb::<DateTime<Utc>>()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_datetime_local(value in datetime_local_strategy()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_datetime_fixed_offset(value in datetime_fixed_offset_strategy()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_datetime_tz(value in datetime_tz_strategy()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_naive_date(value in arb::<NaiveDate>()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_naive_time(value in arb::<NaiveDate>()) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_naive_date_time(value in arb::<NaiveDateTime>()) {
             roundtrip(value);
         }
     }

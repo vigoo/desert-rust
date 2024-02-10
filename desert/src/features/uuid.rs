@@ -21,3 +21,18 @@ impl BinaryDeserializer for Uuid {
         Ok(Uuid::from_bytes(uuid::Bytes::from(bytes)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use proptest::proptest;
+    use proptest_arbitrary_interop::arb;
+    use uuid::Uuid;
+    use crate::tests::roundtrip;
+
+    proptest! {
+        #[test]
+        fn test_uuid(value in arb::<Uuid>()) {
+            roundtrip(value);
+        }
+    }
+}

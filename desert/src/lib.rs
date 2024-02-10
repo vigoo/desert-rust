@@ -66,7 +66,7 @@ impl Display for StringId {
 }
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct RefId(pub i32);
+pub struct RefId(pub u32);
 
 impl RefId {
     fn next(&mut self) {
@@ -82,10 +82,13 @@ impl Display for RefId {
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize, serialize_to_bytes, BinaryDeserializer, BinarySerializer};
+    use std::cell::RefCell;
+    use crate::{deserialize, serialize_to_bytes, BinaryDeserializer, BinarySerializer, SerializationContext, DeserializationContext};
     use proptest::prelude::*;
     use std::collections::LinkedList;
     use std::fmt::Debug;
+    use std::rc::Rc;
+    use crate::storable::StorableRef;
 
     pub(crate) fn roundtrip<T: BinarySerializer + BinaryDeserializer + Debug + PartialEq>(
         value: T,
@@ -262,5 +265,83 @@ mod tests {
         fn roundtrip_linked_list(value: LinkedList<String>) {
             roundtrip(value);
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct Node {
+        label: String,
+        next: Option<Rc<RefCell<Node>>>
+    }
+
+    impl BinarySerializer for Node {
+        fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
+            self.label.serialize(context)?;
+            match &self.next {
+                Some(next) => {
+                    true.serialize(context)?;
+                    if context.store_ref_or_object(next.clone())? {
+                        next.serialize(context)?;
+                    }
+                }
+                None => {
+                    false.serialize(context)?;
+                }
+            }
+            Ok(())
+        }
+    }
+
+    impl BinaryDeserializer for Node {
+        fn deserialize<Context: DeserializationContext>(context: &mut Context) -> crate::Result<Self> {
+            let label = String::deserialize(context)?;
+            let has_next = bool::deserialize(context)?;
+            let next = if has_next {
+                match context.try_read_ref()? {
+                    Some(next) => Some(Rc::new(next.get().downcast_ref::<Node>().unwrap().clone())),
+                    None => Some(Rc::new(Node::deserialize(context)?)),
+                }
+            } else {
+                None
+            };
+            Ok(Node { label, next })
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct Root {
+        node: Rc<RefCell<Node>>
+    }
+
+    impl BinarySerializer for Root {
+        fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
+            if context.store_ref_or_object(self.node.clone())? {
+                self.node.serialize(context)?;
+            }
+            Ok(())
+        }
+    }
+
+    impl BinaryDeserializer for Root {
+        fn deserialize<Context: DeserializationContext>(context: &mut Context) -> crate::Result<Self> {
+            let node = match context.try_read_ref()? {
+                Some(node) => Rc::new(node.get().downcast_ref::<Node>().unwrap().clone()),
+                None => Rc::new(Node::deserialize(context)?),
+            };
+            Ok(Root { node })
+        }
+    }
+
+    #[test]
+    fn reference_tracking_serializes_cycles() {
+        let mut a = Rc::new(RefCell::new(Node { label: "a".to_string(), next: None }));
+        let mut b = Rc::new(RefCell::new(Node { label: "b".to_string(), next: None }));
+        let mut c = Rc::new(RefCell::new(Node { label: "c".to_string(), next: None }));
+
+        a.borrow_mut().next = Some(b.clone());
+        b.borrow_mut().next = Some(c.clone());
+        c.borrow_mut().next = Some(a.clone());
+
+        let root = Root { node: a.clone() };
+        roundtrip(root);
     }
 }

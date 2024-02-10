@@ -1,7 +1,7 @@
 use crate::binary_input::BinaryInput;
 use crate::error::Result;
 use crate::state::State;
-use crate::{DeduplicatedString, Error, StringId};
+use crate::{DeduplicatedString, Error, RefId, StringId};
 use bytes::Bytes;
 use castaway::cast;
 use std::char::DecodeUtf16Error;
@@ -12,6 +12,7 @@ use std::mem::MaybeUninit;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
+use crate::storable::StorableRef;
 
 pub trait BinaryDeserializer: Sized {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self>;
@@ -23,6 +24,19 @@ pub trait DeserializationContext {
     fn input_mut(&mut self) -> &mut Self::Input;
     fn state(&self) -> &State;
     fn state_mut(&mut self) -> &mut State;
+
+    fn try_read_ref(&mut self) -> Result<Option<Rc<dyn StorableRef>>> {
+        let id = self.input_mut().read_var_u32()?;
+        if id == 0 {
+            Ok(None)
+        } else {
+            let id = RefId(id);
+            match self.state().get_ref_by_id(id) {
+                Some(r) => Ok(Some(r)),
+                None => Err(Error::InvalidRefId(id)),
+            }
+        }
+    }
 }
 
 pub struct Deserialization<Input: BinaryInput> {
