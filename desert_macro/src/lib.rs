@@ -99,6 +99,7 @@ fn evolution_steps_from_attributes(
 }
 
 // TODO: attribute to force/disable option field detection for a field (because it's based on names only)
+// TODO: attribute to use different field names (for Scala compatibility)
 #[proc_macro_derive(BinaryCodec, attributes(evolution, transient))]
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
@@ -187,7 +188,10 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        Data::Enum(_) => {
+        Data::Enum(enum_data) => {
+            for variant in &enum_data.variants {
+
+            }
             todo!();
         }
         Data::Union(_) => {

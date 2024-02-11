@@ -8,11 +8,13 @@ proc-macro = true
 
 [dependencies]
 lazy_static = "1.4.0"
-proc-macro2 = "1.0.74"
+proc-macro2 = "1.0.78"
 quote = "1.0.35"
-syn = { version = "2.0.46", features = ["full"] }
+syn = { version = "2.0.48", features = ["full"] }
 
 desert = { path = "../desert" }
+bytes = "1.5.0"
 
 [dev-dependencies]
 assert2 = "0.3.11"
+lazy_static = "1.4.0"

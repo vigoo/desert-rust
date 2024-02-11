@@ -5,7 +5,7 @@ mod deserializer;
 mod error;
 mod evolution;
 mod features;
-mod serializer;
+pub mod serializer;
 mod state;
 
 use bytes::{Bytes, BytesMut};
@@ -47,7 +47,7 @@ pub fn serialize_to_bytes<T: BinarySerializer>(value: &T) -> Result<Bytes> {
 /// It is not turned on by default because it breaks backward compatibility when evolving data structures.
 /// If a new string field is added, old versions of the application will skip it and would not assign the
 /// same ID to the string if it is first seen.
-pub struct DeduplicatedString(String);
+pub struct DeduplicatedString(pub String);
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct StringId(pub i32);

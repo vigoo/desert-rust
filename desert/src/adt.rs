@@ -340,7 +340,7 @@ impl<'a, 'b, Context: SerializationContext>
     }
 }
 
-impl<'a, 'b, Context: SerializationContext, CO: ChunkedOutput> AdtSerializer<'a, Context, CO> {
+impl<'a, Context: SerializationContext, CO: ChunkedOutput> AdtSerializer<'a, Context, CO> {
     pub fn write_field<T: BinarySerializer>(&mut self, field_name: &str, value: &T) -> Result<()> {
         let chunk = *self
             .metadata
