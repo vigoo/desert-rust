@@ -20,6 +20,16 @@ struct Point2 {
     pub description: Option<String>,
 }
 
+#[derive(Debug, PartialEq, BinaryCodec)]
+enum Choices {
+    A,
+    B(String),
+    C {
+        pt: Option<Point>,
+        z: u64
+    }
+}
+
 #[test]
 fn debug() {
     let pt = Point {

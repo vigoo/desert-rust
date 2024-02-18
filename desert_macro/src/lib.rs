@@ -121,10 +121,13 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     );
 
     let mut serialization_commands = Vec::new();
-    let mut deserialization_commands: Vec<proc_macro2::TokenStream> = Vec::new();
+    let mut deserialization_commands = Vec::new();
+    let mut constructor_names = Vec::new();
+    let mut is_record = false;
 
     match ast.data {
         Data::Struct(struct_data) => {
+            is_record = true;
             for field in &struct_data.fields {
                 let field_ident = field
                     .ident
@@ -189,10 +192,11 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             }
         }
         Data::Enum(enum_data) => {
-            for variant in &enum_data.variants {
+            is_record = false;
 
+            for variant in &enum_data.variants {
+                constructor_names.push(variant.ident.to_string());
             }
-            todo!();
         }
         Data::Union(_) => {
             panic!("Unions are not supported");
@@ -205,6 +209,19 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         quote! { new }
     };
 
+    let deserialization =
+        if is_record {
+            quote! {
+                Ok(Self {
+                        #(#deserialization_commands)*
+                })
+            }
+        } else {
+            quote! {
+                todo!()
+            }
+        };
+
     let gen = quote! {
         lazy_static::lazy_static! {
             static ref #metadata_name: desert::adt::AdtMetadata = {
@@ -215,7 +232,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 desert::adt::AdtMetadata::new(
                     #name_string,
                     evolution_steps,
-                    &vec![],
+                    &vec![#(#constructor_names),*],
                 )
             };
         }
@@ -235,14 +252,10 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 let stored_version = context.input_mut().read_u8()?;
                 if stored_version == 0 {
                     let mut deserializer = desert::adt::AdtDeserializer::new_v0(&#metadata_name, context)?;
-                    Ok(Self {
-                        #(#deserialization_commands)*
-                    })
+                    #deserialization
                 } else {
                     let mut deserializer = desert::adt::AdtDeserializer::new(&#metadata_name, context, stored_version)?;
-                    Ok(Self {
-                        #(#deserialization_commands)*
-                    })
+                    #deserialization
                 }
             }
         }
