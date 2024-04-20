@@ -1,8 +1,8 @@
 use crate::serializer::{StoreRefResult, StoreStringResult};
 use crate::{RefId, StringId};
+use hashbrown::hash_map::Entry;
+use hashbrown::HashMap;
 use std::any::Any;
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct State {

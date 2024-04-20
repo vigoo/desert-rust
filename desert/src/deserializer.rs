@@ -403,7 +403,7 @@ impl<R: BinaryDeserializer, E: BinaryDeserializer> BinaryDeserializer
 
 impl BinaryDeserializer for Bytes {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let length = context.input_mut().read_var_u32()?;  // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
+        let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
         let bytes = context.input_mut().read_bytes(length as usize)?;
         Ok(Bytes::from(bytes))
     }

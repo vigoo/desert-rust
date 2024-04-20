@@ -10,7 +10,7 @@ use desert_benchmarks::model::*;
 fn generate_cases() -> Vec<Case> {
     let mut rng = StdRng::seed_from_u64(317826381);
 
-    let payload_sizes = [16, 256, 1024, 128 * 1024];
+    let payload_sizes = [16, 256, 1024 /*, 128 * 1024*/];
     payload_sizes
         .iter()
         .map(|payload_size| {
@@ -36,7 +36,8 @@ fn bench_serialize(c: &mut Criterion) {
                 b.iter(|| {
                     let mut entries = Vec::with_capacity(10000);
                     for entry in &case.entries {
-                        let bytes = black_box(serialize_to_bytes(black_box(&entry)).unwrap());
+                        //let bytes = black_box(serialize_to_bytes(black_box(&entry)).unwrap());
+                        let bytes = black_box(serialize_to_byte_vec(black_box(&entry)).unwrap());
                         entries.push(bytes);
                     }
                     entries
@@ -143,5 +144,11 @@ fn bench_deserialize_bincode(c: &mut Criterion) {
     group.finish()
 }
 
-criterion_group!(benches, bench_serialize, bench_serialize_bincode, bench_deserialize, bench_deserialize_bincode);
+criterion_group!(
+    benches,
+    bench_serialize,
+    // bench_serialize_bincode,
+    bench_deserialize,
+    // bench_deserialize_bincode
+);
 criterion_main!(benches);

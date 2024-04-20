@@ -1,13 +1,13 @@
 use std::time::{Duration, Instant};
 
 use bytes::{BufMut, Bytes, BytesMut};
-use rand::*;
 use rand::prelude::StdRng;
+use rand::*;
 use serde::{Deserialize, Serialize};
 
+use crate::model::{random_oplog_entry, Case};
 use desert::SliceInput;
 use model::OplogEntry;
-use crate::model::{Case, random_oplog_entry};
 
 mod model;
 
@@ -224,7 +224,9 @@ fn print_report(report: &Report) {
 }
 
 fn main() {
-    let desert_only = std::env::args().find(|arg| arg == "--desert-only").is_some();
+    let desert_only = std::env::args()
+        .find(|arg| arg == "--desert-only")
+        .is_some();
 
     println!("Generating data set");
     let mut rng = StdRng::seed_from_u64(317826381);

@@ -96,9 +96,10 @@ fn evolution_steps_from_attributes(
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
-    let use_sorted_constructors = ast.attrs.iter().any(|attr| {
-        attr.path().is_ident("sorted_constructors")
-    });
+    let use_sorted_constructors = ast
+        .attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("sorted_constructors"));
     let (evolution_steps, field_defaults) = evolution_steps_from_attributes(&ast.attrs);
     let version = evolution_steps.len();
     let mut push_evolution_steps = Vec::new();
@@ -109,7 +110,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     }
 
     let name = &ast.ident;
-    let name_string = name.to_string();
     let metadata_name = Ident::new(
         &format!("{name}_metadata").to_uppercase(),
         Span::call_site(),
@@ -118,7 +118,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let mut metadata = Vec::new();
     let mut serialization_commands = Vec::new();
     let mut deserialization_commands = Vec::new();
-    let mut constructor_names = Vec::new();
     let is_record;
 
     match ast.data {
@@ -144,10 +143,14 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
             let mut cases = Vec::new();
 
+            let mut variants = enum_data.variants.iter().cloned().collect::<Vec<_>>();
+            if use_sorted_constructors {
+                variants.sort_by_key(|variant| variant.ident.to_string());
+            }
+
             // TODO: support transient constructors
-            for variant in &enum_data.variants {
+            for (case_idx, variant) in variants.iter().enumerate() {
                 let case_name = &variant.ident;
-                constructor_names.push(case_name.to_string());
 
                 let (case_evolution_steps, case_field_defaults) =
                     evolution_steps_from_attributes(&variant.attrs);
@@ -172,9 +175,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     Span::call_site(),
                 );
 
-                let case_name_string = case_name.to_string();
-                let full_case_name_string = format!("{name}::{case_name}");
-
                 metadata.push(quote! {
                     lazy_static::lazy_static! {
                         static ref #case_metadata_name: desert::adt::AdtMetadata = {
@@ -183,9 +183,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                             #(#case_push_evolution_steps)*
 
                             desert::adt::AdtMetadata::new(
-                                #full_case_name_string,
                                 evolution_steps,
-                                &vec![],
                             )
                         };
                     }
@@ -224,7 +222,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     quote! {
                         #pattern => {
                             serializer.write_constructor(
-                                #case_name_string,
+                                #case_idx as u32,
                                 |context| {
                                     let mut serializer = desert::adt::AdtSerializer::#new_v(&#case_metadata_name, context);
                                     #(#case_serialization_commands)*
@@ -252,7 +250,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
                 deserialization_commands.push(
                     quote! {
-                    if let Some(result) = deserializer.read_constructor(#case_name_string,
+                    if let Some(result) = deserializer.read_constructor(#case_idx as u32,
                         |context| {
                             let stored_version = ::desert::DeserializationContext::input_mut(context).read_u8()?;
                             if stored_version == 0 {
@@ -280,10 +278,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             panic!("Unions are not supported");
         }
     }
-    
-    if use_sorted_constructors {
-        constructor_names.sort();
-    }
 
     metadata.push(quote! {
         lazy_static::lazy_static! {
@@ -293,9 +287,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 #(#push_evolution_steps)*
 
                 desert::adt::AdtMetadata::new(
-                    #name_string,
                     evolution_steps,
-                    &vec![#(#constructor_names),*],
                 )
             };
         }

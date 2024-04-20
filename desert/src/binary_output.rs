@@ -114,3 +114,37 @@ impl BinaryOutput for BytesMut {
         self.put_slice(bytes);
     }
 }
+
+impl BinaryOutput for Vec<u8> {
+    fn write_u8(&mut self, value: u8) {
+        self.push(value);
+    }
+
+    fn write_bytes(&mut self, bytes: &[u8]) {
+        self.extend_from_slice(bytes);
+    }
+}
+
+pub struct SizeCalculator {
+    size: usize,
+}
+
+impl SizeCalculator {
+    pub fn new() -> Self {
+        SizeCalculator { size: 0 }
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
+    }
+}
+
+impl BinaryOutput for SizeCalculator {
+    fn write_u8(&mut self, _value: u8) {
+        self.size += 1;
+    }
+
+    fn write_bytes(&mut self, bytes: &[u8]) {
+        self.size += bytes.len();
+    }
+}

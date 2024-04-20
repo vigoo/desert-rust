@@ -12,13 +12,15 @@ use bytes::{Bytes, BytesMut};
 use std::fmt::{Display, Formatter};
 
 pub use binary_input::{BinaryInput, SliceInput};
-pub use binary_output::BinaryOutput;
+pub use binary_output::{BinaryOutput, SizeCalculator};
 pub use deserializer::{BinaryDeserializer, DeserializationContext};
 pub use error::{Error, Result};
 pub use evolution::Evolution;
 pub use serializer::{serialize_iterator, BinarySerializer, SerializationContext};
 
 pub trait BinaryCodec: BinarySerializer + BinaryDeserializer {}
+
+const DEFAULT_CAPACITY: usize = 128;
 
 pub fn serialize<T: BinarySerializer, O: BinaryOutput>(value: &T, output: O) -> Result<O> {
     let mut context = serializer::Serialization::new(output);
@@ -32,7 +34,11 @@ pub fn deserialize<T: BinaryDeserializer, I: BinaryInput>(input: I) -> Result<T>
 }
 
 pub fn serialize_to_bytes<T: BinarySerializer>(value: &T) -> Result<Bytes> {
-    Ok(serialize(value, BytesMut::new())?.freeze())
+    Ok(serialize(value, BytesMut::with_capacity(DEFAULT_CAPACITY))?.freeze())
+}
+
+pub fn serialize_to_byte_vec<T: BinarySerializer>(value: &T) -> Result<Vec<u8>> {
+    serialize(value, Vec::with_capacity(DEFAULT_CAPACITY))
 }
 
 /// Wrapper for strings, enabling desert's string deduplication mode.

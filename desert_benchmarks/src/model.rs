@@ -1,18 +1,21 @@
 // Model types copied from an early version of Golem Cloud to replicate an internal benchmark
 
-use std::fmt::{Display, Formatter};
-use std::ops::Add;
-use std::time::{Duration, SystemTime};
 use bincode::de::{BorrowDecoder, Decoder};
 use bincode::enc::Encoder;
-use bincode::{Decode, Encode};
 use bincode::error::{DecodeError, EncodeError};
+use bincode::{Decode, Encode};
+use desert::{
+    BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
+    DeserializationContext, SerializationContext,
+};
+use desert_macro::BinaryCodec;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize, Serializer};
+use std::fmt::{Display, Formatter};
+use std::ops::Add;
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
-use desert::{BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, DeserializationContext, SerializationContext};
-use desert_macro::BinaryCodec;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
@@ -26,8 +29,8 @@ impl Display for Timestamp {
 
 impl serde::Serialize for Timestamp {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
         self.0.serialize(serializer)
     }
@@ -35,8 +38,8 @@ impl serde::Serialize for Timestamp {
 
 impl<'de> serde::Deserialize<'de> for Timestamp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
+    where
+        D: serde::Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
             iso8601_timestamp::Timestamp::deserialize(deserializer).map(Self)
@@ -80,7 +83,10 @@ impl<'de> bincode::BorrowDecode<'de> for Timestamp {
 }
 
 impl BinarySerializer for Timestamp {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> desert::Result<()> {
+    fn serialize<Context: SerializationContext>(
+        &self,
+        context: &mut Context,
+    ) -> desert::Result<()> {
         let ms = self
             .0
             .duration_since(iso8601_timestamp::Timestamp::UNIX_EPOCH)
@@ -99,10 +105,11 @@ impl BinaryDeserializer for Timestamp {
     }
 }
 
-impl BinaryCodec for Timestamp {
-}
+impl BinaryCodec for Timestamp {}
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode, BinaryCodec,
+)]
 pub struct WorkerId {
     #[serde(rename = "component_id")]
     pub template_id: TemplateId,
@@ -110,13 +117,17 @@ pub struct WorkerId {
     pub worker_name: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode, BinaryCodec,
+)]
 pub struct TemplateId {
     #[bincode(with_serde)]
     pub uuid: Uuid,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode, BinaryCodec,
+)]
 pub struct PromiseId {
     #[serde(rename = "instance_id")]
     pub worker_id: WorkerId,
@@ -175,7 +186,9 @@ pub enum WrappedFunctionType {
     WriteRemote,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode, Eq, Hash, PartialEq, BinaryCodec)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, Encode, Decode, Eq, Hash, PartialEq, BinaryCodec,
+)]
 pub struct InvocationKey {
     pub value: String,
 }
@@ -187,7 +200,6 @@ pub enum CallingConvention {
     Stdio,
     StdioEventloop,
 }
-
 
 fn random_wrapped_function_type(rng: &mut impl Rng) -> WrappedFunctionType {
     let case = rng.gen_range(0..4);
