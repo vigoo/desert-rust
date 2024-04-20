@@ -1,3 +1,4 @@
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use bytes::{BufMut, Bytes, BytesMut};
@@ -18,7 +19,7 @@ struct Report {
     de_duration: Duration,
 }
 
-fn benchmark<S: Fn(&OplogEntry) -> Bytes, D: Fn(Bytes) -> OplogEntry>(
+fn benchmark<S: Fn(&OplogEntry) -> Bytes, D: Fn(&Bytes) -> OplogEntry>(
     case: &Case,
     name: &str,
     ser: S,
@@ -26,22 +27,35 @@ fn benchmark<S: Fn(&OplogEntry) -> Bytes, D: Fn(Bytes) -> OplogEntry>(
 ) -> Report {
     println!("...{name}...");
     let mut total_size = 0;
-    let start = Instant::now();
-    let mut entries = Vec::new();
-    for entry in &case.entries {
-        let bytes = ser(entry);
-        total_size += bytes.len();
-        entries.push(bytes);
-    }
-    let se_duration = start.elapsed();
 
-    let deser_start = Instant::now();
-    let mut new_entries = Vec::new();
-    for bytes in entries {
-        let entry: OplogEntry = deser(bytes);
-        new_entries.push(entry);
+    let mut se_duration = Duration::ZERO;
+    let mut entries = Vec::with_capacity(10000);
+
+    for _ in 0..10 {
+        entries.clear();
+        let start = Instant::now();
+        for entry in &case.entries {
+            let bytes = black_box(ser(entry));
+            total_size += bytes.len();
+            entries.push(bytes);
+        }
+        se_duration += start.elapsed();
     }
-    let de_duration = deser_start.elapsed();
+    se_duration /= 10;
+
+    let mut de_duration = Duration::ZERO;
+    let mut new_entries = Vec::with_capacity(10000);
+
+    for _ in 0..10 {
+        new_entries.clear();
+        let deser_start = Instant::now();
+        for bytes in &entries {
+            let entry: OplogEntry = black_box(deser(bytes));
+            new_entries.push(entry);
+        }
+        de_duration += deser_start.elapsed();
+    }
+    de_duration /= 10;
 
     for (e1, e2) in new_entries.iter().zip(case.entries.iter()) {
         assert_eq!(e1, e2);
