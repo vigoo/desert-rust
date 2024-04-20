@@ -452,7 +452,7 @@ impl<'a, Context: DeserializationContext> PreloadedChunkedInput<'a, Context> {
             match serialized_evolution_step {
                 SerializedEvolutionStep::FieldAddedToNewChunk { size } => {
                     let input = context.input_mut().read_bytes(*size as usize)?;
-                    inputs.push(input.into());
+                    inputs.push(input.to_vec().into());
                 }
                 SerializedEvolutionStep::FieldMadeOptional { position } => {
                     made_optional_at.insert(*position, idx as u8);

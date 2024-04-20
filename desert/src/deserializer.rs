@@ -166,7 +166,7 @@ impl BinaryDeserializer for String {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         let id = context.input_mut().read_var_i32()?;
         let bytes = context.input_mut().read_bytes(id as usize)?;
-        Ok(String::from_utf8(bytes)?)
+        Ok(String::from_utf8(bytes.to_vec())?)
     }
 }
 
@@ -181,7 +181,7 @@ impl BinaryDeserializer for DeduplicatedString {
             }
         } else {
             let bytes = context.input_mut().read_bytes(count_or_id as usize)?;
-            let s = String::from_utf8(bytes)?;
+            let s = String::from_utf8(bytes.to_vec())?;
             context.state_mut().store_string(s.clone());
             Ok(DeduplicatedString(s))
         }
@@ -405,7 +405,7 @@ impl BinaryDeserializer for Bytes {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
         let bytes = context.input_mut().read_bytes(length as usize)?;
-        Ok(Bytes::from(bytes))
+        Ok(Bytes::from(bytes.to_vec()))
     }
 }
 
@@ -433,7 +433,7 @@ impl<T: BinaryDeserializer> BinaryDeserializer for Vec<T> {
         if let Ok(_) = cast!(empty, Vec<u8>) {
             let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.input_mut().read_bytes(length as usize)?;
-            unsafe { Ok(std::mem::transmute(bytes)) }
+            unsafe { Ok(std::mem::transmute(bytes.to_vec())) }
         } else {
             let mut vec = Vec::new();
             for item in deserialize_iterator(context) {

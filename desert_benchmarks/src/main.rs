@@ -6,7 +6,7 @@ use rand::*;
 use serde::{Deserialize, Serialize};
 
 use crate::model::{random_oplog_entry, Case};
-use desert::SliceInput;
+use desert::{serialize_to_byte_vec, SliceInput};
 use model::OplogEntry;
 
 mod model;
@@ -205,9 +205,11 @@ fn desert_benchmark(case: &Case) -> Report {
         case,
         "desert",
         |entry| {
+            let encoded = serialize_to_byte_vec(entry).unwrap();
             let mut bytes = BytesMut::new();
             bytes.put_u8(1);
-            desert::serialize(entry, bytes).unwrap().freeze()
+            bytes.extend_from_slice(&encoded);
+            bytes.freeze()
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);

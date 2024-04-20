@@ -17,7 +17,7 @@ impl BinarySerializer for Uuid {
 impl BinaryDeserializer for Uuid {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         let bytes = context.input_mut().read_bytes(16)?;
-        let bytes: [u8; 16] = bytes.as_slice().try_into()?;
+        let bytes: [u8; 16] = bytes.try_into()?;
         Ok(Uuid::from_bytes(uuid::Bytes::from(bytes)))
     }
 }
