@@ -13,5 +13,7 @@ For the blog:
 - The derivation macro
   - converting the evolution attribute into static data
   - generating code based on the type's shape
+  - difference from scala: enum variants are not "records" but same shape
+  - the problem of accessing unnamed enum fields
 - Testing: proptest
 

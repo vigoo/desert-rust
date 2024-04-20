@@ -3,10 +3,10 @@ use proc_macro2::{Ident, Span};
 use quote::quote;
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
-use syn::{Attribute, Data, DeriveInput, Expr, Lit, LitStr, Meta, Token, Type};
+use syn::{Attribute, Data, DeriveInput, Expr, Fields, Lit, LitStr, Meta, Token, Type};
 
 fn evolution_steps_from_attributes(
-    attrs: Vec<Attribute>,
+    attrs: &[Attribute],
 ) -> (Vec<proc_macro2::TokenStream>, HashMap<String, Expr>) {
     let mut evolution_steps = Vec::new();
     let mut field_defaults = HashMap::new();
@@ -104,7 +104,7 @@ fn evolution_steps_from_attributes(
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
-    let (evolution_steps, field_defaults) = evolution_steps_from_attributes(ast.attrs);
+    let (evolution_steps, field_defaults) = evolution_steps_from_attributes(&ast.attrs);
     let version = evolution_steps.len();
     let mut push_evolution_steps = Vec::new();
     for evolution_step in evolution_steps {
@@ -128,75 +128,47 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     match ast.data {
         Data::Struct(struct_data) => {
             is_record = true;
-            for field in &struct_data.fields {
-                let field_ident = field
-                    .ident
-                    .as_ref()
-                    .expect("Field does not have an identifier");
-                let field_name = field_ident.to_string();
-
-                let mut transient = None;
-                for attr in &field.attrs {
-                    if attr.path().is_ident("transient") {
-                        let args = attr
-                            .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
-                            .expect("FieldAdded arguments");
-                        if args.len() != 1 {
-                            panic!("#[transient(default)] on fields needs a default value");
-                        }
-                        let field_default = args[0].clone();
-                        transient = Some(field_default);
-                    }
-                }
-
-                match transient {
-                    None => {
-                        serialization_commands.push(quote! {
-                            serializer.write_field(#field_name, &self.#field_ident)?;
-                        });
-
-                        if is_option(&field.ty) {
-                            match field_defaults.get(&field_name) {
-                                Some(field_default) => {
-                                    deserialization_commands.push(quote! {
-                                        #field_ident: deserializer.read_optional_field(#field_name, Some(#field_default))?,
-                                    });
-                                }
-                                None => {
-                                    deserialization_commands.push(quote! {
-                                       #field_ident: deserializer.read_optional_field(#field_name, None)?,
-                                    });
-                                }
-                            }
-                        } else {
-                            match field_defaults.get(&field_name) {
-                                Some(field_default) => {
-                                    deserialization_commands.push(quote! {
-                                        #field_ident: deserializer.read_field(#field_name, Some(#field_default))?,
-                                    });
-                                }
-                                None => {
-                                    deserialization_commands.push(quote! {
-                                       #field_ident: deserializer.read_field(#field_name, None)?,
-                                    });
-                                }
-                            }
-                        }
-                    }
-                    Some(transient_default_value) => {
-                        deserialization_commands.push(quote! {
-                          #field_ident: #transient_default_value,
-                        });
-                    }
-                }
-            }
+            derive_field_serialization(field_defaults, &mut serialization_commands, &mut deserialization_commands, &struct_data.fields);
         }
         Data::Enum(enum_data) => {
             is_record = false;
 
+            let mut cases = Vec::new();
+
+            // TODO: support transient constructors
             for variant in &enum_data.variants {
-                constructor_names.push(variant.ident.to_string());
+                let case_name = &variant.ident;
+                constructor_names.push(case_name.to_string());
+
+                let (case_evolution_steps, case_field_defaults) = evolution_steps_from_attributes(&variant.attrs);
+                let version = case_evolution_steps.len();
+                let mut case_push_evolution_steps = Vec::new();
+                for evolution_step in case_evolution_steps {
+                    case_push_evolution_steps.push(quote! {
+                        evolution_steps.push(#evolution_step);
+                    });
+                }
+                let mut case_serialization_commands = Vec::new();
+                let mut case_deserialization_commands = Vec::new();
+
+                derive_field_serialization(case_field_defaults, &mut case_serialization_commands, &mut case_deserialization_commands, &variant.fields);
+
+                cases.push(
+                    quote! {
+                        (value @ #name::#case_name) => {
+                            #(#case_serialization_commands)*
+                        }
+                    }
+                );
             }
+
+            serialization_commands.push(
+                quote! {
+                    match self {
+                        #(#cases),*
+                    }
+                }
+            );
         }
         Data::Union(_) => {
             panic!("Unions are not supported");
@@ -262,6 +234,75 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     };
 
     gen.into()
+}
+
+fn derive_field_serialization(field_defaults: HashMap<String, Expr>, serialization_commands: &mut Vec<proc_macro2::TokenStream>, deserialization_commands: &mut Vec<proc_macro2::TokenStream>, fields: &Fields) {
+    for (n, field) in fields.iter().enumerate() {
+        let n_ident = Ident::new_raw(
+            &n.to_string(),
+            Span::call_site(),
+        );
+        let field_ident = field
+            .ident
+            .as_ref()
+            .unwrap_or(&n_ident);
+        let field_name = field_ident.to_string();
+
+        let mut transient = None;
+        for attr in &field.attrs {
+            if attr.path().is_ident("transient") {
+                let args = attr
+                    .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
+                    .expect("FieldAdded arguments");
+                if args.len() != 1 {
+                    panic!("#[transient(default)] on fields needs a default value");
+                }
+                let field_default = args[0].clone();
+                transient = Some(field_default);
+            }
+        }
+
+        match transient {
+            None => {
+                serialization_commands.push(quote! {
+                            serializer.write_field(#field_name, &self.#field_ident)?;
+                        });
+
+                if is_option(&field.ty) {
+                    match field_defaults.get(&field_name) {
+                        Some(field_default) => {
+                            deserialization_commands.push(quote! {
+                                        #field_ident: deserializer.read_optional_field(#field_name, Some(#field_default))?,
+                                    });
+                        }
+                        None => {
+                            deserialization_commands.push(quote! {
+                                       #field_ident: deserializer.read_optional_field(#field_name, None)?,
+                                    });
+                        }
+                    }
+                } else {
+                    match field_defaults.get(&field_name) {
+                        Some(field_default) => {
+                            deserialization_commands.push(quote! {
+                                        #field_ident: deserializer.read_field(#field_name, Some(#field_default))?,
+                                    });
+                        }
+                        None => {
+                            deserialization_commands.push(quote! {
+                                       #field_ident: deserializer.read_field(#field_name, None)?,
+                                    });
+                        }
+                    }
+                }
+            }
+            Some(transient_default_value) => {
+                deserialization_commands.push(quote! {
+                          #field_ident: #transient_default_value,
+                        });
+            }
+        }
+    }
 }
 
 fn is_option(ty: &Type) -> bool {
