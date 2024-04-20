@@ -4,6 +4,7 @@ use crate::serializer::SerializationContext;
 use crate::{BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, DeduplicatedString};
 
 // TODO: this does not have to be public because we cannot use it in the attribute - need to just document it
+#[derive(Debug)]
 pub enum Evolution {
     InitialVersion,
 

@@ -92,10 +92,13 @@ fn evolution_steps_from_attributes(
 
 // TODO: attribute to force/disable option field detection for a field (because it's based on names only)
 // TODO: attribute to use different field names (for Scala compatibility)
-#[proc_macro_derive(BinaryCodec, attributes(evolution, transient))]
+#[proc_macro_derive(BinaryCodec, attributes(evolution, transient, sorted_constructors))]
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
+    let use_sorted_constructors = ast.attrs.iter().any(|attr| {
+        attr.path().is_ident("sorted_constructors")
+    });
     let (evolution_steps, field_defaults) = evolution_steps_from_attributes(&ast.attrs);
     let version = evolution_steps.len();
     let mut push_evolution_steps = Vec::new();
@@ -276,6 +279,10 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         Data::Union(_) => {
             panic!("Unions are not supported");
         }
+    }
+    
+    if use_sorted_constructors {
+        constructor_names.sort();
     }
 
     metadata.push(quote! {

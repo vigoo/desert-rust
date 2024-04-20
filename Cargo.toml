@@ -2,5 +2,9 @@
 resolver = "2"
 members = [
     "desert",
+    "desert_benchmarks",
     "desert_macro",
 ]
+
+[profile.release]
+debug = true

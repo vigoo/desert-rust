@@ -6,17 +6,18 @@ use crate::state::State;
 use crate::{BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, Error, Evolution};
 use bytes::{Bytes, BytesMut};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::marker::PhantomData;
 use std::ops::IndexMut;
 
+#[derive(Debug)]
 pub struct AdtMetadata {
     version: u8,
-    field_generations: HashMap<String, u8>,
-    made_optional_at: HashMap<String, u8>,
-    removed_fields: HashSet<String>,
-    constructor_name_to_id: HashMap<String, u32>,
-    constructor_id_to_name: HashMap<u32, String>,
+    field_generations: BTreeMap<String, u8>,
+    made_optional_at: BTreeMap<String, u8>,
+    removed_fields: BTreeSet<String>,
+    constructor_name_to_id: BTreeMap<String, u32>,
+    constructor_id_to_name: Vec<String>,
     type_name: String,
     evolution_steps: Vec<Evolution>,
 }
@@ -62,16 +63,13 @@ impl AdtMetadata {
             })
             .collect();
 
-        let constructor_name_to_id: HashMap<String, u32> = constructors
+        let constructor_name_to_id: BTreeMap<String, u32> = constructors
             .iter()
             .enumerate()
             .map(|(idx, name)| (name.to_string(), idx as u32))
             .collect();
 
-        let constructor_id_to_name = constructor_name_to_id
-            .iter()
-            .map(|(name, id)| (*id, name.clone()))
-            .collect();
+        let constructor_id_to_name = constructors.iter().map(|name| name.to_string()).collect();
 
         Self {
             type_name: type_name.to_string(),
@@ -148,8 +146,8 @@ pub trait ChunkedOutput {
     fn write_evolution_header(
         &mut self,
         evolution_steps: &[Evolution],
-        field_indices: &HashMap<String, FieldPosition>,
-        removed_fields: &HashSet<String>,
+        field_indices: &BTreeMap<String, FieldPosition>,
+        removed_fields: &BTreeSet<String>,
     ) -> Result<()>;
     fn write_ordered_chunks(&mut self) -> Result<()>;
 }
@@ -178,8 +176,8 @@ impl<'a, Context: SerializationContext> ChunkedOutput for NonChunkedOutput<'a, C
     fn write_evolution_header(
         &mut self,
         _evolution_steps: &[Evolution],
-        _field_indices: &HashMap<String, FieldPosition>,
-        _removed_fields: &HashSet<String>,
+        _field_indices: &BTreeMap<String, FieldPosition>,
+        _removed_fields: &BTreeSet<String>,
     ) -> Result<()> {
         Ok(())
     }
@@ -217,8 +215,8 @@ impl<'a, Context: SerializationContext> ChunkedOutput for BufferingChunkedOutput
     fn write_evolution_header(
         &mut self,
         evolution_steps: &[Evolution],
-        field_indices: &HashMap<String, FieldPosition>,
-        removed_fields: &HashSet<String>,
+        field_indices: &BTreeMap<String, FieldPosition>,
+        removed_fields: &BTreeSet<String>,
     ) -> Result<()> {
         for (v, evolution) in evolution_steps.iter().enumerate() {
             let step = match evolution {
@@ -269,7 +267,6 @@ impl<'a, Context: SerializationContext> ChunkedOutput for BufferingChunkedOutput
             })
             .collect();
         for buffer in final_buffers {
-            println!("writing chunk of size {}", buffer.len());
             self.context.output_mut().write_bytes(&buffer);
         }
         Ok(())
@@ -303,8 +300,8 @@ pub struct AdtSerializer<'a, Context: SerializationContext, CO: ChunkedOutput> {
     metadata: &'a AdtMetadata,
     chunked_output: CO,
     context: PhantomData<Context>,
-    last_index_per_chunk: HashMap<u8, u8>,
-    field_indices: HashMap<String, FieldPosition>,
+    last_index_per_chunk: BTreeMap<u8, u8>,
+    field_indices: BTreeMap<String, FieldPosition>,
 }
 
 impl<'a, 'b, Context: SerializationContext>
@@ -318,8 +315,8 @@ impl<'a, 'b, Context: SerializationContext>
             metadata,
             chunked_output,
             context: PhantomData,
-            last_index_per_chunk: HashMap::new(),
-            field_indices: HashMap::new(),
+            last_index_per_chunk: BTreeMap::new(),
+            field_indices: BTreeMap::new(),
         }
     }
 }
@@ -334,8 +331,8 @@ impl<'a, 'b, Context: SerializationContext>
             metadata,
             chunked_output,
             context: PhantomData,
-            last_index_per_chunk: HashMap::new(),
-            field_indices: HashMap::new(),
+            last_index_per_chunk: BTreeMap::new(),
+            field_indices: BTreeMap::new(),
         }
     }
 }
@@ -409,23 +406,23 @@ pub trait ChunkedInput {
     fn state(&self) -> &State;
     fn state_mut(&mut self) -> &mut State;
 
-    fn made_optional_at(&self) -> &HashMap<FieldPosition, u8>;
+    fn made_optional_at(&self) -> &BTreeMap<FieldPosition, u8>;
 
-    fn removed_fields(&self) -> &HashSet<String>;
+    fn removed_fields(&self) -> &BTreeSet<String>;
 }
 
 pub struct NonChunkedInput<'a, Context: DeserializationContext> {
     context: &'a mut Context,
-    made_optional_at: HashMap<FieldPosition, u8>,
-    removed_fields: HashSet<String>,
+    made_optional_at: BTreeMap<FieldPosition, u8>,
+    removed_fields: BTreeSet<String>,
 }
 
 impl<'a, Context: DeserializationContext> NonChunkedInput<'a, Context> {
     pub fn new(context: &'a mut Context) -> Self {
         Self {
             context,
-            made_optional_at: HashMap::new(),
-            removed_fields: HashSet::new(),
+            made_optional_at: BTreeMap::new(),
+            removed_fields: BTreeSet::new(),
         }
     }
 }
@@ -453,11 +450,11 @@ impl<'a, Context: DeserializationContext> ChunkedInput for NonChunkedInput<'a, C
         self.context.state_mut()
     }
 
-    fn made_optional_at(&self) -> &HashMap<FieldPosition, u8> {
+    fn made_optional_at(&self) -> &BTreeMap<FieldPosition, u8> {
         &self.made_optional_at
     }
 
-    fn removed_fields(&self) -> &HashSet<String> {
+    fn removed_fields(&self) -> &BTreeSet<String> {
         &self.removed_fields
     }
 }
@@ -465,8 +462,8 @@ impl<'a, Context: DeserializationContext> ChunkedInput for NonChunkedInput<'a, C
 pub struct PreloadedChunkedInput<'a, Context: DeserializationContext> {
     context: &'a mut Context,
     stored_version: u8,
-    made_optional_at: HashMap<FieldPosition, u8>,
-    removed_fields: HashSet<String>,
+    made_optional_at: BTreeMap<FieldPosition, u8>,
+    removed_fields: BTreeSet<String>,
     inputs: Vec<Bytes>,
 }
 
@@ -479,8 +476,8 @@ impl<'a, Context: DeserializationContext> PreloadedChunkedInput<'a, Context> {
         }
 
         let mut inputs = Vec::with_capacity(serialized_evolution_steps.len());
-        let mut made_optional_at = HashMap::new();
-        let mut removed_fields = HashSet::new();
+        let mut made_optional_at = BTreeMap::new();
+        let mut removed_fields = BTreeSet::new();
 
         for (idx, serialized_evolution_step) in serialized_evolution_steps.iter().enumerate() {
             match serialized_evolution_step {
@@ -535,11 +532,11 @@ impl<'a, Context: DeserializationContext> ChunkedInput for PreloadedChunkedInput
         self.context.state_mut()
     }
 
-    fn made_optional_at(&self) -> &HashMap<FieldPosition, u8> {
+    fn made_optional_at(&self) -> &BTreeMap<FieldPosition, u8> {
         &self.made_optional_at
     }
 
-    fn removed_fields(&self) -> &HashSet<String> {
+    fn removed_fields(&self) -> &BTreeSet<String> {
         &self.removed_fields
     }
 }
@@ -575,8 +572,8 @@ pub struct AdtDeserializer<'a, Context: DeserializationContext, CI: ChunkedInput
     metadata: &'a AdtMetadata,
     chunked_input: CI,
     context: PhantomData<Context>,
-    last_index_per_chunk: HashMap<u8, u8>,
-    field_indices: HashMap<String, FieldPosition>, // TODO: &'static str keys?
+    last_index_per_chunk: BTreeMap<u8, u8>,
+    field_indices: BTreeMap<String, FieldPosition>, // TODO: &'static str keys?
     read_constructor_name: Option<String>,
 }
 
@@ -589,8 +586,8 @@ impl<'a, 'b, Context: DeserializationContext>
             metadata,
             chunked_input,
             context: PhantomData,
-            last_index_per_chunk: HashMap::new(),
-            field_indices: HashMap::new(),
+            last_index_per_chunk: BTreeMap::new(),
+            field_indices: BTreeMap::new(),
             read_constructor_name: None,
         })
     }
@@ -609,8 +606,8 @@ impl<'a, 'b, Context: DeserializationContext>
             metadata,
             chunked_input,
             context: PhantomData,
-            last_index_per_chunk: HashMap::new(),
-            field_indices: HashMap::new(),
+            last_index_per_chunk: BTreeMap::new(),
+            field_indices: BTreeMap::new(),
             read_constructor_name: None,
         })
     }
@@ -748,7 +745,7 @@ impl<'a, Context: DeserializationContext, CI: ChunkedInput> AdtDeserializer<'a, 
                 let name = self
                     .metadata
                     .constructor_id_to_name
-                    .get(&constructor_id)
+                    .get(constructor_id as usize)
                     .ok_or(Error::InvalidConstructorId {
                         constructor_id,
                         type_name: self.metadata.type_name.clone(),

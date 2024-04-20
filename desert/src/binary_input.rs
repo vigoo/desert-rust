@@ -111,6 +111,39 @@ pub trait BinaryInput {
     }
 }
 
+pub struct SliceInput<'a> {
+    data: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> SliceInput<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data, pos: 0 }
+    }
+}
+
+impl<'a> BinaryInput for SliceInput<'a> {
+    fn read_u8(&mut self) -> Result<u8> {
+        if self.pos == self.data.len() {
+            Err(Error::InputEndedUnexpectedly)
+        } else {
+            let result = self.data[self.pos];
+            self.pos += 1;
+            Ok(result)
+        }
+    }
+
+    fn read_bytes(&mut self, count: usize) -> Result<Vec<u8>> {
+        if self.pos + count > self.data.len() {
+            Err(Error::InputEndedUnexpectedly)
+        } else {
+            let result = self.data[self.pos..self.pos + count].to_vec();
+            self.pos += count;
+            Ok(result)
+        }
+    }
+}
+
 impl BinaryInput for Bytes {
     fn read_u8(&mut self) -> Result<u8> {
         if self.has_remaining() {

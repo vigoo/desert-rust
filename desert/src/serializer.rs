@@ -383,7 +383,7 @@ impl<R: BinarySerializer, E: BinarySerializer> BinarySerializer for std::result:
 
 impl BinarySerializer for Bytes {
     fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context.output_mut().write_var_i32(self.len().try_into()?);
+        context.output_mut().write_var_u32(self.len().try_into()?); // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
         context.output_mut().write_bytes(self);
         Ok(())
     }
@@ -391,10 +391,11 @@ impl BinarySerializer for Bytes {
 
 impl<T: BinarySerializer + 'static> BinarySerializer for [T] {
     fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context.output_mut().write_var_i32(self.len().try_into()?);
         if let Ok(byte_slice) = cast!(self, &[u8]) {
+            context.output_mut().write_var_u32(self.len().try_into()?); // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             context.output_mut().write_bytes(byte_slice);
         } else {
+            context.output_mut().write_var_i32(self.len().try_into()?);
             for elem in self {
                 elem.serialize(context)?;
             }
@@ -405,10 +406,11 @@ impl<T: BinarySerializer + 'static> BinarySerializer for [T] {
 
 impl<T: BinarySerializer, const L: usize> BinarySerializer for [T; L] {
     fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context.output_mut().write_var_i32(self.len().try_into()?);
         if let Ok(byte_slice) = cast!(self, &[u8; L]) {
+            context.output_mut().write_var_u32(self.len().try_into()?); // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             context.output_mut().write_bytes(byte_slice);
         } else {
+            context.output_mut().write_var_i32(self.len().try_into()?);
             for elem in self {
                 elem.serialize(context)?;
             }
@@ -422,7 +424,7 @@ impl<T: BinarySerializer> BinarySerializer for Vec<T> {
         if let Ok(byte_vec) = cast!(self, &Vec<u8>) {
             context
                 .output_mut()
-                .write_var_i32(byte_vec.len().try_into()?);
+                .write_var_u32(byte_vec.len().try_into()?); // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             context.output_mut().write_bytes(byte_vec);
             Ok(())
         } else {

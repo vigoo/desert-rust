@@ -403,7 +403,7 @@ impl<R: BinaryDeserializer, E: BinaryDeserializer> BinaryDeserializer
 
 impl BinaryDeserializer for Bytes {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let length = context.input_mut().read_var_i32()?;
+        let length = context.input_mut().read_var_u32()?;  // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
         let bytes = context.input_mut().read_bytes(length as usize)?;
         Ok(Bytes::from(bytes))
     }
@@ -413,7 +413,7 @@ impl<T: BinaryDeserializer, const L: usize> BinaryDeserializer for [T; L] {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         let empty: [T; 0] = [];
         if cast!(empty, [u8; 0]).is_ok() {
-            let length = context.input_mut().read_var_i32()?;
+            let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.input_mut().read_bytes(length as usize)?;
             Ok(unsafe { std::mem::transmute_copy::<_, [T; L]>(&bytes) })
         } else {
@@ -431,7 +431,7 @@ impl<T: BinaryDeserializer> BinaryDeserializer for Vec<T> {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         let empty: Self = Vec::new();
         if let Ok(_) = cast!(empty, Vec<u8>) {
-            let length = context.input_mut().read_var_i32()?;
+            let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.input_mut().read_bytes(length as usize)?;
             unsafe { Ok(std::mem::transmute(bytes)) }
         } else {
