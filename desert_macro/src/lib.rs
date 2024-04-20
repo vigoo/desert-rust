@@ -40,11 +40,6 @@ fn evolution_steps_from_attributes(
                             };
                             let field_default = &args[1];
 
-                            println!(
-                                "FieldAdded: name = {field_name}, default value: {:?}",
-                                quote! { #field_default }
-                            );
-
                             field_defaults.insert(field_name.clone(), field_default.clone());
                             evolution_steps.push(quote! {
                                 desert::Evolution::FieldAdded {
@@ -55,7 +50,6 @@ fn evolution_steps_from_attributes(
                             let field_name_lit: LitStr =
                                 list.parse_args().expect("FieldMadeOptional argument");
                             let field_name = field_name_lit.value();
-                            println!("FieldMadeOptional: name = {field_name}");
 
                             evolution_steps.push(quote! {
                                 desert::Evolution::FieldMadeOptional {
@@ -66,7 +60,6 @@ fn evolution_steps_from_attributes(
                             let field_name_lit: LitStr =
                                 list.parse_args().expect("FieldMadeOptional argument");
                             let field_name = field_name_lit.value();
-                            println!("FieldRemoved: name = {field_name}");
 
                             evolution_steps.push(quote! {
                                 desert::Evolution::FieldRemoved {
@@ -77,7 +70,6 @@ fn evolution_steps_from_attributes(
                             let field_name_lit: LitStr =
                                 list.parse_args().expect("FieldMadeOptional argument");
                             let field_name = field_name_lit.value();
-                            println!("FieldMadeTransient: name = {field_name}");
 
                             evolution_steps.push(quote! {
                                 desert::Evolution::FieldMadeTransient {
@@ -120,15 +112,29 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         Span::call_site(),
     );
 
+    let mut metadata = Vec::new();
     let mut serialization_commands = Vec::new();
     let mut deserialization_commands = Vec::new();
     let mut constructor_names = Vec::new();
-    let mut is_record = false;
+    let is_record;
 
     match ast.data {
         Data::Struct(struct_data) => {
             is_record = true;
-            derive_field_serialization(field_defaults, &mut serialization_commands, &mut deserialization_commands, &struct_data.fields);
+            let mut field_patterns = Vec::new();
+            for field in struct_data.fields.iter() {
+                let field_ident = field.ident.as_ref().unwrap();
+                field_patterns.push(quote! { #field_ident });
+            }
+            serialization_commands.push(quote! {
+               let #name { #(#field_patterns),* } = self;
+            });
+            derive_field_serialization(
+                field_defaults,
+                &mut serialization_commands,
+                &mut deserialization_commands,
+                &struct_data.fields,
+            );
         }
         Data::Enum(enum_data) => {
             is_record = false;
@@ -140,7 +146,8 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 let case_name = &variant.ident;
                 constructor_names.push(case_name.to_string());
 
-                let (case_evolution_steps, case_field_defaults) = evolution_steps_from_attributes(&variant.attrs);
+                let (case_evolution_steps, case_field_defaults) =
+                    evolution_steps_from_attributes(&variant.attrs);
                 let version = case_evolution_steps.len();
                 let mut case_push_evolution_steps = Vec::new();
                 for evolution_step in case_evolution_steps {
@@ -151,50 +158,127 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 let mut case_serialization_commands = Vec::new();
                 let mut case_deserialization_commands = Vec::new();
 
-                derive_field_serialization(case_field_defaults, &mut case_serialization_commands, &mut case_deserialization_commands, &variant.fields);
+                let new_v = if version == 0 {
+                    quote! { new_v0 }
+                } else {
+                    quote! { new }
+                };
+
+                let case_metadata_name = Ident::new(
+                    &format!("{name}_{case_name}_metadata").to_uppercase(),
+                    Span::call_site(),
+                );
+
+                let case_name_string = case_name.to_string();
+                let full_case_name_string = format!("{name}::{case_name}");
+
+                metadata.push(quote! {
+                    lazy_static::lazy_static! {
+                        static ref #case_metadata_name: desert::adt::AdtMetadata = {
+                            let mut evolution_steps: Vec<desert::Evolution> = Vec::new();
+                            evolution_steps.push(desert::Evolution::InitialVersion);
+                            #(#case_push_evolution_steps)*
+
+                            desert::adt::AdtMetadata::new(
+                                #full_case_name_string,
+                                evolution_steps,
+                                &vec![],
+                            )
+                        };
+                    }
+                });
+
+                derive_field_serialization(
+                    case_field_defaults,
+                    &mut case_serialization_commands,
+                    &mut case_deserialization_commands,
+                    &variant.fields,
+                );
+
+                let pattern = match &variant.fields {
+                    Fields::Unit => {
+                        quote! { #name::#case_name }
+                    }
+                    Fields::Named(named_fields) => {
+                        let mut field_patterns = Vec::new();
+                        for field in named_fields.named.iter() {
+                            let field_ident = field.ident.as_ref().unwrap();
+                            field_patterns.push(quote! { #field_ident });
+                        }
+                        quote! { #name::#case_name { #(#field_patterns),* } }
+                    }
+                    Fields::Unnamed(unnamed_fields) => {
+                        let mut field_patterns = Vec::new();
+                        for n in 0..unnamed_fields.unnamed.len() {
+                            let field_ident = Ident::new(&format!("field{}", n), Span::call_site());
+                            field_patterns.push(quote! { #field_ident });
+                        }
+                        quote! { #name::#case_name(#(#field_patterns),*) }
+                    }
+                };
 
                 cases.push(
                     quote! {
-                        (value @ #name::#case_name) => {
-                            #(#case_serialization_commands)*
+                        #pattern => {
+                            serializer.write_constructor(
+                                #case_name_string,
+                                |context| {
+                                    let mut serializer = desert::adt::AdtSerializer::#new_v(&#case_metadata_name, context);
+                                    #(#case_serialization_commands)*
+                                    serializer.finish()
+                                }
+                            )?;
                         }
                     }
                 );
-            }
 
-            serialization_commands.push(
-                quote! {
-                    match self {
-                        #(#cases),*
+                let construct_case = match &variant.fields {
+                    Fields::Unit => {
+                        quote! { #name::#case_name }
+                    }
+                    Fields::Named(_) => {
+                        quote! { #name::#case_name {
+                                #(#case_deserialization_commands)*
+                            }
+                        }
+                    }
+                    Fields::Unnamed(_) => {
+                        quote! { #name::#case_name(#(#case_deserialization_commands)*) }
+                    }
+                };
+
+                deserialization_commands.push(
+                    quote! {
+                    if let Some(result) = deserializer.read_constructor(#case_name_string,
+                        |context| {
+                            let stored_version = ::desert::DeserializationContext::input_mut(context).read_u8()?;
+                            if stored_version == 0 {
+                                let mut deserializer = desert::adt::AdtDeserializer::new_v0(&#case_metadata_name, context)?;
+                                Ok(#construct_case)
+                            } else {
+                                let mut deserializer = desert::adt::AdtDeserializer::new(&#case_metadata_name, context, stored_version)?;
+                                Ok(#construct_case)
+                            }
+                        }
+                    )? {
+                        return Ok(result)
                     }
                 }
-            );
+                );
+            }
+
+            serialization_commands.push(quote! {
+                match self {
+                    #(#cases),*
+                }
+            });
         }
         Data::Union(_) => {
             panic!("Unions are not supported");
         }
     }
 
-    let new_v = if version == 0 {
-        quote! { new_v0 }
-    } else {
-        quote! { new }
-    };
-
-    let deserialization =
-        if is_record {
-            quote! {
-                Ok(Self {
-                        #(#deserialization_commands)*
-                })
-            }
-        } else {
-            quote! {
-                todo!()
-            }
-        };
-
-    let gen = quote! {
+    metadata.push(quote! {
         lazy_static::lazy_static! {
             static ref #metadata_name: desert::adt::AdtMetadata = {
                 let mut evolution_steps: Vec<desert::Evolution> = Vec::new();
@@ -208,6 +292,29 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 )
             };
         }
+    });
+
+    let new_v = if version == 0 {
+        quote! { new_v0 }
+    } else {
+        quote! { new }
+    };
+
+    let deserialization = if is_record {
+        quote! {
+            Ok(Self {
+                    #(#deserialization_commands)*
+            })
+        }
+    } else {
+        quote! {
+            #(#deserialization_commands)*
+            unreachable!()
+        }
+    };
+
+    let gen = quote! {
+        #(#metadata)*
 
         impl desert::BinarySerializer for #name {
             fn serialize<Context: desert::SerializationContext>(&self, context: &mut Context) -> desert::Result<()> {
@@ -236,16 +343,15 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn derive_field_serialization(field_defaults: HashMap<String, Expr>, serialization_commands: &mut Vec<proc_macro2::TokenStream>, deserialization_commands: &mut Vec<proc_macro2::TokenStream>, fields: &Fields) {
+fn derive_field_serialization(
+    field_defaults: HashMap<String, Expr>,
+    serialization_commands: &mut Vec<proc_macro2::TokenStream>,
+    deserialization_commands: &mut Vec<proc_macro2::TokenStream>,
+    fields: &Fields,
+) {
     for (n, field) in fields.iter().enumerate() {
-        let n_ident = Ident::new_raw(
-            &n.to_string(),
-            Span::call_site(),
-        );
-        let field_ident = field
-            .ident
-            .as_ref()
-            .unwrap_or(&n_ident);
+        let n_ident = Ident::new(&format!("field{n}"), Span::call_site());
+        let field_ident = field.ident.as_ref().unwrap_or(&n_ident);
         let field_name = field_ident.to_string();
 
         let mut transient = None;
@@ -265,41 +371,71 @@ fn derive_field_serialization(field_defaults: HashMap<String, Expr>, serializati
         match transient {
             None => {
                 serialization_commands.push(quote! {
-                            serializer.write_field(#field_name, &self.#field_ident)?;
-                        });
+                    serializer.write_field(#field_name, &#field_ident)?;
+                });
 
                 if is_option(&field.ty) {
                     match field_defaults.get(&field_name) {
                         Some(field_default) => {
-                            deserialization_commands.push(quote! {
-                                        #field_ident: deserializer.read_optional_field(#field_name, Some(#field_default))?,
-                                    });
+                            if field.ident.is_some() {
+                                deserialization_commands.push(quote! {
+                                    #field_ident: deserializer.read_optional_field(#field_name, Some(#field_default))?,
+                                });
+                            } else {
+                                deserialization_commands.push(quote! {
+                                    deserializer.read_optional_field(#field_name, Some(#field_default))?,
+                                });
+                            }
                         }
                         None => {
-                            deserialization_commands.push(quote! {
-                                       #field_ident: deserializer.read_optional_field(#field_name, None)?,
-                                    });
+                            if field.ident.is_some() {
+                                deserialization_commands.push(quote! {
+                                   #field_ident: deserializer.read_optional_field(#field_name, None)?,
+                                });
+                            } else {
+                                deserialization_commands.push(quote! {
+                                   deserializer.read_optional_field(#field_name, None)?,
+                                });
+                            }
                         }
                     }
                 } else {
                     match field_defaults.get(&field_name) {
                         Some(field_default) => {
-                            deserialization_commands.push(quote! {
-                                        #field_ident: deserializer.read_field(#field_name, Some(#field_default))?,
-                                    });
+                            if field.ident.is_some() {
+                                deserialization_commands.push(quote! {
+                                    #field_ident: deserializer.read_field(#field_name, Some(#field_default))?,
+                                });
+                            } else {
+                                deserialization_commands.push(quote! {
+                                    deserializer.read_field(#field_name, Some(#field_default))?,
+                                });
+                            }
                         }
                         None => {
-                            deserialization_commands.push(quote! {
-                                       #field_ident: deserializer.read_field(#field_name, None)?,
-                                    });
+                            if field.ident.is_some() {
+                                deserialization_commands.push(quote! {
+                                   #field_ident: deserializer.read_field(#field_name, None)?,
+                                });
+                            } else {
+                                deserialization_commands.push(quote! {
+                                   deserializer.read_field(#field_name, None)?,
+                                });
+                            }
                         }
                     }
                 }
             }
             Some(transient_default_value) => {
-                deserialization_commands.push(quote! {
-                          #field_ident: #transient_default_value,
-                        });
+                if field.ident.is_some() {
+                    deserialization_commands.push(quote! {
+                      #field_ident: #transient_default_value,
+                    });
+                } else {
+                    deserialization_commands.push(quote! {
+                      #transient_default_value,
+                    });
+                }
             }
         }
     }

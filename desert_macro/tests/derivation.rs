@@ -24,10 +24,7 @@ struct Point2 {
 enum Choices {
     A,
     B(String),
-    C {
-        pt: Option<Point>,
-        z: u64
-    }
+    C { pt: Option<Point>, z: u64 },
 }
 
 #[test]
@@ -55,4 +52,17 @@ fn debug() {
     let bytes2 = desert::serialize_to_bytes(&pt3).unwrap();
     let pt4 = desert::deserialize(bytes2).unwrap();
     check!(pt3 == pt4);
+
+    let choices = Choices::C {
+        pt: Some(Point {
+            x: 1,
+            y: 2,
+            cached_str: None,
+        }),
+        z: 3,
+    };
+    let bytes3 = desert::serialize_to_bytes(&choices).unwrap();
+    println!("{:?}", bytes3);
+    let choices2 = desert::deserialize(bytes3).unwrap();
+    check!(choices == choices2);
 }

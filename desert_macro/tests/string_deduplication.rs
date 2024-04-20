@@ -1,8 +1,8 @@
-use lazy_static::lazy_static;
 use bytes::BytesMut;
-use desert::{BinarySerializer, DeduplicatedString, Result, SerializationContext};
 use desert::serializer::Serialization;
+use desert::{BinarySerializer, DeduplicatedString, Result, SerializationContext};
 use desert_macro::BinaryCodec;
+use lazy_static::lazy_static;
 
 #[derive(Debug, PartialEq, BinaryCodec)]
 struct DataV1;
@@ -10,19 +10,19 @@ struct DataV1;
 #[derive(Debug, PartialEq, BinaryCodec)]
 #[evolution(FieldAdded("new_field", "context".to_string()))]
 struct DataV2 {
-    new_field: String
+    new_field: String,
 }
 
 #[derive(Debug, PartialEq, BinaryCodec)]
 struct OuterV1 {
     data: DataV1,
-    other: String
+    other: String,
 }
 
 #[derive(Debug, PartialEq, BinaryCodec)]
 struct OuterV2 {
     data: DataV2,
-    other: String
+    other: String,
 }
 
 lazy_static! {

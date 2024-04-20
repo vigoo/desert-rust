@@ -27,6 +27,10 @@ pub enum Error {
     FieldWithoutDefaultValueIsMissing(String),
     NonOptionalFieldSerializedAsNone(String),
     InvalidRefId(RefId),
+    InvalidConstructorId {
+        constructor_id: u32,
+        type_name: String,
+    },
 }
 
 impl Display for Error {
@@ -65,6 +69,13 @@ impl Display for Error {
                 write!(f, "Non optional field serialized as None: {field_name}")
             }
             Error::InvalidRefId(id) => write!(f, "Invalid reference id: {id}"),
+            Error::InvalidConstructorId {
+                constructor_id,
+                type_name,
+            } => write!(
+                f,
+                "Invalid constructor id: {constructor_id} for type: {type_name}"
+            ),
         }
     }
 }

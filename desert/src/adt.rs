@@ -362,16 +362,15 @@ impl<'a, Context: SerializationContext, CO: ChunkedOutput> AdtSerializer<'a, Con
         self.chunked_output.write_ordered_chunks()
     }
 
-    pub fn write_constructor<T: BinarySerializer>(
+    pub fn write_constructor(
         &mut self,
         constructor_name: &str,
-        value: &T,
+        serialize_case: impl FnOnce(&mut ChunkedSerialization<CO>) -> Result<()>,
     ) -> Result<()> {
         let constructor_id = self.get_constructor_id(constructor_name)?;
         let mut context = ChunkedSerialization::new(&mut self.chunked_output, 0);
         context.output_mut().write_var_u32(constructor_id);
-        value.serialize(&mut context)?;
-        Ok(())
+        serialize_case(&mut context)
     }
 
     fn record_field_index(&mut self, field_name: &str, chunk: u8) {
@@ -578,6 +577,7 @@ pub struct AdtDeserializer<'a, Context: DeserializationContext, CI: ChunkedInput
     context: PhantomData<Context>,
     last_index_per_chunk: HashMap<u8, u8>,
     field_indices: HashMap<String, FieldPosition>, // TODO: &'static str keys?
+    read_constructor_name: Option<String>,
 }
 
 impl<'a, 'b, Context: DeserializationContext>
@@ -591,6 +591,7 @@ impl<'a, 'b, Context: DeserializationContext>
             context: PhantomData,
             last_index_per_chunk: HashMap::new(),
             field_indices: HashMap::new(),
+            read_constructor_name: None,
         })
     }
 }
@@ -610,6 +611,7 @@ impl<'a, 'b, Context: DeserializationContext>
             context: PhantomData,
             last_index_per_chunk: HashMap::new(),
             field_indices: HashMap::new(),
+            read_constructor_name: None,
         })
     }
 }
@@ -705,6 +707,20 @@ impl<'a, Context: DeserializationContext, CI: ChunkedInput> AdtDeserializer<'a, 
         }
     }
 
+    pub fn read_constructor<T>(
+        &mut self,
+        case_name: &str,
+        deserialize_case: impl FnOnce(&mut ChunkedDeserialization<CI>) -> Result<T>,
+    ) -> Result<Option<T>> {
+        let constructor_name = self.read_or_get_constructor_name()?;
+        if constructor_name == case_name {
+            let mut context = ChunkedDeserialization::new(&mut self.chunked_input, 0);
+            Ok(Some(deserialize_case(&mut context)?))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn record_field_index(&mut self, field_name: &str, chunk: u8) -> FieldPosition {
         match self.last_index_per_chunk.get_mut(&chunk) {
             Some(last_index) => {
@@ -719,6 +735,26 @@ impl<'a, Context: DeserializationContext, CI: ChunkedInput> AdtDeserializer<'a, 
                 self.last_index_per_chunk.insert(chunk, 0);
                 self.field_indices.insert(field_name.to_string(), fp);
                 fp
+            }
+        }
+    }
+
+    fn read_or_get_constructor_name(&mut self) -> Result<&String> {
+        match self.read_constructor_name {
+            Some(ref name) => Ok(name),
+            None => {
+                let input = self.chunked_input.input_for(0)?;
+                let constructor_id = input.read_var_u32()?;
+                let name = self
+                    .metadata
+                    .constructor_id_to_name
+                    .get(&constructor_id)
+                    .ok_or(Error::InvalidConstructorId {
+                        constructor_id,
+                        type_name: self.metadata.type_name.clone(),
+                    })?;
+                self.read_constructor_name = Some(name.clone());
+                Ok(name)
             }
         }
     }
