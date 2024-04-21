@@ -1,0 +1,29 @@
+[package]
+name = "desert_core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytes = { version = "1.5.0" }
+castaway = { version = "0.2.2", features = ["std"] }
+flate2 = "1.0.28"
+hashbrown = "0.14.3"
+lazy_static = "1.4.0"
+
+bigdecimal = { version = "0.4.2", optional = true }
+chrono = { version = "0.4.33", optional = true }
+chrono-tz = { version = "0.8.5", optional = true }
+uuid = { version = "1.7.0", optional = true }
+
+[dev-dependencies]
+chrono = { version = "0.4.33", features = ["arbitrary"] }
+chrono-tz = { version = "0.8.5", features = ["arbitrary"] }
+proptest = "1.4.0"
+proptest-arbitrary-interop = "0.1.0"
+uuid = { version = "1.7.0", features = ["arbitrary"] }
+
+[features]
+default = ["bigdecimal", "chrono", "uuid"]
+bigdecimal = ["dep:bigdecimal"]
+chrono = ["dep:chrono", "dep:chrono-tz"]
+uuid = ["dep:uuid"]

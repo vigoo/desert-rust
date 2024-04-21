@@ -252,7 +252,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     quote! {
                     if let Some(result) = deserializer.read_constructor(#case_idx as u32,
                         |context| {
-                            let stored_version = ::desert::DeserializationContext::input_mut(context).read_u8()?;
+                            let stored_version = desert::DeserializationContext::input_mut(context).read_u8()?;
                             if stored_version == 0 {
                                 let mut deserializer = desert::adt::AdtDeserializer::new_v0(&#case_metadata_name, context)?;
                                 Ok(#construct_case)

@@ -8,7 +8,6 @@ use desert::{
     BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
     DeserializationContext, SerializationContext,
 };
-use desert_macro::BinaryCodec;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize, Serializer};

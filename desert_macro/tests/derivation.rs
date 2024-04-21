@@ -1,5 +1,10 @@
 use assert2::check;
+use desert_core::*;
 use desert_macro::BinaryCodec;
+
+mod desert {
+    pub use desert_core::*;
+}
 
 #[derive(Debug, PartialEq, BinaryCodec)]
 #[evolution(FieldAdded("x", 0), FieldRemoved("z"))]
@@ -34,13 +39,13 @@ fn debug() {
         y: -10,
         cached_str: None,
     };
-    let bytes = desert::serialize_to_bytes(&pt).unwrap();
+    let bytes = serialize_to_bytes(&pt).unwrap();
     check!(
         bytes.to_vec()
             == vec![0x02, 0x08, 0x08, 0x03, 0x02, 0x7a, 0xff, 0xff, 0xff, 0xf6, 0, 0, 0, 1]
     );
 
-    let pt2 = desert::deserialize(bytes).unwrap();
+    let pt2 = deserialize_slice(&bytes).unwrap();
     check!(pt == pt2);
 
     let pt3 = Point2 {
@@ -49,8 +54,8 @@ fn debug() {
         cached_str: None,
         description: Some("Hello world".to_string()),
     };
-    let bytes2 = desert::serialize_to_bytes(&pt3).unwrap();
-    let pt4 = desert::deserialize(bytes2).unwrap();
+    let bytes2 = serialize_to_bytes(&pt3).unwrap();
+    let pt4 = deserialize_slice(&bytes2).unwrap();
     check!(pt3 == pt4);
 
     let choices = Choices::C {
@@ -61,8 +66,8 @@ fn debug() {
         }),
         z: 3,
     };
-    let bytes3 = desert::serialize_to_bytes(&choices).unwrap();
+    let bytes3 = serialize_to_bytes(&choices).unwrap();
     println!("{:?}", bytes3);
-    let choices2 = desert::deserialize(bytes3).unwrap();
+    let choices2 = deserialize_slice(&bytes3).unwrap();
     check!(choices == choices2);
 }

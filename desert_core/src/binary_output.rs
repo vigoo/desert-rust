@@ -139,6 +139,12 @@ impl SizeCalculator {
     }
 }
 
+impl Default for SizeCalculator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BinaryOutput for SizeCalculator {
     fn write_u8(&mut self, _value: u8) {
         self.size += 1;

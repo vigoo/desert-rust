@@ -1,9 +1,9 @@
+use std::io::Read;
+
+use flate2::read::DeflateDecoder;
+
 use crate::error::Result;
 use crate::Error;
-use bytes::{Buf, Bytes};
-use flate2::read::DeflateDecoder;
-use std::fs::File;
-use std::io::Read;
 
 pub trait BinaryInput {
     fn read_u8(&mut self) -> Result<u8>;
@@ -144,46 +144,46 @@ impl<'a> BinaryInput for SliceInput<'a> {
     }
 }
 
-impl BinaryInput for Bytes {
+pub struct OwnedInput {
+    data: Vec<u8>,
+    pos: usize,
+}
+
+impl OwnedInput {
+    pub fn new(data: Vec<u8>) -> Self {
+        Self { data, pos: 0 }
+    }
+}
+
+impl BinaryInput for OwnedInput {
     fn read_u8(&mut self) -> Result<u8> {
-        if self.has_remaining() {
-            Ok(self.get_u8())
-        } else {
+        if self.pos == self.data.len() {
             Err(Error::InputEndedUnexpectedly)
+        } else {
+            let result = self.data[self.pos];
+            self.pos += 1;
+            Ok(result)
         }
     }
 
     fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
-        if self.remaining() >= count {
-            Ok(&self[..count])
-        } else {
+        if self.pos + count > self.data.len() {
             Err(Error::InputEndedUnexpectedly)
+        } else {
+            let result = &self.data[self.pos..self.pos + count];
+            self.pos += count;
+            Ok(result)
         }
     }
 }
 
-// TODO
-// impl BinaryInput for File {
-//     fn read_u8(&mut self) -> Result<u8> {
-//         let mut buf = [0u8; 1];
-//         self.read_exact(&mut buf)
-//             .map_err(|_| Error::InputEndedUnexpectedly)?;
-//         Ok(buf[0])
-//     }
-//
-//     fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
-//         let mut buf = vec![0u8; count];
-//         self.read_exact(&mut buf)
-//             .map_err(|_| Error::InputEndedUnexpectedly)?;
-//         Ok(&buf)
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
-    use crate::{BinaryInput, BinaryOutput};
     use bytes::BytesMut;
     use proptest::prelude::*;
+
+    use crate::binary_input::OwnedInput;
+    use crate::{BinaryInput, BinaryOutput};
 
     proptest! {
         #[test]
@@ -191,7 +191,7 @@ mod tests {
             let mut bytes = BytesMut::new();
             bytes.write_var_i32(value);
 
-            let mut bytes = bytes.freeze();
+            let mut bytes = OwnedInput::new(bytes.freeze().to_vec());
             let result = bytes.read_var_i32().unwrap();
             assert_eq!(value, result);
         }
@@ -201,7 +201,7 @@ mod tests {
             let mut bytes = BytesMut::new();
             bytes.write_var_u32(value);
 
-            let mut bytes = bytes.freeze();
+            let mut bytes = OwnedInput::new(bytes.freeze().to_vec());
             let result = bytes.read_var_u32().unwrap();
             assert_eq!(value, result);
         }
@@ -211,7 +211,7 @@ mod tests {
             let mut compressed = BytesMut::new();
             compressed.write_compressed(&bytes, Default::default()).unwrap();
 
-            let mut compressed = compressed.freeze();
+            let mut compressed = OwnedInput::new(compressed.freeze().to_vec());
             let result = compressed.read_compressed().unwrap();
             assert_eq!(bytes, result);
         }

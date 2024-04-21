@@ -1,3 +1,6 @@
+#[allow(clippy::type_complexity)]
+mod tuples;
+
 use crate::binary_input::BinaryInput;
 use crate::error::Result;
 use crate::state::State;
@@ -196,185 +199,6 @@ impl BinaryDeserializer for Duration {
     }
 }
 
-impl<T1: BinaryDeserializer, T2: BinaryDeserializer> BinaryDeserializer for (T1, T2) {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let version = context.input_mut().read_u8()?;
-        if version == 0 {
-            Ok((T1::deserialize(context)?, T2::deserialize(context)?))
-        } else {
-            // TODO: handle the struct evolution if possible
-            Err(Error::DeserializationFailure(
-                "Failed to deserialize tuple".to_string(),
-            ))
-        }
-    }
-}
-
-impl<T1: BinaryDeserializer, T2: BinaryDeserializer, T3: BinaryDeserializer> BinaryDeserializer
-    for (T1, T2, T3)
-{
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let header = context.input_mut().read_u8()?;
-        if header == 0 {
-            Ok((
-                T1::deserialize(context)?,
-                T2::deserialize(context)?,
-                T3::deserialize(context)?,
-            ))
-        } else {
-            // TODO: handle the struct evolution if possible
-            Err(Error::DeserializationFailure(
-                "Failed to deserialize tuple".to_string(),
-            ))
-        }
-    }
-}
-
-impl<
-        T1: BinaryDeserializer,
-        T2: BinaryDeserializer,
-        T3: BinaryDeserializer,
-        T4: BinaryDeserializer,
-    > BinaryDeserializer for (T1, T2, T3, T4)
-{
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let header = context.input_mut().read_u8()?;
-        if header == 0 {
-            Ok((
-                T1::deserialize(context)?,
-                T2::deserialize(context)?,
-                T3::deserialize(context)?,
-                T4::deserialize(context)?,
-            ))
-        } else {
-            // TODO: handle the struct evolution if possible
-            Err(Error::DeserializationFailure(
-                "Failed to deserialize tuple".to_string(),
-            ))
-        }
-    }
-}
-
-impl<
-        T1: BinaryDeserializer,
-        T2: BinaryDeserializer,
-        T3: BinaryDeserializer,
-        T4: BinaryDeserializer,
-        T5: BinaryDeserializer,
-    > BinaryDeserializer for (T1, T2, T3, T4, T5)
-{
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let header = context.input_mut().read_u8()?;
-        if header == 0 {
-            Ok((
-                T1::deserialize(context)?,
-                T2::deserialize(context)?,
-                T3::deserialize(context)?,
-                T4::deserialize(context)?,
-                T5::deserialize(context)?,
-            ))
-        } else {
-            // TODO: handle the struct evolution if possible
-            Err(Error::DeserializationFailure(
-                "Failed to deserialize tuple".to_string(),
-            ))
-        }
-    }
-}
-
-impl<
-        T1: BinaryDeserializer,
-        T2: BinaryDeserializer,
-        T3: BinaryDeserializer,
-        T4: BinaryDeserializer,
-        T5: BinaryDeserializer,
-        T6: BinaryDeserializer,
-    > BinaryDeserializer for (T1, T2, T3, T4, T5, T6)
-{
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let header = context.input_mut().read_u8()?;
-        if header == 0 {
-            Ok((
-                T1::deserialize(context)?,
-                T2::deserialize(context)?,
-                T3::deserialize(context)?,
-                T4::deserialize(context)?,
-                T5::deserialize(context)?,
-                T6::deserialize(context)?,
-            ))
-        } else {
-            // TODO: handle the struct evolution if possible
-            Err(Error::DeserializationFailure(
-                "Failed to deserialize tuple".to_string(),
-            ))
-        }
-    }
-}
-
-impl<
-        T1: BinaryDeserializer,
-        T2: BinaryDeserializer,
-        T3: BinaryDeserializer,
-        T4: BinaryDeserializer,
-        T5: BinaryDeserializer,
-        T6: BinaryDeserializer,
-        T7: BinaryDeserializer,
-    > BinaryDeserializer for (T1, T2, T3, T4, T5, T6, T7)
-{
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let header = context.input_mut().read_u8()?;
-        if header == 0 {
-            Ok((
-                T1::deserialize(context)?,
-                T2::deserialize(context)?,
-                T3::deserialize(context)?,
-                T4::deserialize(context)?,
-                T5::deserialize(context)?,
-                T6::deserialize(context)?,
-                T7::deserialize(context)?,
-            ))
-        } else {
-            // TODO: handle the struct evolution if possible
-            Err(Error::DeserializationFailure(
-                "Failed to deserialize tuple".to_string(),
-            ))
-        }
-    }
-}
-
-impl<
-        T1: BinaryDeserializer,
-        T2: BinaryDeserializer,
-        T3: BinaryDeserializer,
-        T4: BinaryDeserializer,
-        T5: BinaryDeserializer,
-        T6: BinaryDeserializer,
-        T7: BinaryDeserializer,
-        T8: BinaryDeserializer,
-    > BinaryDeserializer for (T1, T2, T3, T4, T5, T6, T7, T8)
-{
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let header = context.input_mut().read_u8()?;
-        if header == 0 {
-            Ok((
-                T1::deserialize(context)?,
-                T2::deserialize(context)?,
-                T3::deserialize(context)?,
-                T4::deserialize(context)?,
-                T5::deserialize(context)?,
-                T6::deserialize(context)?,
-                T7::deserialize(context)?,
-                T8::deserialize(context)?,
-            ))
-        } else {
-            // TODO: handle the struct evolution if possible
-            Err(Error::DeserializationFailure(
-                "Failed to deserialize tuple".to_string(),
-            ))
-        }
-    }
-}
-
 impl<T: BinaryDeserializer> BinaryDeserializer for Option<T> {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         match context.input_mut().read_u8()? {
@@ -430,7 +254,7 @@ impl<T: BinaryDeserializer, const L: usize> BinaryDeserializer for [T; L] {
 impl<T: BinaryDeserializer> BinaryDeserializer for Vec<T> {
     fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
         let empty: Self = Vec::new();
-        if let Ok(_) = cast!(empty, Vec<u8>) {
+        if cast!(empty, Vec<u8>).is_ok() {
             let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.input_mut().read_bytes(length as usize)?;
             unsafe { Ok(std::mem::transmute(bytes.to_vec())) }

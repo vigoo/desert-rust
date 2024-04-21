@@ -142,6 +142,7 @@ fn messagepack_benchmark(case: &Case) -> Report {
     )
 }
 
+#[allow(dead_code)]
 fn dlhn_benchmark(case: &Case) -> Report {
     benchmark(
         case,

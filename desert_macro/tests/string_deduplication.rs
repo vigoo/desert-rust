@@ -1,8 +1,12 @@
 use bytes::BytesMut;
-use desert::serializer::Serialization;
-use desert::{BinarySerializer, DeduplicatedString, Result, SerializationContext};
+use desert_core::serializer::Serialization;
+use desert_core::{BinarySerializer, DeduplicatedString, Result, SerializationContext};
 use desert_macro::BinaryCodec;
 use lazy_static::lazy_static;
+
+mod desert {
+    pub use desert_core::*;
+}
 
 #[derive(Debug, PartialEq, BinaryCodec)]
 struct DataV1;

@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 use std::ops::IndexMut;
 
-use bytes::Bytes;
 use hashbrown::{HashMap, HashSet};
+use lazy_static::lazy_static;
 
+use crate::binary_input::OwnedInput;
 use crate::deserializer::DeserializationContext;
 use crate::error::Result;
 use crate::evolution::SerializedEvolutionStep;
@@ -13,6 +14,11 @@ use crate::{
     BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, Error, Evolution,
     DEFAULT_CAPACITY,
 };
+
+lazy_static! {
+    pub static ref EMPTY_ADT_METADATA: AdtMetadata =
+        AdtMetadata::new(vec![Evolution::InitialVersion]);
+}
 
 #[derive(Debug)]
 pub struct AdtMetadata {
@@ -309,7 +315,7 @@ impl<'a, 'b, Context: SerializationContext>
     AdtSerializer<'a, Context, NonChunkedOutput<'b, Context>>
 {
     pub fn new_v0(metadata: &'a AdtMetadata, context: &'b mut Context) -> Self {
-        assert_eq!(metadata.version, 0); // TODO: try to do a type level constraint?
+        assert_eq!(metadata.version, 0);
         context.output_mut().write_u8(metadata.version);
         let chunked_output = NonChunkedOutput::new(context);
         Self {
@@ -433,7 +439,7 @@ pub struct PreloadedChunkedInput<'a, Context: DeserializationContext> {
     stored_version: u8,
     made_optional_at: HashMap<FieldPosition, u8>,
     removed_fields: HashSet<String>,
-    inputs: Vec<Bytes>,
+    inputs: Vec<OwnedInput>,
 }
 
 impl<'a, Context: DeserializationContext> PreloadedChunkedInput<'a, Context> {
@@ -452,18 +458,18 @@ impl<'a, Context: DeserializationContext> PreloadedChunkedInput<'a, Context> {
             match serialized_evolution_step {
                 SerializedEvolutionStep::FieldAddedToNewChunk { size } => {
                     let input = context.input_mut().read_bytes(*size as usize)?;
-                    inputs.push(input.to_vec().into());
+                    inputs.push(OwnedInput::new(input.to_vec()));
                 }
                 SerializedEvolutionStep::FieldMadeOptional { position } => {
                     made_optional_at.insert(*position, idx as u8);
-                    inputs.push(Bytes::new());
+                    inputs.push(OwnedInput::new(vec![]));
                 }
                 SerializedEvolutionStep::FieldRemoved { field_name } => {
                     removed_fields.insert(field_name.clone());
-                    inputs.push(Bytes::new());
+                    inputs.push(OwnedInput::new(vec![]));
                 }
                 _ => {
-                    inputs.push(Bytes::new());
+                    inputs.push(OwnedInput::new(vec![]));
                 }
             }
         }
@@ -479,7 +485,7 @@ impl<'a, Context: DeserializationContext> PreloadedChunkedInput<'a, Context> {
 }
 
 impl<'a, Context: DeserializationContext> ChunkedInput for PreloadedChunkedInput<'a, Context> {
-    type Input = Bytes;
+    type Input = OwnedInput;
 
     fn stored_version(&self) -> u8 {
         self.stored_version
@@ -625,7 +631,6 @@ impl<'a, Context: DeserializationContext, CI: ChunkedInput> AdtDeserializer<'a, 
                     }
                 } else {
                     let mut context = ChunkedDeserialization::new(&mut self.chunked_input, chunk);
-
                     T::deserialize(&mut context)
                 }
             }

@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "desert",
     "desert_benchmarks",
+    "desert_core",
     "desert_macro",
 ]
 

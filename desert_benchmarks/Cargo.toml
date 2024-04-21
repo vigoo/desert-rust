@@ -8,7 +8,6 @@ readme = "README.md"
 
 [dependencies]
 desert = { path = "../desert" }
-desert_macro = { path = "../desert_macro" }
 
 bincode = { version = "2.0.0-rc.3", features = ["serde"] }
 bitcode = { version = "0.6.0", features = ["serde"] }
