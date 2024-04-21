@@ -148,53 +148,12 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 variants.sort_by_key(|variant| variant.ident.to_string());
             }
 
-            // TODO: support transient constructors
             for (case_idx, variant) in variants.iter().enumerate() {
+                let is_transient = variant
+                    .attrs
+                    .iter()
+                    .any(|attr| attr.path().is_ident("transient"));
                 let case_name = &variant.ident;
-
-                let (case_evolution_steps, case_field_defaults) =
-                    evolution_steps_from_attributes(&variant.attrs);
-                let version = case_evolution_steps.len();
-                let mut case_push_evolution_steps = Vec::new();
-                for evolution_step in case_evolution_steps {
-                    case_push_evolution_steps.push(quote! {
-                        evolution_steps.push(#evolution_step);
-                    });
-                }
-                let mut case_serialization_commands = Vec::new();
-                let mut case_deserialization_commands = Vec::new();
-
-                let new_v = if version == 0 {
-                    quote! { new_v0 }
-                } else {
-                    quote! { new }
-                };
-
-                let case_metadata_name = Ident::new(
-                    &format!("{name}_{case_name}_metadata").to_uppercase(),
-                    Span::call_site(),
-                );
-
-                metadata.push(quote! {
-                    lazy_static::lazy_static! {
-                        static ref #case_metadata_name: desert::adt::AdtMetadata = {
-                            let mut evolution_steps: Vec<desert::Evolution> = Vec::new();
-                            evolution_steps.push(desert::Evolution::InitialVersion);
-                            #(#case_push_evolution_steps)*
-
-                            desert::adt::AdtMetadata::new(
-                                evolution_steps,
-                            )
-                        };
-                    }
-                });
-
-                derive_field_serialization(
-                    case_field_defaults,
-                    &mut case_serialization_commands,
-                    &mut case_deserialization_commands,
-                    &variant.fields,
-                );
 
                 let pattern = match &variant.fields {
                     Fields::Unit => {
@@ -211,15 +170,62 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     Fields::Unnamed(unnamed_fields) => {
                         let mut field_patterns = Vec::new();
                         for n in 0..unnamed_fields.unnamed.len() {
-                            let field_ident = Ident::new(&format!("field{}", n), Span::call_site());
+                            let field_ident =
+                                Ident::new(&format!("field{}", n), Span::call_site());
                             field_patterns.push(quote! { #field_ident });
                         }
                         quote! { #name::#case_name(#(#field_patterns),*) }
                     }
                 };
 
-                cases.push(
-                    quote! {
+                if !is_transient {
+
+                    let (case_evolution_steps, case_field_defaults) =
+                        evolution_steps_from_attributes(&variant.attrs);
+                    let version = case_evolution_steps.len();
+                    let mut case_push_evolution_steps = Vec::new();
+                    for evolution_step in case_evolution_steps {
+                        case_push_evolution_steps.push(quote! {
+                            evolution_steps.push(#evolution_step);
+                        });
+                    }
+                    let mut case_serialization_commands = Vec::new();
+                    let mut case_deserialization_commands = Vec::new();
+
+                    let new_v = if version == 0 {
+                        quote! { new_v0 }
+                    } else {
+                        quote! { new }
+                    };
+
+                    let case_metadata_name = Ident::new(
+                        &format!("{name}_{case_name}_metadata").to_uppercase(),
+                        Span::call_site(),
+                    );
+
+                    metadata.push(quote! {
+                        lazy_static::lazy_static! {
+                            static ref #case_metadata_name: desert::adt::AdtMetadata = {
+                                let mut evolution_steps: Vec<desert::Evolution> = Vec::new();
+                                evolution_steps.push(desert::Evolution::InitialVersion);
+                                #(#case_push_evolution_steps)*
+
+                                desert::adt::AdtMetadata::new(
+                                    evolution_steps,
+                                )
+                            };
+                        }
+                    });
+
+                    derive_field_serialization(
+                        case_field_defaults,
+                        &mut case_serialization_commands,
+                        &mut case_deserialization_commands,
+                        &variant.fields,
+                    );
+
+                    cases.push(
+                        quote! {
                         #pattern => {
                             serializer.write_constructor(
                                 #case_idx as u32,
@@ -231,41 +237,65 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                             )?;
                         }
                     }
-                );
+                    );
 
-                let construct_case = match &variant.fields {
-                    Fields::Unit => {
-                        quote! { #name::#case_name }
-                    }
-                    Fields::Named(_) => {
-                        quote! { #name::#case_name {
-                                #(#case_deserialization_commands)*
+                    let construct_case = match &variant.fields {
+                        Fields::Unit => {
+                            quote! { #name::#case_name }
+                        }
+                        Fields::Named(_) => {
+                            quote! { #name::#case_name {
+                                    #(#case_deserialization_commands)*
+                                }
                             }
                         }
-                    }
-                    Fields::Unnamed(_) => {
-                        quote! { #name::#case_name(#(#case_deserialization_commands)*) }
-                    }
-                };
+                        Fields::Unnamed(_) => {
+                            quote! { #name::#case_name(#(#case_deserialization_commands)*) }
+                        }
+                    };
 
-                deserialization_commands.push(
+                    deserialization_commands.push(
+                        quote! {
+                            if let Some(result) = deserializer.read_constructor(#case_idx as u32,
+                                |context| {
+                                    let stored_version = desert::DeserializationContext::input_mut(context).read_u8()?;
+                                    if stored_version == 0 {
+                                        let mut deserializer = desert::adt::AdtDeserializer::new_v0(&#case_metadata_name, context)?;
+                                        Ok(#construct_case)
+                                    } else {
+                                        let mut deserializer = desert::adt::AdtDeserializer::new(&#case_metadata_name, context, stored_version)?;
+                                        Ok(#construct_case)
+                                    }
+                                }
+                            )? {
+                                return Ok(result)
+                            }
+                       }
+                    );
+                } else {
+                    let name_string = name.to_string();
+                    let case_name_string = case_name.to_string();
+                    deserialization_commands.push(
+                      quote! {
+                          let _: Option<Self> = deserializer.read_constructor(#case_idx as u32, |_| {
+                              Err(desert::Error::DeserializingTransientConstructor {
+                                    type_name: #name_string.to_string(),
+                                    constructor_name: #case_name_string.to_string(),
+                              })
+                          })?;
+                      }
+                    );
+                    cases.push(
                     quote! {
-                    if let Some(result) = deserializer.read_constructor(#case_idx as u32,
-                        |context| {
-                            let stored_version = desert::DeserializationContext::input_mut(context).read_u8()?;
-                            if stored_version == 0 {
-                                let mut deserializer = desert::adt::AdtDeserializer::new_v0(&#case_metadata_name, context)?;
-                                Ok(#construct_case)
-                            } else {
-                                let mut deserializer = desert::adt::AdtDeserializer::new(&#case_metadata_name, context, stored_version)?;
-                                Ok(#construct_case)
+                            #pattern => {
+                                return Err(desert::Error::SerializingTransientConstructor {
+                                    type_name: #name_string.to_string(),
+                                    constructor_name: #case_name_string.to_string(),
+                                });
                             }
                         }
-                    )? {
-                        return Ok(result)
-                    }
+                    );
                 }
-                );
             }
 
             serialization_commands.push(quote! {
@@ -358,7 +388,7 @@ fn derive_field_serialization(
             if attr.path().is_ident("transient") {
                 let args = attr
                     .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
-                    .expect("FieldAdded arguments");
+                    .unwrap_or_default();
                 if args.len() != 1 {
                     panic!("#[transient(default)] on fields needs a default value");
                 }

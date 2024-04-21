@@ -18,3 +18,4 @@ syn = { version = "2.0.60", features = ["full"] }
 [dev-dependencies]
 assert2 = "0.3.14"
 lazy_static = "1.4.0"
+uuid = { version = "1.8.0", features = ["v4"] }

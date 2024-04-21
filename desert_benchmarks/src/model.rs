@@ -104,8 +104,6 @@ impl BinaryDeserializer for Timestamp {
     }
 }
 
-impl BinaryCodec for Timestamp {}
-
 #[derive(
     Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode, BinaryCodec,
 )]

@@ -20,6 +20,8 @@ pub use serializer::{serialize_iterator, BinarySerializer, SerializationContext}
 
 pub trait BinaryCodec: BinarySerializer + BinaryDeserializer {}
 
+impl<T: BinarySerializer + BinaryDeserializer> BinaryCodec for T {}
+
 const DEFAULT_CAPACITY: usize = 128;
 
 pub fn serialize<T: BinarySerializer, O: BinaryOutput>(value: &T, output: O) -> Result<O> {

@@ -31,6 +31,14 @@ pub enum Error {
         constructor_id: u32,
         type_name: String,
     },
+    DeserializingTransientConstructor {
+        constructor_name: String,
+        type_name: String,
+    },
+    SerializingTransientConstructor {
+        constructor_name: String,
+        type_name: String,
+    },
 }
 
 impl Display for Error {
@@ -75,6 +83,20 @@ impl Display for Error {
             } => write!(
                 f,
                 "Invalid constructor id: {constructor_id} for type: {type_name}"
+            ),
+            Error::DeserializingTransientConstructor {
+                constructor_name,
+                type_name,
+            } => write!(
+                f,
+                "Deserializing transient constructor: {constructor_name} for type: {type_name}"
+            ),
+            Error::SerializingTransientConstructor {
+                constructor_name,
+                type_name,
+            } => write!(
+                f,
+                "Serializing transient constructor: {constructor_name} for type: {type_name}"
             ),
         }
     }

@@ -519,6 +519,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.60",
+ "uuid",
 ]
 
 [[package]]
