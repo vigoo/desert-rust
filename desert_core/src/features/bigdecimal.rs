@@ -1,12 +1,15 @@
 use crate::deserializer::DeserializationContext;
 use crate::serializer::SerializationContext;
-use crate::{BinaryDeserializer, BinaryInput, BinarySerializer, Error, Result};
+use crate::{BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, Error, Result};
 use bigdecimal::num_bigint::BigInt;
 use bigdecimal::num_traits::ToBytes;
 use bigdecimal::BigDecimal;
 
 impl BinarySerializer for BigDecimal {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         self.to_string().serialize(context)
     }
 }
@@ -23,7 +26,10 @@ impl BinaryDeserializer for BigDecimal {
 }
 
 impl BinarySerializer for BigInt {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         self.to_be_bytes().serialize(context)
     }
 }

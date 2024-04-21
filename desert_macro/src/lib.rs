@@ -340,7 +340,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         #(#metadata)*
 
         impl desert::BinarySerializer for #name {
-            fn serialize<Context: desert::SerializationContext>(&self, context: &mut Context) -> desert::Result<()> {
+            fn serialize<Output: desert::BinaryOutput>(&self, context: &mut desert::SerializationContext<Output>) -> desert::Result<()> {
                 let mut serializer = desert::adt::AdtSerializer::#new_v(&#metadata_name, context);
                 #(#serialization_commands)*
                 serializer.finish()

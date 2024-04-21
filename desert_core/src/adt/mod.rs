@@ -112,8 +112,11 @@ impl FieldPosition {
 }
 
 impl BinarySerializer for FieldPosition {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context.output_mut().write_u8(self.to_byte());
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        context.write_u8(self.to_byte());
         Ok(())
     }
 }

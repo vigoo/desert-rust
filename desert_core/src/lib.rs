@@ -25,7 +25,7 @@ impl<T: BinarySerializer + BinaryDeserializer> BinaryCodec for T {}
 const DEFAULT_CAPACITY: usize = 128;
 
 pub fn serialize<T: BinarySerializer, O: BinaryOutput>(value: &T, output: O) -> Result<O> {
-    let mut context = serializer::Serialization::new(output);
+    let mut context = SerializationContext::new(output);
     value.serialize(&mut context)?;
     Ok(context.into_output())
 }
@@ -96,7 +96,7 @@ impl Display for RefId {
 mod tests {
     use crate::{
         deserialize, deserialize_slice, serialize_to_byte_vec, serialize_to_bytes,
-        BinaryDeserializer, BinaryInput, BinarySerializer, DeserializationContext,
+        BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, DeserializationContext,
         SerializationContext, SliceInput,
     };
     use proptest::prelude::*;
@@ -292,9 +292,9 @@ mod tests {
     }
 
     impl BinarySerializer for Rc<RefCell<Node>> {
-        fn serialize<Context: SerializationContext>(
+        fn serialize<Output: BinaryOutput>(
             &self,
-            context: &mut Context,
+            context: &mut SerializationContext<Output>,
         ) -> crate::Result<()> {
             let node = self.borrow();
             node.label.serialize(context)?;
@@ -342,9 +342,9 @@ mod tests {
     }
 
     impl BinarySerializer for Root {
-        fn serialize<Context: SerializationContext>(
+        fn serialize<Output: BinaryOutput>(
             &self,
-            context: &mut Context,
+            context: &mut SerializationContext<Output>,
         ) -> crate::Result<()> {
             if context.store_ref_or_object(&self.node)? {
                 self.node.serialize(context)?;

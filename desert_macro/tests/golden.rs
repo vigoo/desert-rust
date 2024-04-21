@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use desert_core::{
     deserialize_slice, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
-    DeserializationContext,
+    DeserializationContext, SerializationContext,
 };
 use desert_macro::BinaryCodec;
 
@@ -82,15 +82,15 @@ struct StackTraceElement {
 }
 
 impl BinarySerializer for StackTraceElement {
-    fn serialize<Context: desert::SerializationContext>(
+    fn serialize<Output: BinaryOutput>(
         &self,
-        context: &mut Context,
+        context: &mut SerializationContext<Output>,
     ) -> desert::Result<()> {
-        context.output_mut().write_u8(0);
+        context.write_u8(0);
         self.class_name.serialize(context)?;
         self.method_name.serialize(context)?;
         self.file_name.serialize(context)?;
-        context.output_mut().write_var_u32(self.line_number);
+        context.write_var_u32(self.line_number);
         Ok(())
     }
 }

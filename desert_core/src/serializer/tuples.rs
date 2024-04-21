@@ -1,8 +1,20 @@
 use crate::{BinaryOutput, BinarySerializer, SerializationContext};
 
+impl<T1: BinarySerializer> BinarySerializer for (T1,) {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
+        self.0.serialize(context)
+    }
+}
+
 impl<T1: BinarySerializer, T2: BinarySerializer> BinarySerializer for (T1, T2) {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-        context.output_mut().write_u8(0);
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
+        context.write_u8(0);
         self.0.serialize(context)?;
         self.1.serialize(context)?;
         Ok(())
@@ -12,8 +24,11 @@ impl<T1: BinarySerializer, T2: BinarySerializer> BinarySerializer for (T1, T2) {
 impl<T1: BinarySerializer, T2: BinarySerializer, T3: BinarySerializer> BinarySerializer
     for (T1, T2, T3)
 {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-        context.output_mut().write_u8(0);
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
+        context.write_u8(0);
         self.0.serialize(context)?;
         self.1.serialize(context)?;
         self.2.serialize(context)?;
@@ -24,8 +39,11 @@ impl<T1: BinarySerializer, T2: BinarySerializer, T3: BinarySerializer> BinarySer
 impl<T1: BinarySerializer, T2: BinarySerializer, T3: BinarySerializer, T4: BinarySerializer>
     BinarySerializer for (T1, T2, T3, T4)
 {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-        context.output_mut().write_u8(0);
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
+        context.write_u8(0);
         self.0.serialize(context)?;
         self.1.serialize(context)?;
         self.2.serialize(context)?;
@@ -42,8 +60,11 @@ impl<
         T5: BinarySerializer,
     > BinarySerializer for (T1, T2, T3, T4, T5)
 {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-        context.output_mut().write_u8(0);
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
+        context.write_u8(0);
         self.0.serialize(context)?;
         self.1.serialize(context)?;
         self.2.serialize(context)?;
@@ -62,8 +83,11 @@ impl<
         T6: BinarySerializer,
     > BinarySerializer for (T1, T2, T3, T4, T5, T6)
 {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-        context.output_mut().write_u8(0);
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
+        context.write_u8(0);
         self.0.serialize(context)?;
         self.1.serialize(context)?;
         self.2.serialize(context)?;
@@ -84,8 +108,11 @@ impl<
         T7: BinarySerializer,
     > BinarySerializer for (T1, T2, T3, T4, T5, T6, T7)
 {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-        context.output_mut().write_u8(0);
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
+        context.write_u8(0);
         self.0.serialize(context)?;
         self.1.serialize(context)?;
         self.2.serialize(context)?;
@@ -108,8 +135,11 @@ impl<
         T8: BinarySerializer,
     > BinarySerializer for (T1, T2, T3, T4, T5, T6, T7, T8)
 {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
-        context.output_mut().write_u8(0);
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
+        context.write_u8(0);
         self.0.serialize(context)?;
         self.1.serialize(context)?;
         self.2.serialize(context)?;

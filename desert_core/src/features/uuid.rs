@@ -6,10 +6,11 @@ use crate::{BinaryDeserializer, BinarySerializer, Result};
 use uuid::Uuid;
 
 impl BinarySerializer for Uuid {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context
-            .output_mut()
-            .write_bytes(self.into_bytes().as_slice());
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        context.write_bytes(self.into_bytes().as_slice());
         Ok(())
     }
 }

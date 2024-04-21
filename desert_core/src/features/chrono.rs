@@ -12,7 +12,10 @@ use chrono_tz::{OffsetName, Tz};
 use std::str::FromStr;
 
 impl BinarySerializer for Weekday {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         (self.number_from_monday() as i8).serialize(context)
     }
 }
@@ -28,7 +31,10 @@ impl BinaryDeserializer for Weekday {
 }
 
 impl BinarySerializer for Month {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         (self.number_from_month() as i8).serialize(context)
     }
 }
@@ -43,9 +49,12 @@ impl BinaryDeserializer for Month {
 }
 
 impl BinarySerializer for FixedOffset {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context.output_mut().write_u8(0);
-        context.output_mut().write_var_i32(self.local_minus_utc());
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        context.write_u8(0);
+        context.write_var_i32(self.local_minus_utc());
         Ok(())
     }
 }
@@ -73,8 +82,11 @@ impl BinaryDeserializer for FixedOffset {
 }
 
 impl BinarySerializer for Tz {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context.output_mut().write_u8(1);
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        context.write_u8(1);
         self.name().serialize(context)
     }
 }
@@ -99,11 +111,12 @@ impl BinaryDeserializer for Tz {
 }
 
 impl BinarySerializer for DateTime<Utc> {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context.output_mut().write_i64(self.timestamp());
-        context
-            .output_mut()
-            .write_u32(self.timestamp_subsec_nanos());
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        context.write_i64(self.timestamp());
+        context.write_u32(self.timestamp_subsec_nanos());
         Ok(())
     }
 }
@@ -124,12 +137,15 @@ impl BinaryDeserializer for DateTime<Utc> {
 }
 
 impl BinarySerializer for NaiveDate {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         use chrono::Datelike;
 
-        context.output_mut().write_var_u32(self.year() as u32);
-        context.output_mut().write_u8(self.month() as u8);
-        context.output_mut().write_u8(self.day() as u8);
+        context.write_var_u32(self.year() as u32);
+        context.write_u8(self.month() as u8);
+        context.write_u8(self.day() as u8);
         Ok(())
     }
 }
@@ -151,11 +167,14 @@ impl BinaryDeserializer for NaiveDate {
 }
 
 impl BinarySerializer for NaiveTime {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
-        context.output_mut().write_u8(self.hour() as u8);
-        context.output_mut().write_u8(self.minute() as u8);
-        context.output_mut().write_u8(self.second() as u8);
-        context.output_mut().write_var_u32(self.nanosecond());
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        context.write_u8(self.hour() as u8);
+        context.write_u8(self.minute() as u8);
+        context.write_u8(self.second() as u8);
+        context.write_var_u32(self.nanosecond());
         Ok(())
     }
 }
@@ -179,7 +198,10 @@ impl BinaryDeserializer for NaiveTime {
 }
 
 impl BinarySerializer for NaiveDateTime {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         self.date().serialize(context)?;
         self.time().serialize(context)?;
         Ok(())
@@ -197,7 +219,10 @@ impl BinaryDeserializer for NaiveDateTime {
 }
 
 impl BinarySerializer for DateTime<Local> {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         self.date_naive().serialize(context)?;
         self.time().serialize(context)?;
         Ok(())
@@ -218,7 +243,10 @@ impl BinaryDeserializer for DateTime<Local> {
 }
 
 impl BinarySerializer for DateTime<FixedOffset> {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         self.naive_local().serialize(context)?;
         self.offset().serialize(context)?;
         Ok(())
@@ -240,7 +268,10 @@ impl BinaryDeserializer for DateTime<FixedOffset> {
 }
 
 impl BinarySerializer for DateTime<Tz> {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
         self.naive_utc().serialize(context)?;
         Tz::from_str(self.offset().tz_id())?.serialize(context)?;
         Ok(())

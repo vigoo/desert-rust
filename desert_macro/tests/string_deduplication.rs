@@ -1,6 +1,7 @@
 use bytes::BytesMut;
-use desert_core::serializer::Serialization;
-use desert_core::{BinarySerializer, DeduplicatedString, Result, SerializationContext};
+use desert_core::{
+    BinaryOutput, BinarySerializer, DeduplicatedString, Result, SerializationContext,
+};
 use desert_macro::BinaryCodec;
 use lazy_static::lazy_static;
 
@@ -35,7 +36,7 @@ lazy_static! {
     static ref S3: String = "and another one".to_string();
 }
 
-fn test_dedup_ser<Context: SerializationContext>(context: &mut Context) -> Result<()> {
+fn test_dedup_ser<Output: BinaryOutput>(context: &mut SerializationContext<Output>) -> Result<()> {
     DeduplicatedString(S1.clone()).serialize(context)?;
     DeduplicatedString(S2.clone()).serialize(context)?;
     DeduplicatedString(S3.clone()).serialize(context)?;
@@ -45,7 +46,9 @@ fn test_dedup_ser<Context: SerializationContext>(context: &mut Context) -> Resul
     Ok(())
 }
 
-fn test_non_dedup_ser<Context: SerializationContext>(context: &mut Context) -> Result<()> {
+fn test_non_dedup_ser<Output: BinaryOutput>(
+    context: &mut SerializationContext<Output>,
+) -> Result<()> {
     S1.serialize(context)?;
     S2.serialize(context)?;
     S3.serialize(context)?;
@@ -57,12 +60,12 @@ fn test_non_dedup_ser<Context: SerializationContext>(context: &mut Context) -> R
 
 #[test]
 fn reduces_serialized_size() {
-    let mut context = Serialization::new(BytesMut::new());
+    let mut context = SerializationContext::new(BytesMut::new());
     test_dedup_ser(&mut context).unwrap();
     let bytes = context.into_output();
     let dedup_len = bytes.len();
 
-    let mut context = Serialization::new(BytesMut::new());
+    let mut context = SerializationContext::new(BytesMut::new());
     test_non_dedup_ser(&mut context).unwrap();
     let bytes = context.into_output();
     let non_dedup_len = bytes.len();

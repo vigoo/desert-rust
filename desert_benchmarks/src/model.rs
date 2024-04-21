@@ -82,15 +82,15 @@ impl<'de> bincode::BorrowDecode<'de> for Timestamp {
 }
 
 impl BinarySerializer for Timestamp {
-    fn serialize<Context: SerializationContext>(
+    fn serialize<Output: BinaryOutput>(
         &self,
-        context: &mut Context,
+        context: &mut SerializationContext<Output>,
     ) -> desert::Result<()> {
         let ms = self
             .0
             .duration_since(iso8601_timestamp::Timestamp::UNIX_EPOCH)
             .whole_milliseconds() as u64;
-        context.output_mut().write_u64(ms);
+        context.write_u64(ms);
         Ok(())
     }
 }

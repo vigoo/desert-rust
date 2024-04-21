@@ -49,22 +49,25 @@ const FIELD_MADE_OPTIONAL: i32 = -1;
 const FIELD_REMOVED: i32 = -2;
 
 impl BinarySerializer for SerializedEvolutionStep {
-    fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> crate::Result<()> {
         match self {
             SerializedEvolutionStep::FieldAddedToNewChunk { size } => {
-                context.output_mut().write_var_i32(*size);
+                context.write_var_i32(*size);
                 Ok(())
             }
             SerializedEvolutionStep::FieldMadeOptional { position } => {
-                context.output_mut().write_var_i32(FIELD_MADE_OPTIONAL);
+                context.write_var_i32(FIELD_MADE_OPTIONAL);
                 position.serialize(context)
             }
             SerializedEvolutionStep::FieldRemoved { field_name } => {
-                context.output_mut().write_var_i32(FIELD_REMOVED);
+                context.write_var_i32(FIELD_REMOVED);
                 DeduplicatedString(field_name.clone()).serialize(context)
             }
             SerializedEvolutionStep::Unknown => {
-                context.output_mut().write_var_i32(UNKNOWN);
+                context.write_var_i32(UNKNOWN);
                 Ok(())
             }
         }
