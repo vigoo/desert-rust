@@ -36,6 +36,7 @@ pub enum Evolution {
     },
 }
 
+#[derive(Debug)]
 pub(crate) enum SerializedEvolutionStep {
     FieldAddedToNewChunk { size: i32 },
     FieldMadeOptional { position: FieldPosition },
@@ -51,22 +52,18 @@ impl BinarySerializer for SerializedEvolutionStep {
     fn serialize<Context: SerializationContext>(&self, context: &mut Context) -> crate::Result<()> {
         match self {
             SerializedEvolutionStep::FieldAddedToNewChunk { size } => {
-                println!("field added to new chunk size: {size}");
                 context.output_mut().write_var_i32(*size);
                 Ok(())
             }
             SerializedEvolutionStep::FieldMadeOptional { position } => {
-                println!("field made optional position: {position:?}");
                 context.output_mut().write_var_i32(FIELD_MADE_OPTIONAL);
                 position.serialize(context)
             }
             SerializedEvolutionStep::FieldRemoved { field_name } => {
-                println!("field removed field_name: {field_name}");
                 context.output_mut().write_var_i32(FIELD_REMOVED);
                 DeduplicatedString(field_name.clone()).serialize(context)
             }
             SerializedEvolutionStep::Unknown => {
-                println!("unknown");
                 context.output_mut().write_var_i32(UNKNOWN);
                 Ok(())
             }
@@ -75,8 +72,10 @@ impl BinarySerializer for SerializedEvolutionStep {
 }
 
 impl BinaryDeserializer for SerializedEvolutionStep {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> crate::Result<Self> {
-        let code_or_size = context.input_mut().read_var_i32()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> crate::Result<Self> {
+        let code_or_size = context.read_var_i32()?;
         if code_or_size == UNKNOWN {
             return Ok(SerializedEvolutionStep::Unknown);
         }

@@ -18,7 +18,9 @@ impl BinarySerializer for Weekday {
 }
 
 impl BinaryDeserializer for Weekday {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         Weekday::from_i8(i8::deserialize(context)? - 1).ok_or_else(|| {
             Error::DeserializationFailure("Failed to deserialize Weekday".to_string())
         })
@@ -32,7 +34,9 @@ impl BinarySerializer for Month {
 }
 
 impl BinaryDeserializer for Month {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         Month::from_i8(i8::deserialize(context)?)
             .ok_or_else(|| Error::DeserializationFailure("Failed to deserialize Month".to_string()))
     }
@@ -47,15 +51,17 @@ impl BinarySerializer for FixedOffset {
 }
 
 impl BinaryDeserializer for FixedOffset {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let typ = context.input_mut().read_u8()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let typ = context.read_u8()?;
         if typ != 0 {
             Err(Error::DeserializationFailure(format!(
                 "Failed to deserialize FixedOffset: Invalid type {}",
                 typ
             )))?
         } else {
-            let offset = context.input_mut().read_var_i32()?;
+            let offset = context.read_var_i32()?;
             FixedOffset::east_opt(offset).ok_or_else(|| {
                 Error::DeserializationFailure(format!(
                     "Failed to deserialize FixedOffset: Invalid offset {}",
@@ -74,8 +80,10 @@ impl BinarySerializer for Tz {
 }
 
 impl BinaryDeserializer for Tz {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let typ = context.input_mut().read_u8()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let typ = context.read_u8()?;
         if typ != 1 {
             Err(Error::DeserializationFailure(format!(
                 "Failed to deserialize Tz: Invalid type {}",
@@ -101,9 +109,11 @@ impl BinarySerializer for DateTime<Utc> {
 }
 
 impl BinaryDeserializer for DateTime<Utc> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let seconds = context.input_mut().read_i64()?;
-        let nanos = context.input_mut().read_u32()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let seconds = context.read_i64()?;
+        let nanos = context.read_u32()?;
         DateTime::<Utc>::from_timestamp(seconds, nanos).ok_or_else(|| {
             Error::DeserializationFailure(format!(
                 "Failed to deserialize DateTime<Utc>: Invalid timestamp {} {}",
@@ -125,10 +135,12 @@ impl BinarySerializer for NaiveDate {
 }
 
 impl BinaryDeserializer for NaiveDate {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let year = context.input_mut().read_var_u32()?;
-        let month = context.input_mut().read_u8()?;
-        let day = context.input_mut().read_u8()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let year = context.read_var_u32()?;
+        let month = context.read_u8()?;
+        let day = context.read_u8()?;
         NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32).ok_or_else(|| {
             Error::DeserializationFailure(format!(
                 "Failed to deserialize NaiveDate: Invalid date {} {} {}",
@@ -149,11 +161,13 @@ impl BinarySerializer for NaiveTime {
 }
 
 impl BinaryDeserializer for NaiveTime {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let hour = context.input_mut().read_u8()?;
-        let minute = context.input_mut().read_u8()?;
-        let second = context.input_mut().read_u8()?;
-        let nanosecond = context.input_mut().read_var_u32()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let hour = context.read_u8()?;
+        let minute = context.read_u8()?;
+        let second = context.read_u8()?;
+        let nanosecond = context.read_var_u32()?;
         NaiveTime::from_hms_nano_opt(hour as u32, minute as u32, second as u32, nanosecond)
             .ok_or_else(|| {
                 Error::DeserializationFailure(format!(
@@ -173,7 +187,9 @@ impl BinarySerializer for NaiveDateTime {
 }
 
 impl BinaryDeserializer for NaiveDateTime {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         let date = NaiveDate::deserialize(context)?;
         let time = NaiveTime::deserialize(context)?;
         Ok(NaiveDateTime::new(date, time))
@@ -189,7 +205,9 @@ impl BinarySerializer for DateTime<Local> {
 }
 
 impl BinaryDeserializer for DateTime<Local> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         let date = NaiveDate::deserialize(context)?;
         let time = NaiveTime::deserialize(context)?;
         let naive = NaiveDateTime::new(date, time);
@@ -208,7 +226,9 @@ impl BinarySerializer for DateTime<FixedOffset> {
 }
 
 impl BinaryDeserializer for DateTime<FixedOffset> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         let naive = NaiveDateTime::deserialize(context)?;
         let offset = FixedOffset::deserialize(context)?;
         offset.from_local_datetime(&naive).single().ok_or_else(|| {
@@ -228,7 +248,9 @@ impl BinarySerializer for DateTime<Tz> {
 }
 
 impl BinaryDeserializer for DateTime<Tz> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         let naive = NaiveDateTime::deserialize(context)?;
         let tz = Tz::deserialize(context)?;
         Ok(tz.from_utc_datetime(&naive))

@@ -1,6 +1,6 @@
 use crate::deserializer::DeserializationContext;
 use crate::serializer::SerializationContext;
-use crate::{BinaryDeserializer, BinarySerializer, Error, Result};
+use crate::{BinaryDeserializer, BinaryInput, BinarySerializer, Error, Result};
 use bigdecimal::num_bigint::BigInt;
 use bigdecimal::num_traits::ToBytes;
 use bigdecimal::BigDecimal;
@@ -12,7 +12,9 @@ impl BinarySerializer for BigDecimal {
 }
 
 impl BinaryDeserializer for BigDecimal {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         let string = String::deserialize(context)?;
         string.parse().map_err(|err| {
             Error::DeserializationFailure(format!("Failed to deserialize BigDecimal: {err}"))
@@ -27,7 +29,9 @@ impl BinarySerializer for BigInt {
 }
 
 impl BinaryDeserializer for BigInt {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         let bytes = Vec::<u8>::deserialize(context)?;
         Ok(BigInt::from_signed_bytes_be(&bytes))
     }

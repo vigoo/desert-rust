@@ -147,8 +147,8 @@ fn bench_deserialize_bincode(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_serialize,
-    // bench_serialize_bincode,
+    bench_serialize_bincode,
     bench_deserialize,
-    // bench_deserialize_bincode
+    bench_deserialize_bincode
 );
 criterion_main!(benches);

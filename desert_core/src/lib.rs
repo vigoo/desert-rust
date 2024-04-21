@@ -31,12 +31,12 @@ pub fn serialize<T: BinarySerializer, O: BinaryOutput>(value: &T, output: O) -> 
 }
 
 pub fn deserialize<T: BinaryDeserializer, I: BinaryInput>(input: I) -> Result<T> {
-    let mut context = deserializer::Deserialization::new(input);
+    let mut context = DeserializationContext::new(input);
     T::deserialize(&mut context)
 }
 
 pub fn deserialize_slice<T: BinaryDeserializer>(input: &[u8]) -> Result<T> {
-    let mut context = deserializer::Deserialization::new(SliceInput::new(input));
+    let mut context = DeserializationContext::new(SliceInput::new(input));
     T::deserialize(&mut context)
 }
 
@@ -96,8 +96,8 @@ impl Display for RefId {
 mod tests {
     use crate::{
         deserialize, deserialize_slice, serialize_to_byte_vec, serialize_to_bytes,
-        BinaryDeserializer, BinarySerializer, DeserializationContext, SerializationContext,
-        SliceInput,
+        BinaryDeserializer, BinaryInput, BinarySerializer, DeserializationContext,
+        SerializationContext, SliceInput,
     };
     use proptest::prelude::*;
     use std::cell::RefCell;
@@ -314,8 +314,8 @@ mod tests {
     }
 
     impl BinaryDeserializer for Rc<RefCell<Node>> {
-        fn deserialize<Context: DeserializationContext>(
-            context: &mut Context,
+        fn deserialize<Input: BinaryInput>(
+            context: &mut DeserializationContext<Input>,
         ) -> crate::Result<Self> {
             let label = String::deserialize(context)?;
             let result = Rc::new(RefCell::new(Node { label, next: None }));
@@ -354,8 +354,8 @@ mod tests {
     }
 
     impl BinaryDeserializer for Root {
-        fn deserialize<Context: DeserializationContext>(
-            context: &mut Context,
+        fn deserialize<Input: BinaryInput>(
+            context: &mut DeserializationContext<Input>,
         ) -> crate::Result<Self> {
             let node = match context.try_read_ref()? {
                 Some(node) => node.downcast_ref::<Rc<RefCell<Node>>>().unwrap().clone(),

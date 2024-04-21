@@ -241,9 +241,7 @@ fn print_report(report: &Report) {
 }
 
 fn main() {
-    let desert_only = std::env::args()
-        .find(|arg| arg == "--desert-only")
-        .is_some();
+    let desert_only = std::env::args().any(|arg| &arg == "--desert-only");
 
     println!("Generating data set");
     let mut rng = StdRng::seed_from_u64(317826381);

@@ -12,7 +12,7 @@ struct Point {
     pub x: i32,
     pub y: i32,
     #[transient(None::<String>)]
-    cached_str: Option<String>,
+    _cached_str: Option<String>,
 }
 
 #[derive(Debug, PartialEq, BinaryCodec)]
@@ -21,7 +21,7 @@ struct Point2 {
     pub x: i32,
     pub y: i32,
     #[transient(None::<String>)]
-    cached_str: Option<String>,
+    _cached_str: Option<String>,
     pub description: Option<String>,
 }
 
@@ -37,7 +37,7 @@ fn debug() {
     let pt = Point {
         x: 1,
         y: -10,
-        cached_str: None,
+        _cached_str: None,
     };
     let bytes = serialize_to_bytes(&pt).unwrap();
     check!(
@@ -51,7 +51,7 @@ fn debug() {
     let pt3 = Point2 {
         x: 1,
         y: -10,
-        cached_str: None,
+        _cached_str: None,
         description: Some("Hello world".to_string()),
     };
     let bytes2 = serialize_to_bytes(&pt3).unwrap();
@@ -62,7 +62,7 @@ fn debug() {
         pt: Some(Point {
             x: 1,
             y: 2,
-            cached_str: None,
+            _cached_str: None,
         }),
         z: 3,
     };

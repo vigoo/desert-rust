@@ -9,7 +9,7 @@ use crate::{BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, Evo
 mod deserializer;
 mod serializer;
 
-pub use deserializer::{AdtDeserializer, ChunkedInput};
+pub use deserializer::AdtDeserializer;
 pub use serializer::AdtSerializer;
 
 lazy_static! {
@@ -119,8 +119,10 @@ impl BinarySerializer for FieldPosition {
 }
 
 impl BinaryDeserializer for FieldPosition {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let byte = context.input_mut().read_i8()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let byte = context.read_i8()?;
         if byte < 0 {
             Ok(FieldPosition::new(0, (-byte) as u8))
         } else {

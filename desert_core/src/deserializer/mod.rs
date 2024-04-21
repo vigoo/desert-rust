@@ -4,7 +4,7 @@ mod tuples;
 use crate::binary_input::BinaryInput;
 use crate::error::Result;
 use crate::state::State;
-use crate::{DeduplicatedString, Error, RefId, StringId};
+use crate::{DeduplicatedString, Error, OwnedInput, RefId, StringId};
 use bytes::Bytes;
 use castaway::cast;
 use std::any::Any;
@@ -18,18 +18,35 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub trait BinaryDeserializer: Sized {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self>;
+    fn deserialize<Input: BinaryInput>(context: &mut DeserializationContext<Input>)
+        -> Result<Self>;
 }
 
-pub trait DeserializationContext {
-    type Input: BinaryInput;
+pub struct DeserializationContext<Input: BinaryInput> {
+    input: Input,
+    state: State,
+    region_stack: Vec<OwnedInput>, // TODO: store just regions not copies
+}
 
-    fn input_mut(&mut self) -> &mut Self::Input;
-    fn state(&self) -> &State;
-    fn state_mut(&mut self) -> &mut State;
+impl<Input: BinaryInput> DeserializationContext<Input> {
+    pub fn new(input: Input) -> Self {
+        Self {
+            input,
+            state: State::default(),
+            region_stack: Vec::new(),
+        }
+    }
 
-    fn try_read_ref(&mut self) -> Result<Option<&dyn Any>> {
-        let id = self.input_mut().read_var_u32()?;
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+
+    pub fn state_mut(&mut self) -> &mut State {
+        &mut self.state
+    }
+
+    pub fn try_read_ref(&mut self) -> Result<Option<&dyn Any>> {
+        let id = self.read_var_u32()?;
         if id == 0 {
             Ok(None)
         } else {
@@ -40,125 +57,147 @@ pub trait DeserializationContext {
             }
         }
     }
+
+    pub(crate) fn push_region(&mut self, region: OwnedInput) {
+        self.region_stack.push(region);
+    }
+
+    pub(crate) fn pop_region(&mut self) -> OwnedInput {
+        self.region_stack.pop().unwrap()
+    }
 }
 
-pub struct Deserialization<Input: BinaryInput> {
-    input: Input,
-    state: State,
-}
+impl<Input: BinaryInput> BinaryInput for DeserializationContext<Input> {
+    fn read_u8(&mut self) -> Result<u8> {
+        match self.region_stack.last_mut() {
+            Some(region) => region.read_u8(),
+            None => self.input.read_u8(),
+        }
+    }
 
-impl<Input: BinaryInput> Deserialization<Input> {
-    pub fn new(input: Input) -> Self {
-        Self {
-            input,
-            state: State::default(),
+    fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
+        match self.region_stack.last_mut() {
+            Some(region) => region.read_bytes(count),
+            None => self.input.read_bytes(count),
         }
     }
 }
 
-impl<Input: BinaryInput> DeserializationContext for Deserialization<Input> {
-    type Input = Input;
-
-    fn input_mut(&mut self) -> &mut Self::Input {
-        &mut self.input
-    }
-
-    fn state(&self) -> &State {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut State {
-        &mut self.state
-    }
-}
-
 impl BinaryDeserializer for u8 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_u8()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_u8()
     }
 }
 
 impl BinaryDeserializer for i8 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_i8()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_i8()
     }
 }
 
 impl BinaryDeserializer for u16 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_u16()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_u16()
     }
 }
 
 impl BinaryDeserializer for i16 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_i16()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_i16()
     }
 }
 
 impl BinaryDeserializer for u32 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_u32()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_u32()
     }
 }
 
 impl BinaryDeserializer for i32 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_i32()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_i32()
     }
 }
 
 impl BinaryDeserializer for u64 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_u64()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_u64()
     }
 }
 
 impl BinaryDeserializer for i64 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_i64()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_i64()
     }
 }
 
 impl BinaryDeserializer for u128 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_u128()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_u128()
     }
 }
 
 impl BinaryDeserializer for i128 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_i128()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_i128()
     }
 }
 
 impl BinaryDeserializer for f32 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_f32()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_f32()
     }
 }
 
 impl BinaryDeserializer for f64 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        context.input_mut().read_f64()
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        context.read_f64()
     }
 }
 
 impl BinaryDeserializer for bool {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        Ok(context.input_mut().read_u8()? != 0)
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        Ok(context.read_u8()? != 0)
     }
 }
 
 impl BinaryDeserializer for () {
-    fn deserialize<Context: DeserializationContext>(_: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(_: &mut DeserializationContext<Input>) -> Result<Self> {
         Ok(())
     }
 }
 
 impl BinaryDeserializer for char {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let code = context.input_mut().read_u16()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let code = context.read_u16()?;
         let chars: std::result::Result<Vec<char>, DecodeUtf16Error> =
             char::decode_utf16([code]).collect();
         Ok(chars?[0])
@@ -166,16 +205,20 @@ impl BinaryDeserializer for char {
 }
 
 impl BinaryDeserializer for String {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let id = context.input_mut().read_var_i32()?;
-        let bytes = context.input_mut().read_bytes(id as usize)?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let id = context.read_var_i32()?;
+        let bytes = context.read_bytes(id as usize)?;
         Ok(String::from_utf8(bytes.to_vec())?)
     }
 }
 
 impl BinaryDeserializer for DeduplicatedString {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let count_or_id = context.input_mut().read_var_i32()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let count_or_id = context.read_var_i32()?;
         if count_or_id < 0 {
             let id = StringId(-count_or_id);
             match context.state().get_string_by_id(id) {
@@ -183,7 +226,7 @@ impl BinaryDeserializer for DeduplicatedString {
                 None => Err(Error::InvalidStringId(id)),
             }
         } else {
-            let bytes = context.input_mut().read_bytes(count_or_id as usize)?;
+            let bytes = context.read_bytes(count_or_id as usize)?;
             let s = String::from_utf8(bytes.to_vec())?;
             context.state_mut().store_string(s.clone());
             Ok(DeduplicatedString(s))
@@ -192,16 +235,20 @@ impl BinaryDeserializer for DeduplicatedString {
 }
 
 impl BinaryDeserializer for Duration {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let seconds = context.input_mut().read_u64()?;
-        let nanos = context.input_mut().read_u32()?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let seconds = context.read_u64()?;
+        let nanos = context.read_u32()?;
         Ok(Duration::new(seconds, nanos))
     }
 }
 
 impl<T: BinaryDeserializer> BinaryDeserializer for Option<T> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        match context.input_mut().read_u8()? {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        match context.read_u8()? {
             0 => Ok(None),
             1 => Ok(Some(T::deserialize(context)?)),
             other => Err(Error::DeserializationFailure(format!(
@@ -214,8 +261,10 @@ impl<T: BinaryDeserializer> BinaryDeserializer for Option<T> {
 impl<R: BinaryDeserializer, E: BinaryDeserializer> BinaryDeserializer
     for std::result::Result<R, E>
 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        match context.input_mut().read_u8()? {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        match context.read_u8()? {
             0 => Ok(Err(E::deserialize(context)?)),
             1 => Ok(Ok(R::deserialize(context)?)),
             other => Err(Error::DeserializationFailure(format!(
@@ -226,19 +275,23 @@ impl<R: BinaryDeserializer, E: BinaryDeserializer> BinaryDeserializer
 }
 
 impl BinaryDeserializer for Bytes {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
-        let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
-        let bytes = context.input_mut().read_bytes(length as usize)?;
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
+        let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
+        let bytes = context.read_bytes(length as usize)?;
         Ok(Bytes::from(bytes.to_vec()))
     }
 }
 
 impl<T: BinaryDeserializer, const L: usize> BinaryDeserializer for [T; L] {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         let empty: [T; 0] = [];
         if cast!(empty, [u8; 0]).is_ok() {
-            let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
-            let bytes = context.input_mut().read_bytes(length as usize)?;
+            let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
+            let bytes = context.read_bytes(length as usize)?;
             Ok(unsafe { std::mem::transmute_copy::<_, [T; L]>(&bytes) })
         } else {
             let mut array: [MaybeUninit<T>; L] = unsafe { MaybeUninit::uninit().assume_init() };
@@ -252,11 +305,13 @@ impl<T: BinaryDeserializer, const L: usize> BinaryDeserializer for [T; L] {
 }
 
 impl<T: BinaryDeserializer> BinaryDeserializer for Vec<T> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         let empty: Self = Vec::new();
         if cast!(empty, Vec<u8>).is_ok() {
-            let length = context.input_mut().read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
-            let bytes = context.input_mut().read_bytes(length as usize)?;
+            let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
+            let bytes = context.read_bytes(length as usize)?;
             unsafe { Ok(std::mem::transmute(bytes.to_vec())) }
         } else {
             let mut vec = Vec::new();
@@ -269,13 +324,17 @@ impl<T: BinaryDeserializer> BinaryDeserializer for Vec<T> {
 }
 
 impl<T: BinaryDeserializer + Eq + Hash> BinaryDeserializer for HashSet<T> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         deserialize_iterator(context).collect()
     }
 }
 
 impl<T: BinaryDeserializer + Ord> BinaryDeserializer for BTreeSet<T> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         deserialize_iterator(context).collect()
     }
 }
@@ -283,51 +342,63 @@ impl<T: BinaryDeserializer + Ord> BinaryDeserializer for BTreeSet<T> {
 impl<K: BinaryDeserializer + Eq + Hash, V: BinaryDeserializer> BinaryDeserializer
     for HashMap<K, V>
 {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         deserialize_iterator(context).collect()
     }
 }
 
 impl<K: BinaryDeserializer + Ord, V: BinaryDeserializer> BinaryDeserializer for BTreeMap<K, V> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         deserialize_iterator(context).collect()
     }
 }
 
 impl<T: BinaryDeserializer + Eq + Hash> BinaryDeserializer for LinkedList<T> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         deserialize_iterator(context).collect()
     }
 }
 
 impl<T: BinaryDeserializer> BinaryDeserializer for Box<T> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         Ok(Box::new(T::deserialize(context)?))
     }
 }
 
 impl<T: BinaryDeserializer> BinaryDeserializer for Rc<T> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         Ok(Rc::new(T::deserialize(context)?))
     }
 }
 
 impl<T: BinaryDeserializer> BinaryDeserializer for Arc<T> {
-    fn deserialize<Context: DeserializationContext>(context: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(
+        context: &mut DeserializationContext<Input>,
+    ) -> Result<Self> {
         Ok(Arc::new(T::deserialize(context)?))
     }
 }
 
 impl<T> BinaryDeserializer for PhantomData<T> {
-    fn deserialize<Context: DeserializationContext>(_: &mut Context) -> Result<Self> {
+    fn deserialize<Input: BinaryInput>(_: &mut DeserializationContext<Input>) -> Result<Self> {
         Ok(PhantomData)
     }
 }
 
-fn deserialize_iterator<'a, T: BinaryDeserializer + 'a, Context: DeserializationContext>(
-    context: &'a mut Context,
+fn deserialize_iterator<'a, T: BinaryDeserializer + 'a, Input: BinaryInput>(
+    context: &'a mut DeserializationContext<Input>,
 ) -> impl Iterator<Item = Result<T>> + 'a {
-    match context.input_mut().read_var_i32() {
+    match context.read_var_i32() {
         Err(_) => DeserializerIterator::InputEndedUnexpectedly,
         Ok(-1) => DeserializerIterator::UnknownSize {
             context,
@@ -341,21 +412,21 @@ fn deserialize_iterator<'a, T: BinaryDeserializer + 'a, Context: Deserialization
     }
 }
 
-enum DeserializerIterator<'a, T: BinaryDeserializer + 'a, Context: DeserializationContext> {
+enum DeserializerIterator<'a, T: BinaryDeserializer + 'a, Input: BinaryInput> {
     KnownSize {
-        context: &'a mut Context,
+        context: &'a mut DeserializationContext<Input>,
         remaining: usize,
         element: PhantomData<T>,
     },
     UnknownSize {
-        context: &'a mut Context,
+        context: &'a mut DeserializationContext<Input>,
         element: PhantomData<T>,
     },
     InputEndedUnexpectedly,
 }
 
-impl<'a, T: BinaryDeserializer, Context: DeserializationContext> Iterator
-    for DeserializerIterator<'a, T, Context>
+impl<'a, T: BinaryDeserializer, Input: BinaryInput> Iterator
+    for DeserializerIterator<'a, T, Input>
 {
     type Item = Result<T>;
 
