@@ -11,7 +11,7 @@ mod state;
 use bytes::{Bytes, BytesMut};
 use std::fmt::{Display, Formatter};
 
-pub use binary_input::{BinaryInput, SliceInput};
+pub use binary_input::{BinaryInput, OwnedInput, SliceInput};
 pub use binary_output::{BinaryOutput, SizeCalculator};
 pub use deserializer::{BinaryDeserializer, DeserializationContext};
 pub use error::{Error, Result};

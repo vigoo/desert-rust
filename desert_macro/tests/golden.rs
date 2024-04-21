@@ -4,7 +4,7 @@ use desert_macro::BinaryCodec;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use uuid::Uuid;
-use desert_core::{BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, deserialize_slice};
+use desert_core::{BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, deserialize, deserialize_slice, OwnedInput};
 
 mod desert {
     pub use desert_core::*;
