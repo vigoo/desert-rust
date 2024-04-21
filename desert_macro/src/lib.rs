@@ -170,8 +170,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     Fields::Unnamed(unnamed_fields) => {
                         let mut field_patterns = Vec::new();
                         for n in 0..unnamed_fields.unnamed.len() {
-                            let field_ident =
-                                Ident::new(&format!("field{}", n), Span::call_site());
+                            let field_ident = Ident::new(&format!("field{}", n), Span::call_site());
                             field_patterns.push(quote! { #field_ident });
                         }
                         quote! { #name::#case_name(#(#field_patterns),*) }
@@ -179,7 +178,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 };
 
                 if !is_transient {
-
                     let (case_evolution_steps, case_field_defaults) =
                         evolution_steps_from_attributes(&variant.attrs);
                     let version = case_evolution_steps.len();
@@ -275,26 +273,22 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 } else {
                     let name_string = name.to_string();
                     let case_name_string = case_name.to_string();
-                    deserialization_commands.push(
-                      quote! {
-                          let _: Option<Self> = deserializer.read_constructor(#case_idx as u32, |_| {
-                              Err(desert::Error::DeserializingTransientConstructor {
-                                    type_name: #name_string.to_string(),
-                                    constructor_name: #case_name_string.to_string(),
-                              })
-                          })?;
-                      }
-                    );
-                    cases.push(
-                    quote! {
-                            #pattern => {
-                                return Err(desert::Error::SerializingTransientConstructor {
-                                    type_name: #name_string.to_string(),
-                                    constructor_name: #case_name_string.to_string(),
-                                });
-                            }
+                    deserialization_commands.push(quote! {
+                        let _: Option<Self> = deserializer.read_constructor(#case_idx as u32, |_| {
+                            Err(desert::Error::DeserializingTransientConstructor {
+                                  type_name: #name_string.to_string(),
+                                  constructor_name: #case_name_string.to_string(),
+                            })
+                        })?;
+                    });
+                    cases.push(quote! {
+                        #pattern => {
+                            return Err(desert::Error::SerializingTransientConstructor {
+                                type_name: #name_string.to_string(),
+                                constructor_name: #case_name_string.to_string(),
+                            });
                         }
-                    );
+                    });
                 }
             }
 

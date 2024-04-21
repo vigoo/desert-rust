@@ -1,10 +1,13 @@
 // Tests deserialization of a binary from the original Scala desert library
 
+use desert_core::{
+    deserialize, deserialize_slice, BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput,
+    BinarySerializer, OwnedInput,
+};
 use desert_macro::BinaryCodec;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use uuid::Uuid;
-use desert_core::{BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, deserialize, deserialize_slice, OwnedInput};
 
 mod desert {
     pub use desert_core::*;
@@ -63,7 +66,7 @@ struct Throwable {
     class_name: String,
     message: String,
     stack_trace: Vec<StackTraceElement>,
-    cause: Option<Box<Throwable>>
+    cause: Option<Box<Throwable>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -75,7 +78,10 @@ struct StackTraceElement {
 }
 
 impl BinarySerializer for StackTraceElement {
-    fn serialize<Context: desert::SerializationContext>(&self, context: &mut Context) -> desert::Result<()> {
+    fn serialize<Context: desert::SerializationContext>(
+        &self,
+        context: &mut Context,
+    ) -> desert::Result<()> {
         context.output_mut().write_u8(0);
         self.class_name.serialize(context)?;
         self.method_name.serialize(context)?;
@@ -86,13 +92,20 @@ impl BinarySerializer for StackTraceElement {
 }
 
 impl BinaryDeserializer for StackTraceElement {
-    fn deserialize<Context: desert::DeserializationContext>(context: &mut Context) -> desert::Result<Self> {
+    fn deserialize<Context: desert::DeserializationContext>(
+        context: &mut Context,
+    ) -> desert::Result<Self> {
         let _ = context.input_mut().read_u8()?;
         let class_name = String::deserialize(context)?;
         let method_name = String::deserialize(context)?;
         let file_name = String::deserialize(context)?;
         let line_number = context.input_mut().read_var_u32()?;
-        Ok(StackTraceElement { class_name, method_name, file_name, line_number })
+        Ok(StackTraceElement {
+            class_name,
+            method_name,
+            file_name,
+            line_number,
+        })
     }
 }
 
