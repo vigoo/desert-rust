@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use desert_core::{
-    deserialize_slice, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
-    DeserializationContext, SerializationContext,
+    deserialize_slice, serialize_to_byte_vec, BinaryDeserializer, BinaryInput, BinaryOutput,
+    BinarySerializer, DeserializationContext, SerializationContext,
 };
 use desert_macro::BinaryCodec;
 
@@ -402,4 +402,9 @@ fn golden_test_1() {
     check!(value.either == expected.either);
     check!(value.tried == expected.tried);
     check!(value.option == expected.option);
+
+    let serialized = serialize_to_byte_vec(&value).unwrap();
+    let value2 = deserialize_slice(&serialized).unwrap();
+
+    assert_eq!(value, value2);
 }

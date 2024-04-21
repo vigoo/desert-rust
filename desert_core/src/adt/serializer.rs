@@ -36,7 +36,7 @@ impl<'a, 'b, Output: BinaryOutput> AdtSerializer<'a, 'b, Output> {
         Self {
             metadata,
             context,
-            buffers: (0..metadata.version)
+            buffers: (0..=metadata.version)
                 .map(|_| Some(Vec::with_capacity(DEFAULT_CAPACITY)))
                 .collect(),
             last_index_per_chunk: HashMap::new(),
