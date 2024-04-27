@@ -1,12 +1,3 @@
-#[allow(clippy::type_complexity)]
-mod tuples;
-
-use crate::binary_input::BinaryInput;
-use crate::error::Result;
-use crate::state::State;
-use crate::{DeduplicatedString, Error, OwnedInput, RefId, SliceInput, StringId};
-use bytes::Bytes;
-use castaway::cast;
 use std::any::Any;
 use std::char::DecodeUtf16Error;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
@@ -17,6 +8,17 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bytes::Bytes;
+use castaway::cast;
+
+use crate::binary_input::BinaryInput;
+use crate::error::Result;
+use crate::state::State;
+use crate::{DeduplicatedString, Error, RefId, SliceInput, StringId};
+
+#[allow(clippy::type_complexity)]
+mod tuples;
+
 pub trait BinaryDeserializer: Sized {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self>;
 }
@@ -24,7 +26,7 @@ pub trait BinaryDeserializer: Sized {
 pub struct DeserializationContext<'a> {
     input: SliceInput<'a>,
     state: State,
-    region_stack: Vec<OwnedInput>, // TODO: store just regions not copies
+    region_stack: Vec<ResolvedInputRegion>,
 }
 
 impl<'a> DeserializationContext<'a> {
@@ -57,26 +59,62 @@ impl<'a> DeserializationContext<'a> {
         }
     }
 
-    pub(crate) fn push_region(&mut self, region: OwnedInput) {
-        self.region_stack.push(region);
+    pub(crate) fn push_region(&mut self, region: InputRegion) {
+        let resolved_region = match self.region_stack.last() {
+            Some(parent) => ResolvedInputRegion {
+                start: parent.start + region.start,
+                pos: region.pos,
+                end: parent.start + region.end,
+                delta: parent.start,
+            },
+            None => ResolvedInputRegion {
+                start: region.start,
+                pos: region.pos,
+                end: region.end,
+                delta: 0,
+            },
+        };
+        self.region_stack.push(resolved_region);
     }
 
-    pub(crate) fn pop_region(&mut self) -> OwnedInput {
-        self.region_stack.pop().unwrap()
+    pub(crate) fn pop_region(&mut self) -> Option<InputRegion> {
+        self.region_stack.pop().map(|r| r.unresolve())
+    }
+
+    pub(crate) fn pos(&self) -> usize {
+        match self.region_stack.last() {
+            Some(region) => region.pos,
+            None => self.input.pos,
+        }
     }
 }
 
 impl<'a> BinaryInput for DeserializationContext<'a> {
     fn read_u8(&mut self) -> Result<u8> {
         match self.region_stack.last_mut() {
-            Some(region) => region.read_u8(),
+            Some(region) => {
+                if region.pos == region.end {
+                    Err(Error::InputEndedUnexpectedly)
+                } else {
+                    region.pos += 1;
+                    Ok(self.input.data[region.start + region.pos - 1])
+                }
+            }
             None => self.input.read_u8(),
         }
     }
 
     fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
         match self.region_stack.last_mut() {
-            Some(region) => region.read_bytes(count),
+            Some(region) => {
+                if region.pos + count > region.end {
+                    Err(Error::InputEndedUnexpectedly)
+                } else {
+                    let start = region.start + region.pos;
+                    region.pos += count;
+                    Ok(&self.input.data[start..(region.start + region.pos)])
+                }
+            }
             None => self.input.read_bytes(count),
         }
     }
@@ -391,6 +429,49 @@ impl<'a, 'b, T: BinaryDeserializer + 'a> Iterator for DeserializerIterator<'a, '
                 Ok(None) => None,
                 Err(err) => Some(Err(err)),
             },
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct InputRegion {
+    start: usize,
+    pos: usize,
+    end: usize,
+}
+
+impl InputRegion {
+    pub(crate) fn new(start: usize, length: usize) -> Self {
+        Self {
+            start,
+            pos: 0,
+            end: start + length,
+        }
+    }
+
+    pub(crate) fn empty() -> Self {
+        Self {
+            start: 0,
+            pos: 0,
+            end: 0,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct ResolvedInputRegion {
+    start: usize,
+    pos: usize,
+    end: usize,
+    delta: usize,
+}
+
+impl ResolvedInputRegion {
+    fn unresolve(self) -> InputRegion {
+        InputRegion {
+            start: self.start - self.delta,
+            pos: self.pos,
+            end: self.end - self.delta,
         }
     }
 }

@@ -112,8 +112,8 @@ pub trait BinaryInput {
 }
 
 pub struct SliceInput<'a> {
-    data: &'a [u8],
-    pos: usize,
+    pub data: &'a [u8],
+    pub pos: usize,
 }
 
 impl<'a> SliceInput<'a> {

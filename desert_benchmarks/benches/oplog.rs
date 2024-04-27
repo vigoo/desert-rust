@@ -69,8 +69,7 @@ fn bench_deserialize(c: &mut Criterion) {
                 b.iter(|| {
                     let mut results = Vec::with_capacity(10000);
                     for bytes in serialized_entries {
-                        let entry: OplogEntry =
-                            black_box(deserialize(black_box(bytes)).unwrap());
+                        let entry: OplogEntry = black_box(deserialize(black_box(bytes)).unwrap());
                         results.push(entry);
                     }
                     results

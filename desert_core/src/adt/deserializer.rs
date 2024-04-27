@@ -1,7 +1,9 @@
-use crate::adt::{AdtMetadata, FieldPosition};
-use crate::evolution::SerializedEvolutionStep;
-use crate::{BinaryDeserializer, BinaryInput, DeserializationContext, Error, OwnedInput, Result};
 use hashbrown::{HashMap, HashSet};
+
+use crate::adt::{AdtMetadata, FieldPosition};
+use crate::deserializer::InputRegion;
+use crate::evolution::SerializedEvolutionStep;
+use crate::{BinaryDeserializer, BinaryInput, DeserializationContext, Error, Result};
 
 pub struct AdtDeserializer<'a, 'b, 'c> {
     metadata: &'a AdtMetadata,
@@ -12,7 +14,7 @@ pub struct AdtDeserializer<'a, 'b, 'c> {
     stored_version: u8,
     made_optional_at: HashMap<FieldPosition, u8>,
     removed_fields: HashSet<String>,
-    inputs: Vec<Option<OwnedInput>>,
+    inputs: Vec<Option<InputRegion>>,
 }
 
 impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
@@ -50,19 +52,20 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
         for (idx, serialized_evolution_step) in serialized_evolution_steps.iter().enumerate() {
             match serialized_evolution_step {
                 SerializedEvolutionStep::FieldAddedToNewChunk { size } => {
-                    let input = context.read_bytes(*size as usize)?;
-                    inputs.push(Some(OwnedInput::new(input.to_vec())));
+                    let start = context.pos();
+                    let _ = context.read_bytes(*size as usize)?;
+                    inputs.push(Some(InputRegion::new(start, *size as usize)));
                 }
                 SerializedEvolutionStep::FieldMadeOptional { position } => {
                     made_optional_at.insert(*position, idx as u8);
-                    inputs.push(Some(OwnedInput::new(vec![])));
+                    inputs.push(Some(InputRegion::empty()));
                 }
                 SerializedEvolutionStep::FieldRemoved { field_name } => {
                     removed_fields.insert(field_name.clone());
-                    inputs.push(Some(OwnedInput::new(vec![])));
+                    inputs.push(Some(InputRegion::empty()));
                 }
                 _ => {
-                    inputs.push(Some(OwnedInput::new(vec![])));
+                    inputs.push(Some(InputRegion::empty()));
                 }
             }
         }
@@ -126,7 +129,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
                     T::deserialize(self.context)
                 };
                 if has_inputs {
-                    self.inputs[chunk as usize] = Some(self.context.pop_region());
+                    self.inputs[chunk as usize] = self.context.pop_region();
                 }
                 result
             }
@@ -171,7 +174,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
                     Option::<T>::deserialize(self.context)
                 };
                 if has_inputs {
-                    self.inputs[chunk as usize] = Some(self.context.pop_region());
+                    self.inputs[chunk as usize] = self.context.pop_region();
                 }
                 result
             }
@@ -191,7 +194,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
             }
             let result = Ok(Some(deserialize_case(self.context)?));
             if has_inputs {
-                self.inputs[0] = Some(self.context.pop_region());
+                self.inputs[0] = self.context.pop_region();
             }
             result
         } else {
@@ -217,7 +220,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
                 }
                 let constructor_idx = self.context.read_var_u32()?;
                 if has_inputs {
-                    self.inputs[0] = Some(self.context.pop_region());
+                    self.inputs[0] = self.context.pop_region();
                 }
                 self.read_constructor_idx = Some(constructor_idx);
                 Ok(constructor_idx)
