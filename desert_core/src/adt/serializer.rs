@@ -10,7 +10,7 @@ use crate::{
 pub struct AdtSerializer<'a, 'b, Output: BinaryOutput> {
     metadata: &'a AdtMetadata,
     context: &'b mut SerializationContext<Output>,
-    buffers: Vec<Option<Vec<u8>>>,
+    buffers: Vec<Option<Vec<u8>>>, // TODO: We can avoid this completely by generating the write_fields in the proper order
     last_index_per_chunk: HashMap<u8, u8>,
     field_indices: HashMap<String, FieldPosition>,
 }

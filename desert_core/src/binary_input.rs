@@ -120,6 +120,8 @@ impl<'a> SliceInput<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self { data, pos: 0 }
     }
+
+    pub const EMPTY: Self = Self { data: &[], pos: 0 };
 }
 
 impl<'a> BinaryInput for SliceInput<'a> {

@@ -24,7 +24,7 @@ pub trait BinarySerializer {
 pub struct SerializationContext<Output: BinaryOutput> {
     output: Output,
     state: State,
-    buffer_stack: Vec<Vec<u8>>,
+    buffer_stack: Vec<Vec<u8>>, // TODO: remove it once AdtSerializer does not need it anymore
 }
 
 impl<Output: BinaryOutput> SerializationContext<Output> {
