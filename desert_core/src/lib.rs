@@ -30,12 +30,7 @@ pub fn serialize<T: BinarySerializer, O: BinaryOutput>(value: &T, output: O) -> 
     Ok(context.into_output())
 }
 
-pub fn deserialize<T: BinaryDeserializer, I: BinaryInput>(input: I) -> Result<T> {
-    let mut context = DeserializationContext::new(input);
-    T::deserialize(&mut context)
-}
-
-pub fn deserialize_slice<T: BinaryDeserializer>(input: &[u8]) -> Result<T> {
+pub fn deserialize<T: BinaryDeserializer>(input: &[u8]) -> Result<T> {
     let mut context = DeserializationContext::new(SliceInput::new(input));
     T::deserialize(&mut context)
 }
@@ -95,9 +90,8 @@ impl Display for RefId {
 #[cfg(test)]
 mod tests {
     use crate::{
-        deserialize, deserialize_slice, serialize_to_byte_vec, serialize_to_bytes,
-        BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, DeserializationContext,
-        SerializationContext, SliceInput,
+        deserialize, serialize_to_byte_vec, serialize_to_bytes, BinaryDeserializer, BinaryOutput,
+        BinarySerializer, DeserializationContext, SerializationContext,
     };
     use proptest::prelude::*;
     use std::cell::RefCell;
@@ -112,7 +106,7 @@ mod tests {
         value: T,
     ) {
         let data = serialize_to_byte_vec(&value).unwrap();
-        let result = deserialize::<T, _>(SliceInput::new(&data)).unwrap();
+        let result = deserialize::<T>(&data).unwrap();
         assert_eq!(value, result);
     }
 
@@ -314,9 +308,7 @@ mod tests {
     }
 
     impl BinaryDeserializer for Rc<RefCell<Node>> {
-        fn deserialize<Input: BinaryInput>(
-            context: &mut DeserializationContext<Input>,
-        ) -> crate::Result<Self> {
+        fn deserialize(context: &mut DeserializationContext<'_>) -> crate::Result<Self> {
             let label = String::deserialize(context)?;
             let result = Rc::new(RefCell::new(Node { label, next: None }));
             context.state_mut().store_ref(&result);
@@ -354,9 +346,7 @@ mod tests {
     }
 
     impl BinaryDeserializer for Root {
-        fn deserialize<Input: BinaryInput>(
-            context: &mut DeserializationContext<Input>,
-        ) -> crate::Result<Self> {
+        fn deserialize(context: &mut DeserializationContext<'_>) -> crate::Result<Self> {
             let node = match context.try_read_ref()? {
                 Some(node) => node.downcast_ref::<Rc<RefCell<Node>>>().unwrap().clone(),
                 None => Rc::<RefCell<Node>>::deserialize(context)?,
@@ -387,7 +377,7 @@ mod tests {
         let root = Root { node: a.clone() };
 
         let data = serialize_to_bytes(&root).unwrap();
-        let _result = deserialize_slice::<Root>(&data).unwrap();
+        let _result = deserialize::<Root>(&data).unwrap();
 
         let a = root.node;
         let b = a.borrow().next.clone().unwrap();

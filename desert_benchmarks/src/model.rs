@@ -96,9 +96,7 @@ impl BinarySerializer for Timestamp {
 }
 
 impl BinaryDeserializer for Timestamp {
-    fn deserialize<Input: BinaryInput>(
-        context: &mut DeserializationContext<Input>,
-    ) -> desert::Result<Self> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> desert::Result<Self> {
         let ms = context.read_u64()?;
         Ok(Timestamp(
             iso8601_timestamp::Timestamp::UNIX_EPOCH.add(Duration::from_millis(ms)),

@@ -6,9 +6,10 @@ use rand::prelude::StdRng;
 use rand::*;
 use serde::{Deserialize, Serialize};
 
-use crate::model::{random_oplog_entry, Case};
-use desert::{serialize_to_byte_vec, SliceInput};
+use desert::serialize_to_byte_vec;
 use model::OplogEntry;
+
+use crate::model::{random_oplog_entry, Case};
 
 mod model;
 
@@ -228,7 +229,7 @@ fn desert_benchmark(case: &Case) -> Report {
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
-            desert::deserialize(SliceInput::new(data)).unwrap()
+            desert::deserialize(data).unwrap()
         },
     )
 }

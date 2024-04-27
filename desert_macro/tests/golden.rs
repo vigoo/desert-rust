@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use desert_core::{
-    deserialize_slice, serialize_to_byte_vec, BinaryDeserializer, BinaryInput, BinaryOutput,
+    deserialize, serialize_to_byte_vec, BinaryDeserializer, BinaryInput, BinaryOutput,
     BinarySerializer, DeserializationContext, SerializationContext,
 };
 use desert_macro::BinaryCodec;
@@ -96,9 +96,7 @@ impl BinarySerializer for StackTraceElement {
 }
 
 impl BinaryDeserializer for StackTraceElement {
-    fn deserialize<Input: BinaryInput>(
-        context: &mut DeserializationContext<Input>,
-    ) -> desert::Result<Self> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> desert::Result<Self> {
         let hdr = context.read_u8()?;
         assert_eq!(hdr, 0);
         let class_name = Option::<String>::deserialize(context)?;
@@ -117,7 +115,7 @@ impl BinaryDeserializer for StackTraceElement {
 #[test]
 fn golden_test_1() {
     let bytes = include_bytes!("../golden/dataset1.bin");
-    let value: TestModel1 = deserialize_slice(bytes).unwrap();
+    let value: TestModel1 = deserialize(bytes).unwrap();
 
     #[allow(clippy::approx_constant)]
     let expected = TestModel1 {
@@ -404,7 +402,7 @@ fn golden_test_1() {
     check!(value.option == expected.option);
 
     let serialized = serialize_to_byte_vec(&value).unwrap();
-    let value2 = deserialize_slice(&serialized).unwrap();
+    let value2 = deserialize(&serialized).unwrap();
 
     assert_eq!(value, value2);
 }

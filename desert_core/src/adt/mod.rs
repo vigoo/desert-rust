@@ -122,9 +122,7 @@ impl BinarySerializer for FieldPosition {
 }
 
 impl BinaryDeserializer for FieldPosition {
-    fn deserialize<Input: BinaryInput>(
-        context: &mut DeserializationContext<Input>,
-    ) -> Result<Self> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let byte = context.read_i8()?;
         if byte < 0 {
             Ok(FieldPosition::new(0, (-byte) as u8))

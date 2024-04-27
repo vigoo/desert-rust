@@ -45,7 +45,7 @@ fn debug() {
             == vec![0x02, 0x08, 0x08, 0x03, 0x02, 0x7a, 0xff, 0xff, 0xff, 0xf6, 0, 0, 0, 1]
     );
 
-    let pt2 = deserialize_slice(&bytes).unwrap();
+    let pt2 = deserialize(&bytes).unwrap();
     check!(pt == pt2);
 
     let pt3 = Point2 {
@@ -55,7 +55,7 @@ fn debug() {
         description: Some("Hello world".to_string()),
     };
     let bytes2 = serialize_to_bytes(&pt3).unwrap();
-    let pt4 = deserialize_slice(&bytes2).unwrap();
+    let pt4 = deserialize(&bytes2).unwrap();
     check!(pt3 == pt4);
 
     let choices = Choices::C {
@@ -68,6 +68,6 @@ fn debug() {
     };
     let bytes3 = serialize_to_bytes(&choices).unwrap();
     println!("{:?}", bytes3);
-    let choices2 = deserialize_slice(&bytes3).unwrap();
+    let choices2 = deserialize(&bytes3).unwrap();
     check!(choices == choices2);
 }

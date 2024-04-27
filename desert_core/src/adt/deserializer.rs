@@ -3,9 +3,9 @@ use crate::evolution::SerializedEvolutionStep;
 use crate::{BinaryDeserializer, BinaryInput, DeserializationContext, Error, OwnedInput, Result};
 use hashbrown::{HashMap, HashSet};
 
-pub struct AdtDeserializer<'a, 'b, Input: BinaryInput> {
+pub struct AdtDeserializer<'a, 'b, 'c> {
     metadata: &'a AdtMetadata,
-    context: &'b mut DeserializationContext<Input>,
+    context: &'b mut DeserializationContext<'c>,
     last_index_per_chunk: Vec<i8>,
     read_constructor_idx: Option<u32>,
 
@@ -15,10 +15,10 @@ pub struct AdtDeserializer<'a, 'b, Input: BinaryInput> {
     inputs: Vec<Option<OwnedInput>>,
 }
 
-impl<'a, 'b, Input: BinaryInput> AdtDeserializer<'a, 'b, Input> {
+impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
     pub fn new_v0(
         metadata: &'a AdtMetadata,
-        context: &'b mut DeserializationContext<Input>,
+        context: &'b mut DeserializationContext<'c>,
     ) -> Result<Self> {
         Ok(Self {
             metadata,
@@ -34,7 +34,7 @@ impl<'a, 'b, Input: BinaryInput> AdtDeserializer<'a, 'b, Input> {
 
     pub fn new(
         metadata: &'a AdtMetadata,
-        context: &'b mut DeserializationContext<Input>,
+        context: &'b mut DeserializationContext<'c>,
         stored_version: u8,
     ) -> Result<Self> {
         let mut serialized_evolution_steps = Vec::with_capacity(stored_version as usize + 1);
@@ -181,7 +181,7 @@ impl<'a, 'b, Input: BinaryInput> AdtDeserializer<'a, 'b, Input> {
     pub fn read_constructor<T>(
         &mut self,
         case_idx: u32,
-        deserialize_case: impl FnOnce(&mut DeserializationContext<Input>) -> Result<T>,
+        deserialize_case: impl FnOnce(&mut DeserializationContext<'c>) -> Result<T>,
     ) -> Result<Option<T>> {
         let constructor_idx = self.read_or_get_constructor_idx()?;
         if constructor_idx == case_idx {

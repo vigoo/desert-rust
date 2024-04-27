@@ -75,9 +75,7 @@ impl BinarySerializer for SerializedEvolutionStep {
 }
 
 impl BinaryDeserializer for SerializedEvolutionStep {
-    fn deserialize<Input: BinaryInput>(
-        context: &mut DeserializationContext<Input>,
-    ) -> crate::Result<Self> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> crate::Result<Self> {
         let code_or_size = context.read_var_i32()?;
         if code_or_size == UNKNOWN {
             return Ok(SerializedEvolutionStep::Unknown);

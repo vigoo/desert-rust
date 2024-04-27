@@ -348,7 +348,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         }
 
         impl desert::BinaryDeserializer for #name {
-            fn deserialize<Input: desert::BinaryInput>(context: &mut desert::DeserializationContext<Input>) -> desert::Result<Self> {
+            fn deserialize<'a, 'b>(context: &'a mut desert::DeserializationContext<'b>) -> desert::Result<Self> {
                 use desert::BinaryInput;
 
                 let stored_version = context.read_u8()?;
