@@ -39,3 +39,14 @@ path = "src/main.rs"
 name = "oplog"
 harness = false
 
+[[bench]]
+name = "golden"
+harness = false
+
+[[bench]]
+name = "deser"
+harness = false
+
+[[bench]]
+name = "ser"
+harness = false

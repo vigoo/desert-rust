@@ -28,7 +28,7 @@ pub struct DeserializationContext<'a> {
     input: SliceInput<'a>,
     state: State,
     region_stack: Vec<ResolvedInputRegion>,
-    current: Option<ResolvedInputRegion>
+    current: Option<ResolvedInputRegion>,
 }
 
 impl<'a> DeserializationContext<'a> {
@@ -37,7 +37,7 @@ impl<'a> DeserializationContext<'a> {
             input,
             state: State::default(),
             region_stack: Vec::new(),
-            current: None
+            current: None,
         }
     }
 

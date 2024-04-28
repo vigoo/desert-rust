@@ -10,7 +10,7 @@ use desert_benchmarks::model::*;
 fn generate_cases() -> Vec<Case> {
     let mut rng = StdRng::seed_from_u64(317826381);
 
-    let payload_sizes = [16, 256, 1024/*, 128 * 1024*/];
+    let payload_sizes = [16, 256, 1024 /*, 128 * 1024*/];
     payload_sizes
         .iter()
         .map(|payload_size| {
