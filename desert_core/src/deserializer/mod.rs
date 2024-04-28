@@ -24,9 +24,11 @@ pub trait BinaryDeserializer: Sized {
 }
 
 pub struct DeserializationContext<'a> {
+    // TODO: directly store slice, and always have an active region so no need for branching
     input: SliceInput<'a>,
     state: State,
     region_stack: Vec<ResolvedInputRegion>,
+    current: Option<ResolvedInputRegion>
 }
 
 impl<'a> DeserializationContext<'a> {
@@ -35,6 +37,7 @@ impl<'a> DeserializationContext<'a> {
             input,
             state: State::default(),
             region_stack: Vec::new(),
+            current: None
         }
     }
 
@@ -75,14 +78,18 @@ impl<'a> DeserializationContext<'a> {
             },
         };
         self.region_stack.push(resolved_region);
+        self.current = Some(resolved_region);
     }
 
     pub(crate) fn pop_region(&mut self) -> Option<InputRegion> {
-        self.region_stack.pop().map(|r| r.unresolve())
+        let result = self.current.take().map(|r| r.unresolve());
+        self.region_stack.pop();
+        self.current = self.region_stack.last().copied();
+        result
     }
 
     pub(crate) fn pos(&self) -> usize {
-        match self.region_stack.last() {
+        match self.current {
             Some(region) => region.pos,
             None => self.input.pos,
         }
@@ -91,7 +98,7 @@ impl<'a> DeserializationContext<'a> {
 
 impl<'a> BinaryInput for DeserializationContext<'a> {
     fn read_u8(&mut self) -> Result<u8> {
-        match self.region_stack.last_mut() {
+        match &mut self.current {
             Some(region) => {
                 if region.pos == region.end {
                     Err(Error::InputEndedUnexpectedly)
@@ -105,7 +112,7 @@ impl<'a> BinaryInput for DeserializationContext<'a> {
     }
 
     fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
-        match self.region_stack.last_mut() {
+        match &mut self.current {
             Some(region) => {
                 if region.pos + count > region.end {
                     Err(Error::InputEndedUnexpectedly)
