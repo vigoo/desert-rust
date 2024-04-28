@@ -41,7 +41,7 @@ impl<'a> DeserializationContext<'a> {
         };
         Self {
             input,
-            state: Lazy::new(|| State::default()),
+            state: Lazy::new(State::default),
             region_stack: vec![],
             current: whole_input,
         }
@@ -107,6 +107,15 @@ impl<'a> BinaryInput for DeserializationContext<'a> {
             let start = self.current.start + self.current.pos;
             self.current.pos += count;
             Ok(&self.input[start..(self.current.start + self.current.pos)])
+        }
+    }
+
+    fn skip(&mut self, count: usize) -> Result<()> {
+        if self.current.pos + count > self.current.end {
+            Err(Error::InputEndedUnexpectedly)
+        } else {
+            self.current.pos += count;
+            Ok(())
         }
     }
 }
@@ -251,7 +260,7 @@ impl<T: BinaryDeserializer> BinaryDeserializer for Option<T> {
 }
 
 impl<R: BinaryDeserializer, E: BinaryDeserializer> BinaryDeserializer
-for std::result::Result<R, E>
+    for std::result::Result<R, E>
 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         match context.read_u8()? {
@@ -320,7 +329,7 @@ impl<T: BinaryDeserializer + Ord> BinaryDeserializer for BTreeSet<T> {
 }
 
 impl<K: BinaryDeserializer + Eq + Hash, V: BinaryDeserializer> BinaryDeserializer
-for HashMap<K, V>
+    for HashMap<K, V>
 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         deserialize_iterator(context).collect()

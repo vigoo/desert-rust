@@ -8,6 +8,7 @@ use crate::Error;
 pub trait BinaryInput {
     fn read_u8(&mut self) -> Result<u8>;
     fn read_bytes(&mut self, count: usize) -> Result<&[u8]>;
+    fn skip(&mut self, count: usize) -> Result<()>;
 
     fn read_i8(&mut self) -> Result<i8> {
         Ok(self.read_u8()? as i8)
@@ -144,6 +145,15 @@ impl<'a> BinaryInput for SliceInput<'a> {
             Ok(result)
         }
     }
+
+    fn skip(&mut self, count: usize) -> Result<()> {
+        if self.pos + count > self.data.len() {
+            Err(Error::InputEndedUnexpectedly)
+        } else {
+            self.pos += count;
+            Ok(())
+        }
+    }
 }
 
 pub struct OwnedInput {
@@ -175,6 +185,15 @@ impl BinaryInput for OwnedInput {
             let result = &self.data[self.pos..self.pos + count];
             self.pos += count;
             Ok(result)
+        }
+    }
+
+    fn skip(&mut self, count: usize) -> Result<()> {
+        if self.pos + count > self.data.len() {
+            Err(Error::InputEndedUnexpectedly)
+        } else {
+            self.pos += count;
+            Ok(())
         }
     }
 }

@@ -1,4 +1,5 @@
-use hashbrown::{HashMap, HashSet};
+use hashbrown::{HashSet};
+use std::collections::BTreeMap;
 
 use crate::adt::{AdtMetadata, FieldPosition};
 use crate::deserializer::InputRegion;
@@ -12,7 +13,7 @@ pub struct AdtDeserializer<'a, 'b, 'c> {
     read_constructor_idx: Option<u32>,
 
     stored_version: u8,
-    made_optional_at: HashMap<FieldPosition, u8>,
+    made_optional_at: BTreeMap<FieldPosition, u8>,
     removed_fields: HashSet<String>,
     inputs: Vec<InputRegion>,
 }
@@ -28,7 +29,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
             last_index_per_chunk: vec![-1i8; metadata.version as usize + 1],
             read_constructor_idx: None,
             stored_version: 0,
-            made_optional_at: HashMap::new(),
+            made_optional_at: BTreeMap::new(),
             removed_fields: HashSet::new(),
             inputs: Vec::new(),
         })
@@ -46,14 +47,14 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
         }
 
         let mut inputs = Vec::with_capacity(serialized_evolution_steps.len());
-        let mut made_optional_at = HashMap::new();
+        let mut made_optional_at = BTreeMap::new();
         let mut removed_fields = HashSet::new();
 
         for (idx, serialized_evolution_step) in serialized_evolution_steps.iter().enumerate() {
             match serialized_evolution_step {
                 SerializedEvolutionStep::FieldAddedToNewChunk { size } => {
                     let start = context.pos();
-                    let _ = context.read_bytes(*size as usize)?;
+                    context.skip(*size as usize)?;
                     inputs.push(InputRegion::new(start, *size as usize));
                 }
                 SerializedEvolutionStep::FieldMadeOptional { position } => {
