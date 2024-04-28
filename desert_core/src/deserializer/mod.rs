@@ -10,11 +10,12 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use castaway::cast;
+use once_cell::unsync::Lazy;
 
 use crate::binary_input::BinaryInput;
 use crate::error::Result;
 use crate::state::State;
-use crate::{DeduplicatedString, Error, RefId, SliceInput, StringId};
+use crate::{DeduplicatedString, Error, RefId, StringId};
 
 #[allow(clippy::type_complexity)]
 mod tuples;
@@ -24,20 +25,25 @@ pub trait BinaryDeserializer: Sized {
 }
 
 pub struct DeserializationContext<'a> {
-    // TODO: directly store slice, and always have an active region so no need for branching
-    input: SliceInput<'a>,
-    state: State,
+    input: &'a [u8],
+    state: Lazy<State>,
     region_stack: Vec<ResolvedInputRegion>,
-    current: Option<ResolvedInputRegion>,
+    current: ResolvedInputRegion,
 }
 
 impl<'a> DeserializationContext<'a> {
-    pub fn new(input: SliceInput<'a>) -> Self {
+    pub fn new(input: &'a [u8]) -> Self {
+        let whole_input = ResolvedInputRegion {
+            start: 0,
+            pos: 0,
+            end: input.len(),
+            delta: 0,
+        };
         Self {
             input,
-            state: State::default(),
-            region_stack: Vec::new(),
-            current: None,
+            state: Lazy::new(|| State::default()),
+            region_stack: vec![],
+            current: whole_input,
         }
     }
 
@@ -63,66 +69,44 @@ impl<'a> DeserializationContext<'a> {
     }
 
     pub(crate) fn push_region(&mut self, region: InputRegion) {
-        let resolved_region = match self.region_stack.last() {
-            Some(parent) => ResolvedInputRegion {
-                start: parent.start + region.start,
-                pos: region.pos,
-                end: parent.start + region.end,
-                delta: parent.start,
-            },
-            None => ResolvedInputRegion {
-                start: region.start,
-                pos: region.pos,
-                end: region.end,
-                delta: 0,
-            },
+        let resolved_region = ResolvedInputRegion {
+            start: self.current.start + region.start,
+            pos: region.pos,
+            end: self.current.start + region.end,
+            delta: self.current.start,
         };
-        self.region_stack.push(resolved_region);
-        self.current = Some(resolved_region);
+        self.region_stack.push(self.current);
+        self.current = resolved_region;
     }
 
-    pub(crate) fn pop_region(&mut self) -> Option<InputRegion> {
-        let result = self.current.take().map(|r| r.unresolve());
-        self.region_stack.pop();
-        self.current = self.region_stack.last().copied();
+    pub(crate) fn pop_region(&mut self) -> InputRegion {
+        let result = self.current.unresolve();
+        self.current = self.region_stack.pop().unwrap();
         result
     }
 
     pub(crate) fn pos(&self) -> usize {
-        match self.current {
-            Some(region) => region.pos,
-            None => self.input.pos,
-        }
+        self.current.pos
     }
 }
 
 impl<'a> BinaryInput for DeserializationContext<'a> {
     fn read_u8(&mut self) -> Result<u8> {
-        match &mut self.current {
-            Some(region) => {
-                if region.pos == region.end {
-                    Err(Error::InputEndedUnexpectedly)
-                } else {
-                    region.pos += 1;
-                    Ok(self.input.data[region.start + region.pos - 1])
-                }
-            }
-            None => self.input.read_u8(),
+        if self.current.pos == self.current.end {
+            Err(Error::InputEndedUnexpectedly)
+        } else {
+            self.current.pos += 1;
+            Ok(self.input[self.current.start + self.current.pos - 1])
         }
     }
 
     fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
-        match &mut self.current {
-            Some(region) => {
-                if region.pos + count > region.end {
-                    Err(Error::InputEndedUnexpectedly)
-                } else {
-                    let start = region.start + region.pos;
-                    region.pos += count;
-                    Ok(&self.input.data[start..(region.start + region.pos)])
-                }
-            }
-            None => self.input.read_bytes(count),
+        if self.current.pos + count > self.current.end {
+            Err(Error::InputEndedUnexpectedly)
+        } else {
+            let start = self.current.start + self.current.pos;
+            self.current.pos += count;
+            Ok(&self.input[start..(self.current.start + self.current.pos)])
         }
     }
 }
@@ -267,7 +251,7 @@ impl<T: BinaryDeserializer> BinaryDeserializer for Option<T> {
 }
 
 impl<R: BinaryDeserializer, E: BinaryDeserializer> BinaryDeserializer
-    for std::result::Result<R, E>
+for std::result::Result<R, E>
 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         match context.read_u8()? {
@@ -336,7 +320,7 @@ impl<T: BinaryDeserializer + Ord> BinaryDeserializer for BTreeSet<T> {
 }
 
 impl<K: BinaryDeserializer + Eq + Hash, V: BinaryDeserializer> BinaryDeserializer
-    for HashMap<K, V>
+for HashMap<K, V>
 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         deserialize_iterator(context).collect()

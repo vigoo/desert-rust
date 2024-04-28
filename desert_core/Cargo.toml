@@ -9,6 +9,7 @@ castaway = { version = "0.2.2", features = ["std"] }
 flate2 = "1.0.28"
 hashbrown = "0.14.3"
 lazy_static = "1.4.0"
+once_cell = "1.19.0"
 
 bigdecimal = { version = "0.4.2", optional = true }
 chrono = { version = "0.4.33", optional = true }

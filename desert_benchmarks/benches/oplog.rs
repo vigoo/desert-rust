@@ -55,7 +55,7 @@ fn bench_deserialize(c: &mut Criterion) {
         .map(|case| {
             let mut entries = Vec::new();
             for entry in &case.entries {
-                entries.push(serialize_to_bytes(&entry).unwrap());
+                entries.push(serialize_to_byte_vec(&entry).unwrap());
             }
             (entries, case.payload_size)
         })
@@ -112,7 +112,7 @@ fn bench_deserialize_bincode(c: &mut Criterion) {
         .map(|case| {
             let mut entries = Vec::new();
             for entry in &case.entries {
-                entries.push(serialize_to_bytes(&entry).unwrap());
+                entries.push(serialize_to_byte_vec(&entry).unwrap());
             }
             (entries, case.payload_size)
         })

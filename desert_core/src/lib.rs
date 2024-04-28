@@ -31,7 +31,7 @@ pub fn serialize<T: BinarySerializer, O: BinaryOutput>(value: &T, output: O) -> 
 }
 
 pub fn deserialize<T: BinaryDeserializer>(input: &[u8]) -> Result<T> {
-    let mut context = DeserializationContext::new(SliceInput::new(input));
+    let mut context = DeserializationContext::new(input);
     T::deserialize(&mut context)
 }
 

@@ -14,7 +14,7 @@ pub struct AdtDeserializer<'a, 'b, 'c> {
     stored_version: u8,
     made_optional_at: HashMap<FieldPosition, u8>,
     removed_fields: HashSet<String>,
-    inputs: Vec<Option<InputRegion>>,
+    inputs: Vec<InputRegion>,
 }
 
 impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
@@ -54,18 +54,18 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
                 SerializedEvolutionStep::FieldAddedToNewChunk { size } => {
                     let start = context.pos();
                     let _ = context.read_bytes(*size as usize)?;
-                    inputs.push(Some(InputRegion::new(start, *size as usize)));
+                    inputs.push(InputRegion::new(start, *size as usize));
                 }
                 SerializedEvolutionStep::FieldMadeOptional { position } => {
                     made_optional_at.insert(*position, idx as u8);
-                    inputs.push(Some(InputRegion::empty()));
+                    inputs.push(InputRegion::empty());
                 }
                 SerializedEvolutionStep::FieldRemoved { field_name } => {
                     removed_fields.insert(field_name.clone());
-                    inputs.push(Some(InputRegion::empty()));
+                    inputs.push(InputRegion::empty());
                 }
                 _ => {
-                    inputs.push(Some(InputRegion::empty()));
+                    inputs.push(InputRegion::empty());
                 }
             }
         }
@@ -111,8 +111,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
 
                 let has_inputs = !self.inputs.is_empty();
                 if has_inputs {
-                    self.context
-                        .push_region(self.inputs[chunk as usize].take().unwrap());
+                    self.context.push_region(self.inputs[chunk as usize]);
                 }
                 let result = if self.made_optional_at.contains_key(&field_position) {
                     // The field was made optional in a newer version, so we have to read Option<T>
@@ -165,8 +164,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
 
                 let has_inputs = !self.inputs.is_empty();
                 if has_inputs {
-                    self.context
-                        .push_region(self.inputs[chunk as usize].take().unwrap());
+                    self.context.push_region(self.inputs[chunk as usize]);
                 }
                 let result = if self.stored_version < opt_since {
                     Ok(Some(T::deserialize(self.context)?))
@@ -190,7 +188,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
         if constructor_idx == case_idx {
             let has_inputs = !self.inputs.is_empty();
             if has_inputs {
-                self.context.push_region(self.inputs[0].take().unwrap());
+                self.context.push_region(self.inputs[0]);
             }
             let result = Ok(Some(deserialize_case(self.context)?));
             if has_inputs {
@@ -216,7 +214,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
             None => {
                 let has_inputs = !self.inputs.is_empty();
                 if has_inputs {
-                    self.context.push_region(self.inputs[0].take().unwrap());
+                    self.context.push_region(self.inputs[0]);
                 }
                 let constructor_idx = self.context.read_var_u32()?;
                 if has_inputs {

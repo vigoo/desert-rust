@@ -503,6 +503,7 @@ dependencies = [
  "flate2",
  "hashbrown",
  "lazy_static",
+ "once_cell",
  "proptest",
  "proptest-arbitrary-interop",
  "uuid",
