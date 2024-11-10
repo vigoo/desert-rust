@@ -7,15 +7,15 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-desert_core = { path = "../desert_core", version="0.1.0" }
+desert_core = { path = "../desert_core", version = "0.1.0" }
 
-bytes = "1.6.0"
-lazy_static = "1.4.0"
-proc-macro2 = "1.0.81"
-quote = "1.0.36"
-syn = { version = "2.0.60", features = ["full"] }
+bytes = "1.6"
+lazy_static = "1.4"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
 
 [dev-dependencies]
-assert2 = "0.3.14"
-lazy_static = "1.4.0"
-uuid = { version = "1.8.0", features = ["v4"] }
+assert2 = "0.3"
+lazy_static = "1.4"
+uuid = { version = "1.8", features = ["v4"] }
