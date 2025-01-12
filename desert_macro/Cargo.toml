@@ -9,13 +9,13 @@ proc-macro = true
 [dependencies]
 desert_core = { path = "../desert_core", version = "0.1.0" }
 
-bytes = "1.6"
-lazy_static = "1.4"
+bytes = "1.9"
+lazy_static = "1.5"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["full"] }
 
 [dev-dependencies]
 assert2 = "0.3"
-lazy_static = "1.4"
-uuid = { version = "1.8", features = ["v4"] }
+lazy_static = "1.5"
+uuid = { version = "1.11", features = ["v4"] }

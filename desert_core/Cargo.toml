@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bytes = { version = "1.8" }
+bytes = { version = "1.9" }
 castaway = { version = "0.2", features = ["std"] }
 flate2 = "1.0"
-hashbrown = "0.15.1"
+hashbrown = "0.15.2"
 lazy_static = "1.5"
-once_cell = "1.20.0"
+once_cell = "1.20.2"
 
 bigdecimal = { version = "0.4", optional = true }
 chrono = { version = "0.4", optional = true }
@@ -19,7 +19,7 @@ uuid = { version = "1.11", optional = true }
 [dev-dependencies]
 chrono = { version = "0.4", features = ["arbitrary"] }
 chrono-tz = { version = "0.10", features = ["arbitrary"] }
-proptest = "1.5"
+proptest = "1.6"
 proptest-arbitrary-interop = "0.1"
 uuid = { version = "1.11", features = ["arbitrary"] }
 
