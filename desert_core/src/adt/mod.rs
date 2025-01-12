@@ -77,20 +77,6 @@ impl AdtMetadata {
     }
 }
 
-pub trait DefaultValue<T> {
-    fn default_value(&self) -> T;
-}
-
-struct ProvidedDefaultValue<T: Clone> {
-    value: T,
-}
-
-impl<T: Clone> DefaultValue<T> for ProvidedDefaultValue<T> {
-    fn default_value(&self) -> T {
-        self.value.clone()
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FieldPosition {
     pub chunk: u8,

@@ -28,8 +28,8 @@ mod tests {
     use crate::tests::roundtrip;
     use proptest::proptest;
     use proptest_arbitrary_interop::arb;
-    use uuid::Uuid;
     use test_r::test;
+    use uuid::Uuid;
 
     proptest! {
         #[test]

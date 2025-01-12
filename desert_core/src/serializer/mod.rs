@@ -481,7 +481,7 @@ impl<T> BinarySerializer for PhantomData<T> {
     }
 }
 
-impl<'a, T> BinarySerializer for &'a T
+impl<T> BinarySerializer for &T
 where
     T: BinarySerializer + ?Sized,
 {

@@ -125,7 +125,7 @@ impl<'a> SliceInput<'a> {
     pub const EMPTY: Self = Self { data: &[], pos: 0 };
 }
 
-impl<'a> BinaryInput for SliceInput<'a> {
+impl BinaryInput for SliceInput<'_> {
     fn read_u8(&mut self) -> Result<u8> {
         if self.pos == self.data.len() {
             Err(Error::InputEndedUnexpectedly)

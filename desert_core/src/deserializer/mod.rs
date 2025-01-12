@@ -90,7 +90,7 @@ impl<'a> DeserializationContext<'a> {
     }
 }
 
-impl<'a> BinaryInput for DeserializationContext<'a> {
+impl BinaryInput for DeserializationContext<'_> {
     fn read_u8(&mut self) -> Result<u8> {
         if self.current.pos == self.current.end {
             Err(Error::InputEndedUnexpectedly)
@@ -305,7 +305,7 @@ impl<T: BinaryDeserializer> BinaryDeserializer for Vec<T> {
         if cast!(empty, Vec<u8>).is_ok() {
             let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.read_bytes(length as usize)?;
-            unsafe { Ok(std::mem::transmute(bytes.to_vec())) }
+            unsafe { Ok(std::mem::transmute::<Vec<u8>, Vec<T>>(bytes.to_vec())) }
         } else {
             let mut vec = Vec::new();
             for item in deserialize_iterator(context) {
@@ -402,7 +402,7 @@ enum DeserializerIterator<'a, 'b, T: BinaryDeserializer + 'a> {
     InputEndedUnexpectedly,
 }
 
-impl<'a, 'b, T: BinaryDeserializer + 'a> Iterator for DeserializerIterator<'a, 'b, T> {
+impl<'a, T: BinaryDeserializer + 'a> Iterator for DeserializerIterator<'a, '_, T> {
     type Item = Result<T>;
 
     fn next(&mut self) -> Option<Self::Item> {

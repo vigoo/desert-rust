@@ -1,4 +1,4 @@
-use hashbrown::{HashSet};
+use hashbrown::HashSet;
 use std::collections::BTreeMap;
 
 use crate::adt::{AdtMetadata, FieldPosition};
