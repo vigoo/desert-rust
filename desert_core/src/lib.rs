@@ -18,6 +18,9 @@ pub use error::{Error, Result};
 pub use evolution::Evolution;
 pub use serializer::{serialize_iterator, BinarySerializer, SerializationContext};
 
+#[cfg(test)]
+test_r::enable!();
+
 pub trait BinaryCodec: BinarySerializer + BinaryDeserializer {}
 
 impl<T: BinarySerializer + BinaryDeserializer> BinaryCodec for T {}
@@ -99,6 +102,7 @@ mod tests {
     use std::fmt::Debug;
     use std::ops::Deref;
     use std::rc::Rc;
+    use test_r::test;
 
     pub(crate) fn roundtrip<
         T: BinarySerializer + BinaryDeserializer + Debug + Clone + PartialEq,

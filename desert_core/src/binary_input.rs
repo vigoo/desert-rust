@@ -202,6 +202,7 @@ impl BinaryInput for OwnedInput {
 mod tests {
     use bytes::BytesMut;
     use proptest::prelude::*;
+    use test_r::test;
 
     use crate::binary_input::OwnedInput;
     use crate::{BinaryInput, BinaryOutput};

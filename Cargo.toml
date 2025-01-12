@@ -9,3 +9,6 @@ members = [
 
 [profile.release]
 debug = true
+
+[workspace.dependencies]
+test-r = "2.0.1"

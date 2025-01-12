@@ -275,6 +275,7 @@ mod tests {
     use chrono_tz::Tz;
     use proptest::prelude::*;
     use proptest_arbitrary_interop::arb;
+    use test_r::test;
 
     fn datetime_tz_strategy() -> impl Strategy<Value = DateTime<Tz>> {
         (arb::<NaiveDateTime>(), arb::<Tz>())

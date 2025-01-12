@@ -1,6 +1,9 @@
 use assert2::check;
 use desert_core::*;
 use desert_macro::BinaryCodec;
+use test_r::test;
+
+test_r::enable!();
 
 mod desert {
     pub use desert_core::*;

@@ -3,6 +3,9 @@ name = "desert_core"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+harness = false
+
 [dependencies]
 bytes = { version = "1.9" }
 castaway = { version = "0.2", features = ["std"] }
@@ -21,6 +24,7 @@ chrono = { version = "0.4", features = ["arbitrary"] }
 chrono-tz = { version = "0.10", features = ["arbitrary"] }
 proptest = "1.6"
 proptest-arbitrary-interop = "0.1"
+test-r = { workspace = true }
 uuid = { version = "1.11", features = ["arbitrary"] }
 
 [features]

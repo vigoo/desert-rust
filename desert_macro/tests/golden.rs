@@ -1,16 +1,17 @@
 // Tests deserialization of a binary from the original Scala desert library
 
 use assert2::check;
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-
-use uuid::Uuid;
-
 use desert_core::{
     deserialize, serialize_to_byte_vec, BinaryDeserializer, BinaryInput, BinaryOutput,
     BinarySerializer, DeserializationContext, SerializationContext,
 };
 use desert_macro::BinaryCodec;
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+use test_r::test;
+use uuid::Uuid;
+
+test_r::enable!();
 
 mod desert {
     pub use desert_core::*;

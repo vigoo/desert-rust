@@ -46,6 +46,7 @@ mod tests {
     use bigdecimal::{BigDecimal, Num};
     use proptest::collection::vec;
     use proptest::prelude::*;
+    use test_r::test;
 
     fn bigdecimal_strategy() -> impl Strategy<Value = BigDecimal> {
         ((0..u128::MAX), (0..u128::MAX), any::<bool>()).prop_map(|(a, b, has_fractional)| {

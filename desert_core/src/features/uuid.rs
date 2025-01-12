@@ -29,6 +29,7 @@ mod tests {
     use proptest::proptest;
     use proptest_arbitrary_interop::arb;
     use uuid::Uuid;
+    use test_r::test;
 
     proptest! {
         #[test]

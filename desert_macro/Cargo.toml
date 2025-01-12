@@ -6,6 +6,18 @@ edition = "2021"
 [lib]
 proc-macro = true
 
+[[test]]
+name = "derivation"
+harness = false
+
+[[test]]
+name = "golden"
+harness = false
+
+[[test]]
+name = "string_deduplication"
+harness = false
+
 [dependencies]
 desert_core = { path = "../desert_core", version = "0.1.0" }
 
@@ -18,4 +30,5 @@ syn = { version = "2.0", features = ["full"] }
 [dev-dependencies]
 assert2 = "0.3"
 lazy_static = "1.5"
+test-r = { workspace = true }
 uuid = { version = "1.11", features = ["v4"] }

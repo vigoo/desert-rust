@@ -4,6 +4,9 @@ use desert_core::{
 };
 use desert_macro::BinaryCodec;
 use lazy_static::lazy_static;
+use test_r::test;
+
+test_r::enable!();
 
 mod desert {
     pub use desert_core::*;
