@@ -200,12 +200,11 @@ impl BinaryInput for OwnedInput {
 
 #[cfg(test)]
 mod tests {
+    use crate::binary_input::OwnedInput;
+    use crate::{BinaryInput, BinaryOutput};
     use bytes::BytesMut;
     use proptest::prelude::*;
     use test_r::test;
-
-    use crate::binary_input::OwnedInput;
-    use crate::{BinaryInput, BinaryOutput};
 
     proptest! {
         #[test]
@@ -237,5 +236,19 @@ mod tests {
             let result = compressed.read_compressed().unwrap();
             assert_eq!(bytes, result);
         }
+    }
+
+    #[test]
+    fn roundtrip_slice() -> Result<(), crate::Error> {
+        let data: [u8; 11] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+        let mut bytes = BytesMut::new();
+        bytes.write_bytes(&data[2..6]);
+
+        let mut bytes = OwnedInput::new(bytes.freeze().to_vec());
+        let result = bytes.read_bytes(4)?;
+
+        assert_eq!(result, &[2, 3, 4, 5]);
+        Ok(())
     }
 }

@@ -148,7 +148,8 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 variants.sort_by_key(|variant| variant.ident.to_string());
             }
 
-            for (case_idx, variant) in variants.iter().enumerate() {
+            let mut effective_case_idx = 0;
+            for variant in variants {
                 let is_transient = variant
                     .attrs
                     .iter()
@@ -226,7 +227,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                         quote! {
                         #pattern => {
                             serializer.write_constructor(
-                                #case_idx as u32,
+                                #effective_case_idx as u32,
                                 |context| {
                                     let mut serializer = desert::adt::AdtSerializer::#new_v(&#case_metadata_name, context);
                                     #(#case_serialization_commands)*
@@ -254,7 +255,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
                     deserialization_commands.push(
                         quote! {
-                            if let Some(result) = deserializer.read_constructor(#case_idx as u32,
+                            if let Some(result) = deserializer.read_constructor(#effective_case_idx as u32,
                                 |context| {
                                     let stored_version = context.read_u8()?;
                                     if stored_version == 0 {
@@ -270,17 +271,11 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                             }
                        }
                     );
+
+                    effective_case_idx += 1;
                 } else {
                     let name_string = name.to_string();
                     let case_name_string = case_name.to_string();
-                    deserialization_commands.push(quote! {
-                        let _: Option<Self> = deserializer.read_constructor(#case_idx as u32, |_| {
-                            Err(desert::Error::DeserializingTransientConstructor {
-                                  type_name: #name_string.to_string(),
-                                  constructor_name: #case_name_string.to_string(),
-                            })
-                        })?;
-                    });
                     cases.push(quote! {
                         #pattern => {
                             return Err(desert::Error::SerializingTransientConstructor {
@@ -332,13 +327,17 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     } else {
         quote! {
             #(#deserialization_commands)*
-            unreachable!()
+            Err(desert::Error::InvalidConstructorId {
+                type_name: stringify!(#name).to_string(),
+                constructor_id: deserializer.read_or_get_constructor_idx().unwrap_or(u32::MAX),
+            })
         }
     };
 
     let gen = quote! {
         #(#metadata)*
 
+        #[allow(unused_variables)]
         impl desert::BinarySerializer for #name {
             fn serialize<Output: desert::BinaryOutput>(&self, context: &mut desert::SerializationContext<Output>) -> desert::Result<()> {
                 let mut serializer = desert::adt::AdtSerializer::#new_v(&#metadata_name, context);

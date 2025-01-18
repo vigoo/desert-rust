@@ -18,3 +18,7 @@ For the blog:
   - we cannot really check for Option<T>
 - Testing: proptest
 
+TODO:
+- type registry support
+- derived newtype codecs
+- move tests from desert_macro to desert

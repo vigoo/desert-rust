@@ -636,11 +636,14 @@ dependencies = [
 name = "desert_macro"
 version = "0.1.0"
 dependencies = [
+ "arbitrary",
  "assert2",
  "bytes",
  "desert_core",
  "lazy_static",
  "proc-macro2",
+ "proptest",
+ "proptest-arbitrary-interop",
  "quote",
  "syn 2.0.96",
  "test-r",

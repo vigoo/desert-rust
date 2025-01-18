@@ -1,12 +1,17 @@
+use crate::serialization_properties::compatibility_test;
 use bytes::BytesMut;
 use desert_core::{
-    BinaryOutput, BinarySerializer, DeduplicatedString, Result, SerializationContext,
+    BinaryDeserializer, BinaryOutput, BinarySerializer, DeduplicatedString, DeserializationContext,
+    Result, SerializationContext,
 };
 use desert_macro::BinaryCodec;
 use lazy_static::lazy_static;
 use test_r::test;
 
 test_r::enable!();
+
+#[allow(dead_code)]
+mod serialization_properties;
 
 mod desert {
     pub use desert_core::*;
@@ -49,6 +54,18 @@ fn test_dedup_ser<Output: BinaryOutput>(context: &mut SerializationContext<Outpu
     Ok(())
 }
 
+fn test_dedup_deser(
+    context: &mut DeserializationContext,
+) -> Result<(String, String, String, String, String, String)> {
+    let s1 = DeduplicatedString::deserialize(context)?.0;
+    let s2 = DeduplicatedString::deserialize(context)?.0;
+    let s3 = DeduplicatedString::deserialize(context)?.0;
+    let s4 = DeduplicatedString::deserialize(context)?.0;
+    let s5 = DeduplicatedString::deserialize(context)?.0;
+    let s6 = DeduplicatedString::deserialize(context)?.0;
+    Ok((s1, s2, s3, s4, s5, s6))
+}
+
 fn test_non_dedup_ser<Output: BinaryOutput>(
     context: &mut SerializationContext<Output>,
 ) -> Result<()> {
@@ -59,6 +76,21 @@ fn test_non_dedup_ser<Output: BinaryOutput>(
     S2.serialize(context)?;
     S3.serialize(context)?;
     Ok(())
+}
+
+#[test]
+fn reads_back_duplicated_strings_currently() {
+    let mut context = SerializationContext::new(BytesMut::new());
+    test_dedup_ser(&mut context).unwrap();
+    let bytes = context.into_output();
+    let mut context = DeserializationContext::new(&bytes);
+    let (s1, s2, s3, s4, s5, s6) = test_dedup_deser(&mut context).unwrap();
+    assert_eq!(s1, *S1);
+    assert_eq!(s2, *S2);
+    assert_eq!(s3, *S3);
+    assert_eq!(s4, *S1);
+    assert_eq!(s5, *S2);
+    assert_eq!(s6, *S3);
 }
 
 #[test]
@@ -74,4 +106,20 @@ fn reduces_serialized_size() {
     let non_dedup_len = bytes.len();
 
     assert!(dedup_len < non_dedup_len);
+}
+
+#[test]
+fn default_string_serialization_does_not_break_data_evolution() {
+    compatibility_test(
+        OuterV2 {
+            data: DataV2 {
+                new_field: "hello world".to_string(),
+            },
+            other: "hello world".to_string(),
+        },
+        OuterV1 {
+            data: DataV1,
+            other: "hello world".to_string(),
+        },
+    );
 }

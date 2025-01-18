@@ -360,6 +360,12 @@ mod tests {
     }
 
     #[test]
+    fn known_sized_collection_is_stack_safe() {
+        let big_vec = (0..1_000_000).collect::<Vec<_>>();
+        roundtrip(big_vec);
+    }
+
+    #[test]
     fn reference_tracking_serializes_cycles() {
         let a = Rc::new(RefCell::new(Node {
             label: "a".to_string(),

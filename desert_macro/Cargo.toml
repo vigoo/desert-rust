@@ -7,7 +7,15 @@ edition = "2021"
 proc-macro = true
 
 [[test]]
+name = "coproduct"
+harness = false
+
+[[test]]
 name = "derivation"
+harness = false
+
+[[test]]
+name = "evolution"
 harness = false
 
 [[test]]
@@ -28,7 +36,10 @@ quote = "1.0"
 syn = { version = "2.0", features = ["full"] }
 
 [dev-dependencies]
+arbitrary = { version = "1.4.1", features = ["derive"] }
 assert2 = "0.3"
 lazy_static = "1.5"
+proptest = "1.6"
+proptest-arbitrary-interop = "0.1"
 test-r = { workspace = true }
 uuid = { version = "1.11", features = ["v4"] }

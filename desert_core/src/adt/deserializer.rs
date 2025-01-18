@@ -209,7 +209,7 @@ impl<'a, 'b, 'c> AdtDeserializer<'a, 'b, 'c> {
         fp
     }
 
-    fn read_or_get_constructor_idx(&mut self) -> Result<u32> {
+    pub fn read_or_get_constructor_idx(&mut self) -> Result<u32> {
         match self.read_constructor_idx {
             Some(idx) => Ok(idx),
             None => {
