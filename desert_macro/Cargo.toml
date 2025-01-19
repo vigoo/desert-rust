@@ -3,6 +3,10 @@ name = "desert_macro"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
+description = "Binary serialization library for Rust (macros)"
+homepage = "https://desert-rust.vigoo.dev"
+repository = "https://github.com/vigoo/desert-rust"
+readme = "../README.md"
 
 [lib]
 proc-macro = true

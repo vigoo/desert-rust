@@ -3,6 +3,10 @@ name = "desert_core"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
+description = "Binary serialization library for Rust (core crate)"
+homepage = "https://desert-rust.vigoo.dev"
+repository = "https://github.com/vigoo/desert-rust"
+readme = "../README.md"
 
 [lib]
 harness = false
