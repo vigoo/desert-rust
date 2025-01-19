@@ -5,10 +5,8 @@ members = [
     "desert_benchmarks",
     "desert_core",
     "desert_macro",
+    "github",
 ]
-
-[profile.release]
-debug = true
 
 [workspace.dependencies]
 test-r = "2.0.1"

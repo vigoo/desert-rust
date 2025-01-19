@@ -1,0 +1,16 @@
+.binary table {
+    border-collapse: initial;
+    border: 0px;
+}
+
+.binary td {
+    border: 1px solid;
+    padding: 6px;
+    text-align: center;
+    color: black;
+    background-color: rgb(154, 231, 147);
+    margin: 0px;
+    border-spacing: 1px;
+    font-family: monospace;
+    font-weight: normal;
+}

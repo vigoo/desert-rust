@@ -11,7 +11,7 @@ use crate::serialization_properties::{compatibility_test, incompatibility_test, 
 
 test_r::enable!();
 
-mod desert {
+mod desert_rust {
     pub use desert_core::*;
 }
 

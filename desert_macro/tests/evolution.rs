@@ -6,7 +6,7 @@ test_r::enable!();
 #[allow(dead_code)]
 mod serialization_properties;
 
-mod desert {
+mod desert_rust {
     pub use desert_core::*;
 }
 

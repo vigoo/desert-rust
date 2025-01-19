@@ -5,7 +5,7 @@ use test_r::test;
 
 test_r::enable!();
 
-mod desert {
+mod desert_rust {
     pub use desert_core::*;
 }
 

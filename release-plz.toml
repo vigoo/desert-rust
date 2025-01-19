@@ -1,0 +1,22 @@
+[workspace]
+dependencies_update = true
+changelog_update = false
+
+[[package]]
+name = "desert_benchmarks"
+release = false
+
+[[package]]
+name = "desert_github"
+release = false
+
+[[package]]
+name = "desert_rust"
+changelog_update = true
+changelog_include = ["desert_core", "desert_macro"]
+
+[[package]]
+name = "desert_core"
+
+[[package]]
+name = "desert_macro"

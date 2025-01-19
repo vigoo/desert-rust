@@ -4,7 +4,7 @@ use bincode::de::{BorrowDecoder, Decoder};
 use bincode::enc::Encoder;
 use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
-use desert::{
+use desert_rust::{
     BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
     DeserializationContext, SerializationContext,
 };
@@ -85,7 +85,7 @@ impl BinarySerializer for Timestamp {
     fn serialize<Output: BinaryOutput>(
         &self,
         context: &mut SerializationContext<Output>,
-    ) -> desert::Result<()> {
+    ) -> desert_rust::Result<()> {
         let ms = self
             .0
             .duration_since(iso8601_timestamp::Timestamp::UNIX_EPOCH)
@@ -96,7 +96,7 @@ impl BinarySerializer for Timestamp {
 }
 
 impl BinaryDeserializer for Timestamp {
-    fn deserialize(context: &mut DeserializationContext<'_>) -> desert::Result<Self> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> desert_rust::Result<Self> {
         let ms = context.read_u64()?;
         Ok(Timestamp(
             iso8601_timestamp::Timestamp::UNIX_EPOCH.add(Duration::from_millis(ms)),

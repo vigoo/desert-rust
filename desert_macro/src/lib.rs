@@ -42,7 +42,7 @@ fn evolution_steps_from_attributes(
 
                             field_defaults.insert(field_name.clone(), field_default.clone());
                             evolution_steps.push(quote! {
-                                desert::Evolution::FieldAdded {
+                                desert_rust::Evolution::FieldAdded {
                                     name: #field_name.to_string(),
                                 }
                             });
@@ -52,7 +52,7 @@ fn evolution_steps_from_attributes(
                             let field_name = field_name_lit.value();
 
                             evolution_steps.push(quote! {
-                                desert::Evolution::FieldMadeOptional {
+                                desert_rust::Evolution::FieldMadeOptional {
                                     name: #field_name.to_string(),
                                 }
                             });
@@ -62,7 +62,7 @@ fn evolution_steps_from_attributes(
                             let field_name = field_name_lit.value();
 
                             evolution_steps.push(quote! {
-                                desert::Evolution::FieldRemoved {
+                                desert_rust::Evolution::FieldRemoved {
                                     name: #field_name.to_string(),
                                 }
                             });
@@ -72,7 +72,7 @@ fn evolution_steps_from_attributes(
                             let field_name = field_name_lit.value();
 
                             evolution_steps.push(quote! {
-                                desert::Evolution::FieldMadeTransient {
+                                desert_rust::Evolution::FieldMadeTransient {
                                     name: #field_name.to_string(),
                                 }
                             });
@@ -204,12 +204,12 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
                     metadata.push(quote! {
                         lazy_static::lazy_static! {
-                            static ref #case_metadata_name: desert::adt::AdtMetadata = {
-                                let mut evolution_steps: Vec<desert::Evolution> = Vec::new();
-                                evolution_steps.push(desert::Evolution::InitialVersion);
+                            static ref #case_metadata_name: desert_rust::adt::AdtMetadata = {
+                                let mut evolution_steps: Vec<desert_rust::Evolution> = Vec::new();
+                                evolution_steps.push(desert_rust::Evolution::InitialVersion);
                                 #(#case_push_evolution_steps)*
 
-                                desert::adt::AdtMetadata::new(
+                                desert_rust::adt::AdtMetadata::new(
                                     evolution_steps,
                                 )
                             };
@@ -229,7 +229,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                             serializer.write_constructor(
                                 #effective_case_idx as u32,
                                 |context| {
-                                    let mut serializer = desert::adt::AdtSerializer::#new_v(&#case_metadata_name, context);
+                                    let mut serializer = desert_rust::adt::AdtSerializer::#new_v(&#case_metadata_name, context);
                                     #(#case_serialization_commands)*
                                     serializer.finish()
                                 }
@@ -259,10 +259,10 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                                 |context| {
                                     let stored_version = context.read_u8()?;
                                     if stored_version == 0 {
-                                        let mut deserializer = desert::adt::AdtDeserializer::new_v0(&#case_metadata_name, context)?;
+                                        let mut deserializer = desert_rust::adt::AdtDeserializer::new_v0(&#case_metadata_name, context)?;
                                         Ok(#construct_case)
                                     } else {
-                                        let mut deserializer = desert::adt::AdtDeserializer::new(&#case_metadata_name, context, stored_version)?;
+                                        let mut deserializer = desert_rust::adt::AdtDeserializer::new(&#case_metadata_name, context, stored_version)?;
                                         Ok(#construct_case)
                                     }
                                 }
@@ -278,7 +278,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     let case_name_string = case_name.to_string();
                     cases.push(quote! {
                         #pattern => {
-                            return Err(desert::Error::SerializingTransientConstructor {
+                            return Err(desert_rust::Error::SerializingTransientConstructor {
                                 type_name: #name_string.to_string(),
                                 constructor_name: #case_name_string.to_string(),
                             });
@@ -300,12 +300,12 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
     metadata.push(quote! {
         lazy_static::lazy_static! {
-            static ref #metadata_name: desert::adt::AdtMetadata = {
-                let mut evolution_steps: Vec<desert::Evolution> = Vec::new();
-                evolution_steps.push(desert::Evolution::InitialVersion);
+            static ref #metadata_name: desert_rust::adt::AdtMetadata = {
+                let mut evolution_steps: Vec<desert_rust::Evolution> = Vec::new();
+                evolution_steps.push(desert_rust::Evolution::InitialVersion);
                 #(#push_evolution_steps)*
 
-                desert::adt::AdtMetadata::new(
+                desert_rust::adt::AdtMetadata::new(
                     evolution_steps,
                 )
             };
@@ -327,7 +327,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     } else {
         quote! {
             #(#deserialization_commands)*
-            Err(desert::Error::InvalidConstructorId {
+            Err(desert_rust::Error::InvalidConstructorId {
                 type_name: stringify!(#name).to_string(),
                 constructor_id: deserializer.read_or_get_constructor_idx().unwrap_or(u32::MAX),
             })
@@ -338,24 +338,24 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         #(#metadata)*
 
         #[allow(unused_variables)]
-        impl desert::BinarySerializer for #name {
-            fn serialize<Output: desert::BinaryOutput>(&self, context: &mut desert::SerializationContext<Output>) -> desert::Result<()> {
-                let mut serializer = desert::adt::AdtSerializer::#new_v(&#metadata_name, context);
+        impl desert_rust::BinarySerializer for #name {
+            fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
+                let mut serializer = desert_rust::adt::AdtSerializer::#new_v(&#metadata_name, context);
                 #(#serialization_commands)*
                 serializer.finish()
             }
         }
 
-        impl desert::BinaryDeserializer for #name {
-            fn deserialize<'a, 'b>(context: &'a mut desert::DeserializationContext<'b>) -> desert::Result<Self> {
-                use desert::BinaryInput;
+        impl desert_rust::BinaryDeserializer for #name {
+            fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
+                use desert_rust::BinaryInput;
 
                 let stored_version = context.read_u8()?;
                 if stored_version == 0 {
-                    let mut deserializer = desert::adt::AdtDeserializer::new_v0(&#metadata_name, context)?;
+                    let mut deserializer = desert_rust::adt::AdtDeserializer::new_v0(&#metadata_name, context)?;
                     #deserialization
                 } else {
-                    let mut deserializer = desert::adt::AdtDeserializer::new(&#metadata_name, context, stored_version)?;
+                    let mut deserializer = desert_rust::adt::AdtDeserializer::new(&#metadata_name, context, stored_version)?;
                     #deserialization
                 }
             }
