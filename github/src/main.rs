@@ -1,12 +1,12 @@
 mod internal;
 
 use crate::internal::{matrix, JobExt, Matrix, MatrixDimension, StepExt};
+use gh_workflow::generate::Generate;
 use gh_workflow::toolchain::Toolchain;
 use gh_workflow::{
     Cargo, Concurrency, Event, Expression, Job, Level, Permissions, PullRequest, Push, Step,
     Workflow,
 };
-use gh_workflow::generate::Generate;
 
 fn main() {
     let toolchain = Toolchain::default();
@@ -89,7 +89,10 @@ fn main() {
                     .add_env(("CARGO_REGISTRY_TOKEN", "${{ secrets.CARGO_REGISTRY_TOKEN }}"))
                 )
         );
-    
+
     Generate::new(ci).name("ci.yml").generate().unwrap();
-    Generate::new(release_plz).name("release-plz.yml").generate().unwrap();
+    Generate::new(release_plz)
+        .name("release-plz.yml")
+        .generate()
+        .unwrap();
 }
