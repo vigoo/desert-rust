@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::hint::black_box;
 use std::path::PathBuf;
 
-use desert::{
+use desert_rust::{
     deserialize, serialize_to_byte_vec, BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput,
     BinarySerializer, DeserializationContext, SerializationContext,
 };
@@ -78,7 +78,7 @@ impl BinarySerializer for StackTraceElement {
     fn serialize<Output: BinaryOutput>(
         &self,
         context: &mut SerializationContext<Output>,
-    ) -> desert::Result<()> {
+    ) -> desert_rust::Result<()> {
         context.write_u8(0);
         self.class_name.serialize(context)?;
         self.method_name.serialize(context)?;
@@ -89,7 +89,7 @@ impl BinarySerializer for StackTraceElement {
 }
 
 impl BinaryDeserializer for StackTraceElement {
-    fn deserialize(context: &mut DeserializationContext<'_>) -> desert::Result<Self> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> desert_rust::Result<Self> {
         let hdr = context.read_u8()?;
         assert_eq!(hdr, 0);
         let class_name = Option::<String>::deserialize(context)?;

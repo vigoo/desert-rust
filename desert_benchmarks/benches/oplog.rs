@@ -4,8 +4,8 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use rand::prelude::StdRng;
 use rand::SeedableRng;
 
-use desert::*;
 use desert_benchmarks::model::*;
+use desert_rust::*;
 
 fn generate_cases() -> Vec<Case> {
     let mut rng = StdRng::seed_from_u64(317826381);

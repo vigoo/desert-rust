@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use desert::{deserialize, serialize_to_byte_vec, BinaryCodec};
+use desert_rust::{deserialize, serialize_to_byte_vec, BinaryCodec};
 use std::hint::black_box;
 
 fn bench_deserialize<T: BinaryCodec>(name: &str, data: T, c: &mut Criterion) {

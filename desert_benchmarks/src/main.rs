@@ -268,7 +268,7 @@ fn main() {
             case.payload_size
         );
 
-        // let desert_bin = desert::serialize_to_bytes(&case.entries).unwrap();
+        // let desert_bin = desert_rust::serialize_to_bytes(&case.entries).unwrap();
         // std::fs::write(Path::new(&format!("desert_bin_{}.bin", case.payload_size)), desert_bin).unwrap();
 
         let mut reports = vec![];
