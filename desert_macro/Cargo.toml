@@ -42,4 +42,4 @@ lazy_static = "1.5"
 proptest = "1.6"
 proptest-arbitrary-interop = "0.1"
 test-r = { workspace = true }
-uuid = { version = "1.11", features = ["v4"] }
+uuid = { version = "1.12", features = ["v4"] }
