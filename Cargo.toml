@@ -9,4 +9,4 @@ members = [
 ]
 
 [workspace.dependencies]
-test-r = "2.0.1"
+test-r = "2.3.1"

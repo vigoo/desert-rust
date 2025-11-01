@@ -34,17 +34,17 @@ harness = false
 [dependencies]
 desert_core = { path = "../desert_core", version = "0.1.0" }
 
-bytes = "1.9"
+bytes = "1.10"
 lazy_static = "1.5"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["full"] }
 
 [dev-dependencies]
-arbitrary = { version = "1.4.1", features = ["derive"] }
+arbitrary = { version = "1.4.2", features = ["derive"] }
 assert2 = "0.3"
 lazy_static = "1.5"
-proptest = "1.6"
+proptest = "1.9"
 proptest-arbitrary-interop = "0.1"
 test-r = { workspace = true }
-uuid = { version = "1.12", features = ["v4"] }
+uuid = { version = "1.18", features = ["v4"] }

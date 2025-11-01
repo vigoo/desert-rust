@@ -8,7 +8,7 @@ use desert_rust::{
     BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
     DeserializationContext, SerializationContext,
 };
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -63,7 +63,7 @@ impl bincode::Encode for Timestamp {
     }
 }
 
-impl bincode::Decode for Timestamp {
+impl<Context> bincode::Decode<Context> for Timestamp {
     fn decode<D: Decoder>(decoder: &mut D) -> Result<Self, DecodeError> {
         let timestamp: u64 = bincode::Decode::decode(decoder)?;
         Ok(Timestamp(
@@ -72,7 +72,7 @@ impl bincode::Decode for Timestamp {
     }
 }
 
-impl<'de> bincode::BorrowDecode<'de> for Timestamp {
+impl<'de, Context> bincode::BorrowDecode<'de, Context> for Timestamp {
     fn borrow_decode<D: BorrowDecoder<'de>>(decoder: &mut D) -> Result<Self, DecodeError> {
         let timestamp: u64 = bincode::BorrowDecode::borrow_decode(decoder)?;
         Ok(Timestamp(
@@ -199,7 +199,7 @@ pub enum CallingConvention {
 }
 
 fn random_wrapped_function_type(rng: &mut impl Rng) -> WrappedFunctionType {
-    let case = rng.gen_range(0..4);
+    let case = rng.random_range(0..4);
     match case {
         0 => WrappedFunctionType::ReadLocal,
         1 => WrappedFunctionType::WriteLocal,
@@ -210,7 +210,7 @@ fn random_wrapped_function_type(rng: &mut impl Rng) -> WrappedFunctionType {
 }
 
 fn random_invocation_key(rng: &mut impl Rng) -> Option<InvocationKey> {
-    let some: bool = rng.gen();
+    let some: bool = rng.random();
     if some {
         Some(InvocationKey {
             value: rng
@@ -225,7 +225,7 @@ fn random_invocation_key(rng: &mut impl Rng) -> Option<InvocationKey> {
 }
 
 fn random_calling_convention(rng: &mut impl Rng) -> Option<CallingConvention> {
-    let case = rng.gen_range(0..4);
+    let case = rng.random_range(0..4);
     match case {
         0 => None,
         1 => Some(CallingConvention::Component),
@@ -237,7 +237,7 @@ fn random_calling_convention(rng: &mut impl Rng) -> Option<CallingConvention> {
 
 fn random_timestamp(rng: &mut impl Rng) -> Timestamp {
     Timestamp(iso8601_timestamp::Timestamp::from(
-        SystemTime::UNIX_EPOCH.add(Duration::from_secs(rng.gen_range(0..3000000000))),
+        SystemTime::UNIX_EPOCH.add(Duration::from_secs(rng.random_range(0..3000000000))),
     ))
 }
 
@@ -253,12 +253,12 @@ fn random_promise_id(rng: &mut impl Rng) -> PromiseId {
                 .map(char::from)
                 .collect(),
         },
-        oplog_idx: rng.gen(),
+        oplog_idx: rng.random(),
     }
 }
 
 pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry {
-    let case = rng.gen_range(0..7);
+    let case = rng.random_range(0..7);
     match case {
         0 => {
             let mut response: Vec<u8> = vec![0; payload_size];
@@ -303,7 +303,7 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
             OplogEntry::ExportedFunctionCompleted {
                 timestamp: random_timestamp(rng),
                 response,
-                consumed_fuel: rng.gen(),
+                consumed_fuel: rng.random(),
             }
         }
         3 => OplogEntry::CreatePromise {

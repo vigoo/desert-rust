@@ -49,7 +49,11 @@ fn main() {
                 .runs_on_("ubuntu-latest")
                 .add_step(Step::checkout())
                 .add_step(Step::setup_mdbook())
-                .add_step(Step::run("mdbook build").working_directory("book"))
+                .add_step(
+                    Step::new("Build MDbook")
+                        .run("mdbook build")
+                        .working_directory("book"),
+                )
                 .add_step(
                     Step::ghpages()
                         .if_condition(Expression::new("${{ github.ref == 'refs/heads/master' }}"))
@@ -71,7 +75,7 @@ fn main() {
                 .add_step(Step::checkout().add_with(("fetch-depth", "0")))
                 .add_step(toolchain)
                 .add_step(
-                    Step::run(r#"
+                    Step::new("Close old release PR").run(r#"
                           # List all opened PRs which head branch starts with "release-plz-"
                           release_pr=$(gh pr list --state='open' --json number,headRefName --jq '.[] | select(.headRefName | startswith("release-plz-")) | .number')
                           # Close the release PR if there is one
@@ -81,10 +85,9 @@ fn main() {
                           else
                             echo "No open release PR"
                           fi"#)
-                        .name("Close old release PR")
                         .add_env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}")),
                 )
-                .add_step(Step::uses("MarcoIeni", "release-plz-action", "v0.5")
+                .add_step(Step::new("release-plz").uses("MarcoIeni", "release-plz-action", "v0.5")
                     .add_env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
                     .add_env(("CARGO_REGISTRY_TOKEN", "${{ secrets.CARGO_REGISTRY_TOKEN }}"))
                 )
