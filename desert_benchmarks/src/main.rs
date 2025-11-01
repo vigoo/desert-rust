@@ -110,7 +110,7 @@ fn bincode_benchmark(case: &Case) -> Report {
 fn bincode_noserde_benchmark(case: &Case) -> Report {
     benchmark(
         case,
-        "bincode without serde (current implementation)",
+        "bincode without serde",
         |entry| {
             let data = bincode::encode_to_vec(entry, bincode::config::standard()).unwrap();
             let mut bytes = BytesMut::new();
@@ -235,19 +235,32 @@ fn desert_benchmark(case: &Case) -> Report {
 }
 
 fn print_report(report: &Report) {
-    println!("{}", report.name);
-    println!(" - total size:               {} bytes", report.total_size);
-    println!(" - serialization duration:   {:?}", report.se_duration);
-    println!(" - deserialization duration: {:?}", report.de_duration);
+    if report.name.contains("desert") {
+        println!("**{}**", report.name);
+    } else {
+        println!("{}", report.name);
+    }
+    println!("- total size:               {} bytes", report.total_size);
+    println!("- serialization duration:   {:?}", report.se_duration);
+    println!("- deserialization duration: {:?}", report.de_duration);
+    println!();
 }
 
 fn main() {
     let desert_only = std::env::args().any(|arg| &arg == "--desert-only");
 
+    println!("# Benchmark results without schema evolution");
+    println!();
+    println!("This benchmark serializes/deserializes 10000 \"oplog entries\", where oplog entries is a big enum type,");
+    println!("taken from an early prototype of [Golem](https://github.com/golemcloud/golem). Some of the cases have");
+    println!("an arbitrary byte array payload in them, which the benchmark sets to various sizes to see the effect on");
+    println!("serialization speed.");
+    println!();
+
     println!("Generating data set");
     let mut rng = StdRng::seed_from_u64(317826381);
 
-    let payload_sizes = [16, 256, 1024, 128 * 1024];
+    let payload_sizes = [16, 256, 1024, 16 * 1024];
     let cases = payload_sizes
         .iter()
         .map(|payload_size| {
@@ -263,10 +276,11 @@ fn main() {
 
     for case in cases {
         println!(
-            "Benchmarking case with {} entries, payload size {} bytes",
+            "## Benchmarking case with {} entries, payload size {} bytes",
             case.entries.len(),
             case.payload_size
         );
+        println!();
 
         // let desert_bin = desert_rust::serialize_to_bytes(&case.entries).unwrap();
         // std::fs::write(Path::new(&format!("desert_bin_{}.bin", case.payload_size)), desert_bin).unwrap();
