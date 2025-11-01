@@ -662,7 +662,7 @@ dependencies = [
 
 [[package]]
 name = "desert_core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bigdecimal 0.4.9",
  "bytes",
@@ -689,7 +689,7 @@ dependencies = [
 
 [[package]]
 name = "desert_macro"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arbitrary",
  "assert2",
@@ -707,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "desert_rust"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "desert_core",
  "desert_macro",

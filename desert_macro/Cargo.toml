@@ -1,6 +1,6 @@
 [package]
 name = "desert_macro"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "Apache-2.0"
 description = "Binary serialization library for Rust (macros)"
@@ -32,7 +32,7 @@ name = "string_deduplication"
 harness = false
 
 [dependencies]
-desert_core = { path = "../desert_core", version = "0.1.0" }
+desert_core = { path = "../desert_core", version = "0.1.1" }
 
 bytes = "1.10"
 lazy_static = "1.5"
