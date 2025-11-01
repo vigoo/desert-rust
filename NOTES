@@ -2,6 +2,5 @@
 TODO:
 - type registry support
 - derived newtype codecs
-- move tests from desert_macro to desert
 - what about binaryinput?
 - finish docs

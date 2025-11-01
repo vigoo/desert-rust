@@ -709,8 +709,16 @@ dependencies = [
 name = "desert_rust"
 version = "0.1.0"
 dependencies = [
+ "arbitrary",
+ "assert2",
+ "bytes",
  "desert_core",
  "desert_macro",
+ "lazy_static",
+ "proptest",
+ "proptest-arbitrary-interop",
+ "test-r",
+ "uuid",
 ]
 
 [[package]]

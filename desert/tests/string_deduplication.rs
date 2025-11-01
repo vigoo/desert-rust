@@ -1,10 +1,6 @@
+use desert_rust::*;
 use crate::serialization_properties::compatibility_test;
 use bytes::BytesMut;
-use desert_core::{
-    BinaryDeserializer, BinaryOutput, BinarySerializer, DeduplicatedString, DeserializationContext,
-    Result, SerializationContext,
-};
-use desert_macro::BinaryCodec;
 use lazy_static::lazy_static;
 use test_r::test;
 
@@ -12,10 +8,6 @@ test_r::enable!();
 
 #[allow(dead_code)]
 mod serialization_properties;
-
-mod desert_rust {
-    pub use desert_core::*;
-}
 
 #[derive(Debug, PartialEq, BinaryCodec)]
 struct DataV1;

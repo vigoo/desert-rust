@@ -16,6 +16,34 @@ desert_core = { path = "../desert_core", version = "0.1.0" }
 desert_macro = { path = "../desert_macro", version = "0.1.0" }
 
 [dev-dependencies]
+arbitrary = { version = "1.4.2", features = ["derive"] }
+assert2 = "0.3"
+bytes = "1.10"
+lazy_static = "1.5"
+proptest = "1.9"
+proptest-arbitrary-interop = "0.1"
+test-r = { workspace = true }
+uuid = { version = "1.18", features = ["v4"] }
+
+[[test]]
+name = "coproduct"
+harness = false
+
+[[test]]
+name = "derivation"
+harness = false
+
+[[test]]
+name = "evolution"
+harness = false
+
+[[test]]
+name = "golden"
+harness = false
+
+[[test]]
+name = "string_deduplication"
+harness = false
 
 [features]
 default = ["bigdecimal", "chrono", "uuid"]

@@ -1,13 +1,8 @@
+use desert_rust::*;
 use assert2::check;
-use desert_core::*;
-use desert_macro::BinaryCodec;
 use test_r::test;
 
 test_r::enable!();
-
-mod desert_rust {
-    pub use desert_core::*;
-}
 
 #[derive(Debug, PartialEq, BinaryCodec)]
 #[evolution(FieldAdded("x", 0), FieldRemoved("z"))]

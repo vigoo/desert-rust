@@ -1,21 +1,13 @@
 // Tests deserialization of a binary from the original Scala desert library
 
+use desert_rust::*;
 use assert2::check;
-use desert_core::{
-    deserialize, serialize_to_byte_vec, BinaryDeserializer, BinaryInput, BinaryOutput,
-    BinarySerializer, DeserializationContext, SerializationContext,
-};
-use desert_macro::BinaryCodec;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use test_r::test;
 use uuid::Uuid;
 
 test_r::enable!();
-
-mod desert_rust {
-    pub use desert_core::*;
-}
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec)]
 #[evolution(FieldMadeOptional("option"), FieldAdded("string", "default string".to_string()), FieldAdded("set", HashSet::new()))]
@@ -35,8 +27,8 @@ struct TestModel1 {
     array: Vec<i64>,
     vector: Vec<ListElement1>,
     set: HashSet<String>,
-    either: Result<bool, String>,
-    tried: Result<ListElement2, Throwable>,
+    either: std::result::Result<bool, String>,
+    tried: std::result::Result<ListElement2, Throwable>,
     option: Option<HashMap<String, ListElement2>>,
 }
 
@@ -115,7 +107,7 @@ impl BinaryDeserializer for StackTraceElement {
 
 #[test]
 fn golden_test_1() {
-    let bytes = include_bytes!("../golden/dataset1.bin");
+    let bytes = include_bytes!("./golden/dataset1.bin");
     let value: TestModel1 = deserialize(bytes).unwrap();
 
     #[allow(clippy::approx_constant)]

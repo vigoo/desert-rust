@@ -1,14 +1,10 @@
+use desert_rust::*;
 use arbitrary::Arbitrary;
-use desert_macro::BinaryCodec;
 
 test_r::enable!();
 
 #[allow(dead_code)]
 mod serialization_properties;
-
-mod desert_rust {
-    pub use desert_core::*;
-}
 
 //#[derive(Debug, Clone, PartialEq, BinaryCodec)]
 //#[evolution()]

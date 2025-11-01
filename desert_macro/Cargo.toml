@@ -11,26 +11,6 @@ readme = "../README.md"
 [lib]
 proc-macro = true
 
-[[test]]
-name = "coproduct"
-harness = false
-
-[[test]]
-name = "derivation"
-harness = false
-
-[[test]]
-name = "evolution"
-harness = false
-
-[[test]]
-name = "golden"
-harness = false
-
-[[test]]
-name = "string_deduplication"
-harness = false
-
 [dependencies]
 desert_core = { path = "../desert_core", version = "0.1.0" }
 

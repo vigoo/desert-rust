@@ -1,5 +1,5 @@
+use desert_rust::*;
 use arbitrary::Arbitrary;
-use desert_macro::BinaryCodec;
 use proptest::prelude::*;
 use proptest_arbitrary_interop::arb;
 use test_r::test;
@@ -10,10 +10,6 @@ mod serialization_properties;
 use crate::serialization_properties::{compatibility_test, incompatibility_test, roundtrip};
 
 test_r::enable!();
-
-mod desert_rust {
-    pub use desert_core::*;
-}
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
 #[evolution()]
