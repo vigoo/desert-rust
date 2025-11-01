@@ -299,10 +299,11 @@ impl<T: BinaryDeserializer, const L: usize> BinaryDeserializer for [T; L] {
     }
 }
 
-impl<T: BinaryDeserializer> BinaryDeserializer for Vec<T> {
+impl<T: BinaryDeserializer + 'static> BinaryDeserializer for Vec<T> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        let empty: Self = Vec::new();
-        if cast!(empty, Vec<u8>).is_ok() {
+        use std::any::TypeId;
+
+        if TypeId::of::<T>() == TypeId::of::<u8>() {
             let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.read_bytes(length as usize)?;
             unsafe { Ok(std::mem::transmute::<Vec<u8>, Vec<T>>(bytes.to_vec())) }

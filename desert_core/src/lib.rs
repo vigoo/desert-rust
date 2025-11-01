@@ -213,6 +213,16 @@ mod tests {
         }
 
         #[test]
+        fn roundtrip_vec_u8(value: Vec<u8>) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_vec_u32(value: Vec<u32>) {
+            roundtrip(value);
+        }
+
+        #[test]
         fn roundtrip_tuple2(value: (u32, String)) {
             roundtrip(value);
         }

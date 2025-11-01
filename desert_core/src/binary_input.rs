@@ -65,33 +65,22 @@ pub trait BinaryInput {
     }
 
     fn read_var_u32(&mut self) -> Result<u32> {
-        let b = self.read_u8()?;
-        let r = (b & 0x7F) as u32;
-        if b & 0x80 == 0 {
-            return Ok(r);
+        let mut result: u32 = 0;
+        let mut shift = 0;
+
+        loop {
+            let b = self.read_u8()?;
+            result |= ((b & 0x7F) as u32) << shift;
+            if b & 0x80 == 0 {
+                break;
+            }
+            shift += 7;
+            if shift >= 32 {
+                return Err(Error::DeserializationFailure("var_u32 too long".to_string()));
+            }
         }
 
-        let b = self.read_u8()?;
-        let r = r | (((b & 0x7F) as u32) << 7);
-        if b & 0x80 == 0 {
-            return Ok(r);
-        }
-
-        let b = self.read_u8()?;
-        let r = r | (((b & 0x7F) as u32) << 14);
-        if b & 0x80 == 0 {
-            return Ok(r);
-        }
-
-        let b = self.read_u8()?;
-        let r = r | (((b & 0x7F) as u32) << 21);
-        if b & 0x80 == 0 {
-            return Ok(r);
-        }
-
-        let b = self.read_u8()?;
-        let r = r | (((b & 0x7F) as u32) << 28);
-        Ok(r)
+        Ok(result)
     }
 
     fn read_var_i32(&mut self) -> Result<i32> {

@@ -55,19 +55,19 @@ pub trait BinaryOutput {
     }
 
     fn write_var_u32(&mut self, value: u32) {
-        if value >> 7 == 0 {
+        if value < 0x80 {
             self.write_u8(value as u8);
-        } else if value >> 14 == 0 {
+        } else if value < 0x4000 {
             let buf = [((value & 0x7F) | 0x80) as u8, (value >> 7) as u8];
             self.write_bytes(&buf);
-        } else if value >> 21 == 0 {
+        } else if value < 0x200000 {
             let buf = [
                 ((value & 0x7F) | 0x80) as u8,
                 ((value >> 7) | 0x80) as u8,
                 (value >> 14) as u8,
             ];
             self.write_bytes(&buf);
-        } else if value >> 28 == 0 {
+        } else if value < 0x10000000 {
             let buf = [
                 ((value & 0x7F) | 0x80) as u8,
                 ((value >> 7) | 0x80) as u8,
