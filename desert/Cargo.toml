@@ -46,7 +46,8 @@ name = "string_deduplication"
 harness = false
 
 [features]
-default = ["bigdecimal", "chrono", "uuid"]
+default = ["bigdecimal", "chrono", "uuid", "nonempty-collections"]
 bigdecimal = ["desert_core/bigdecimal"]
 chrono = ["desert_core/chrono"]
 uuid = ["desert_core/uuid"]
+nonempty-collections = ["desert_core/nonempty-collections"]

@@ -379,7 +379,7 @@ impl<T> BinaryDeserializer for PhantomData<T> {
     }
 }
 
-fn deserialize_iterator<'a, 'b, T: BinaryDeserializer + 'a>(
+pub fn deserialize_iterator<'a, 'b, T: BinaryDeserializer + 'a>(
     context: &'a mut DeserializationContext<'b>,
 ) -> DeserializerIterator<'a, 'b, T> {
     match context.read_var_i32() {
@@ -396,7 +396,7 @@ fn deserialize_iterator<'a, 'b, T: BinaryDeserializer + 'a>(
     }
 }
 
-enum DeserializerIterator<'a, 'b, T: BinaryDeserializer + 'a> {
+pub enum DeserializerIterator<'a, 'b, T: BinaryDeserializer + 'a> {
     KnownSize {
         context: &'a mut DeserializationContext<'b>,
         remaining: usize,

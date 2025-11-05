@@ -672,6 +672,7 @@ dependencies = [
  "flate2",
  "hashbrown",
  "lazy_static",
+ "nonempty-collections",
  "once_cell",
  "proptest",
  "proptest-arbitrary-interop",
@@ -1237,6 +1238,12 @@ dependencies = [
  "wasi",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "nonempty-collections"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e216d0e8cf9d54fa66e5780f6e1d5dc96d1c1b3c25aeba3b6758548bcbbd8b9d"
 
 [[package]]
 name = "num-bigint"
