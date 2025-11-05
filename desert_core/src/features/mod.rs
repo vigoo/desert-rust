@@ -7,6 +7,9 @@ mod bit_vec;
 #[cfg(feature = "chrono")]
 mod chrono;
 
+#[cfg(feature = "mac_address")]
+mod mac_address;
+
 #[cfg(feature = "nonempty-collections")]
 mod nonempty_collections;
 

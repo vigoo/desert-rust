@@ -46,10 +46,11 @@ name = "string_deduplication"
 harness = false
 
 [features]
-default = ["bigdecimal", "chrono", "uuid", "nonempty-collections", "serde-json", "url", "bit-vec"]
+default = []
 bigdecimal = ["desert_core/bigdecimal"]
 bit-vec = ["desert_core/bit-vec"]
 chrono = ["desert_core/chrono"]
+mac_address = ["desert_core/mac_address"]
 nonempty-collections = ["desert_core/nonempty-collections"]
 serde-json = ["desert_core/serde-json"]
 url = ["desert_core/url"]

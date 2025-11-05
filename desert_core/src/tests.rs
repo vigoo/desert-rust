@@ -6,16 +6,14 @@ use proptest::prelude::*;
 use std::cell::RefCell;
 use std::collections::{Bound, LinkedList};
 use std::fmt::Debug;
-use std::ops::Range;
 use std::net::IpAddr;
 use std::num::*;
 use std::ops::Deref;
+use std::ops::Range;
 use std::rc::Rc;
 use test_r::test;
 
-pub(crate) fn roundtrip<
-    T: BinarySerializer + BinaryDeserializer + Debug + Clone + PartialEq,
->(
+pub(crate) fn roundtrip<T: BinarySerializer + BinaryDeserializer + Debug + Clone + PartialEq>(
     value: T,
 ) {
     let data = serialize_to_byte_vec(&value).unwrap();
@@ -30,274 +28,274 @@ fn is_supported_char(char: char) -> bool {
 }
 
 proptest! {
-        #[test]
-        fn roundtrip_i8(value: i8) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_i16(value: i16) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_i32(value: i32) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_i64(value: i64) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_i128(value: i128) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_u8(value: u8) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_u16(value: u16) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_u32(value: u32) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_u64(value: u64) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_u128(value: u128) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_isize(value: isize) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_u8(value in (1u8..=u8::MAX).prop_map(|x| NonZeroU8::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_i8(value in any::<i8>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI8::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_u16(value in (1u16..=u16::MAX).prop_map(|x| NonZeroU16::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_i16(value in any::<i16>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI16::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_u32(value in (1u32..=u32::MAX).prop_map(|x| NonZeroU32::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_i32(value in any::<i32>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI32::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_u64(value in (1u64..=u64::MAX).prop_map(|x| NonZeroU64::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_i64(value in any::<i64>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI64::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_u128(value in (1u128..=u128::MAX).prop_map(|x| NonZeroU128::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_i128(value in any::<i128>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI128::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_usize(value in (1usize..=usize::MAX).prop_map(|x| NonZeroUsize::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_non_zero_isize(value in any::<isize>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroIsize::new(x).unwrap())) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_f32(value: f32) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_f64(value: f64) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_bool(value: bool) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_char(value in any::<char>().prop_filter("only chars that can be encoded in 16 bits", |c| is_supported_char(*c))) {
-            // NOTE: we don't support arbitrary chars, just the ones that can be represented as u16, to keep binary compatibility with the Scala version
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_string(value: String) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_bytes(value: Vec<u8>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_option(value: Option<u32>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_vec(value: Vec<String>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_vec_u8(value: Vec<u8>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_vec_u32(value: Vec<u32>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_tuple2(value: (u32, String)) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_tuple3(value: (u32, String, bool)) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_tuple4(value: (u32, String, bool, u64)) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_tuple5(value: (u32, String, bool, u64, i32)) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_tuple6(value: (u32, String, bool, u64, i32, i64)) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_tuple7(value: (u32, String, bool, u64, i32, i64, u128)) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_tuple8(value: (u32, String, bool, u64, i32, i64, u128, i128)) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_sized_array(value: [u32; 3]) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_hashset(value: std::collections::HashSet<String>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_btreeset(value: std::collections::HashSet<u64>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_hashmap(value: std::collections::HashMap<String, u32>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_btreemap(value: std::collections::BTreeMap<String, u32>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_result(value: Result<u32, String>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_linked_list(value: LinkedList<String>) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn roundtrip_ipaddr(value: IpAddr) {
-            roundtrip(value);
-        }
-
-        #[test]
-        fn bound_roundtrip_i32(bound in bound_strategy::<i32>()) {
-            roundtrip(bound);
-        }
-
-        #[test]
-        fn bound_roundtrip_string(bound in bound_strategy::<String>()) {
-            roundtrip(bound);
-        }
-
-        #[test]
-        fn range_roundtrip_i32(range in range_strategy::<i32>()) {
-            roundtrip(range);
-        }
-
-        #[test]
-        fn range_roundtrip_string(range in range_strategy::<String>()) {
-            roundtrip(range);
-        }
+    #[test]
+    fn roundtrip_i8(value: i8) {
+        roundtrip(value);
     }
+
+    #[test]
+    fn roundtrip_i16(value: i16) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_i32(value: i32) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_i64(value: i64) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_i128(value: i128) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_u8(value: u8) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_u16(value: u16) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_u32(value: u32) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_u64(value: u64) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_u128(value: u128) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_isize(value: isize) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_u8(value in (1u8..=u8::MAX).prop_map(|x| NonZeroU8::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_i8(value in any::<i8>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI8::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_u16(value in (1u16..=u16::MAX).prop_map(|x| NonZeroU16::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_i16(value in any::<i16>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI16::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_u32(value in (1u32..=u32::MAX).prop_map(|x| NonZeroU32::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_i32(value in any::<i32>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI32::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_u64(value in (1u64..=u64::MAX).prop_map(|x| NonZeroU64::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_i64(value in any::<i64>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI64::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_u128(value in (1u128..=u128::MAX).prop_map(|x| NonZeroU128::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_i128(value in any::<i128>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI128::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_usize(value in (1usize..=usize::MAX).prop_map(|x| NonZeroUsize::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_non_zero_isize(value in any::<isize>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroIsize::new(x).unwrap())) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_f32(value: f32) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_f64(value: f64) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_bool(value: bool) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_char(value in any::<char>().prop_filter("only chars that can be encoded in 16 bits", |c| is_supported_char(*c))) {
+        // NOTE: we don't support arbitrary chars, just the ones that can be represented as u16, to keep binary compatibility with the Scala version
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_string(value: String) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_bytes(value: Vec<u8>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_option(value: Option<u32>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_vec(value: Vec<String>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_vec_u8(value: Vec<u8>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_vec_u32(value: Vec<u32>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_tuple2(value: (u32, String)) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_tuple3(value: (u32, String, bool)) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_tuple4(value: (u32, String, bool, u64)) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_tuple5(value: (u32, String, bool, u64, i32)) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_tuple6(value: (u32, String, bool, u64, i32, i64)) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_tuple7(value: (u32, String, bool, u64, i32, i64, u128)) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_tuple8(value: (u32, String, bool, u64, i32, i64, u128, i128)) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_sized_array(value: [u32; 3]) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_hashset(value: std::collections::HashSet<String>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_btreeset(value: std::collections::HashSet<u64>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_hashmap(value: std::collections::HashMap<String, u32>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_btreemap(value: std::collections::BTreeMap<String, u32>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_result(value: Result<u32, String>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_linked_list(value: LinkedList<String>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_ipaddr(value: IpAddr) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn bound_roundtrip_i32(bound in bound_strategy::<i32>()) {
+        roundtrip(bound);
+    }
+
+    #[test]
+    fn bound_roundtrip_string(bound in bound_strategy::<String>()) {
+        roundtrip(bound);
+    }
+
+    #[test]
+    fn range_roundtrip_i32(range in range_strategy::<i32>()) {
+        roundtrip(range);
+    }
+
+    #[test]
+    fn range_roundtrip_string(range in range_strategy::<String>()) {
+        roundtrip(range);
+    }
+}
 
 fn bound_strategy<T: Arbitrary + Clone + 'static>() -> impl Strategy<Value = Bound<T>> {
     prop_oneof![
-            Just(Bound::Unbounded),
-            any::<T>().prop_map(Bound::Included),
-            any::<T>().prop_map(Bound::Excluded),
-        ]
+        Just(Bound::Unbounded),
+        any::<T>().prop_map(Bound::Included),
+        any::<T>().prop_map(Bound::Excluded),
+    ]
 }
 
 fn range_strategy<T: Arbitrary + Clone + 'static>() -> impl Strategy<Value = Range<T>> {
@@ -395,9 +393,7 @@ impl BinaryDeserializer for Rc<RefCell<Node>> {
                     result.borrow_mut().next =
                         Some(next.downcast_ref::<Rc<RefCell<Node>>>().unwrap().clone())
                 }
-                None => {
-                    result.borrow_mut().next = Some(Rc::<RefCell<Node>>::deserialize(context)?)
-                }
+                None => result.borrow_mut().next = Some(Rc::<RefCell<Node>>::deserialize(context)?),
             }
         }
         Ok(result)
