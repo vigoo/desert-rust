@@ -217,6 +217,16 @@ impl BinarySerializer for f64 {
     }
 }
 
+impl BinarySerializer for usize {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        context.write_u64(*self as u64);
+        Ok(())
+    }
+}
+
 impl BinarySerializer for bool {
     fn serialize<Output: BinaryOutput>(
         &self,

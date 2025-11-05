@@ -192,6 +192,12 @@ impl BinaryDeserializer for f64 {
     }
 }
 
+impl BinaryDeserializer for usize {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        context.read_u64().map(|r| r as usize)
+    }
+}
+
 impl BinaryDeserializer for bool {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         Ok(context.read_u8()? != 0)
