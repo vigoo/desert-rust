@@ -321,8 +321,8 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                         #pattern => {
                             serializer.write_constructor(
                                 #effective_case_idx as u32,
-                                |context| {
-                                    let mut serializer = desert_rust::adt::AdtSerializer::#new_v(&#case_metadata_name, context);
+                                |desert_inner_serialization_context| {
+                                    let mut serializer = desert_rust::adt::AdtSerializer::#new_v(&#case_metadata_name, desert_inner_serialization_context);
                                     #(#case_serialization_commands)*
                                     serializer.finish()
                                 }
@@ -349,15 +349,14 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     deserialization_commands.push(
                         quote! {
                             if let Some(result) = deserializer.read_constructor(#effective_case_idx as u32,
-                                |context| {
-                                    let stored_version = context.read_u8()?;
-                                    if stored_version == 0 {
-                                        let mut deserializer = desert_rust::adt::AdtDeserializer::new_v0(&#case_metadata_name, context)?;
-                                        Ok(#construct_case)
+                                |desert_inner_serialization_context| {
+                                    let stored_version = desert_inner_serialization_context.read_u8()?;
+                                    let mut deserializer = if stored_version == 0 {
+                                        desert_rust::adt::AdtDeserializer::new_v0(&#case_metadata_name, desert_inner_serialization_context)?
                                     } else {
-                                        let mut deserializer = desert_rust::adt::AdtDeserializer::new(&#case_metadata_name, context, stored_version)?;
-                                        Ok(#construct_case)
-                                    }
+                                        desert_rust::adt::AdtDeserializer::new(&#case_metadata_name, desert_inner_serialization_context, stored_version)?
+                                    };
+                                    Ok(#construct_case)
                                 }
                             )? {
                                 return Ok(result)
