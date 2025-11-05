@@ -20,9 +20,11 @@ lazy_static = "1.5"
 once_cell = "1.21.3"
 
 bigdecimal = { version = "0.4", optional = true }
+bit-vec = { version = "0.8", optional = true }
 chrono = { version = "0.4", optional = true }
 chrono-tz = { version = "0.10", optional = true }
 nonempty-collections = { version = "0.3.1", optional = true }
+url = { version = "2.5", optional = true }
 uuid = { version = "1.18", optional = true }
 serde_json = { version = "1", optional = true }
 
@@ -37,7 +39,9 @@ uuid = { version = "1.18", features = ["arbitrary"] }
 [features]
 default = ["bigdecimal", "chrono", "uuid", "nonempty-collections", "serde-json"]
 bigdecimal = ["dep:bigdecimal"]
+bit-vec = ["dep:bit-vec"]
 chrono = ["dep:chrono", "dep:chrono-tz"]
-uuid = ["dep:uuid"]
 nonempty-collections = ["dep:nonempty-collections"]
 serde-json = ["dep:serde_json"]
+url = ["dep:url"]
+uuid = ["dep:uuid"]
