@@ -1,5 +1,5 @@
-use desert_rust::*;
 use arbitrary::Arbitrary;
+use desert_rust::*;
 
 test_r::enable!();
 

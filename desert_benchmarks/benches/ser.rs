@@ -90,7 +90,8 @@ fn bench_serialize_vec_string(c: &mut Criterion) {
 }
 
 fn bench_serialize_hashmap(c: &mut Criterion) {
-    let data: std::collections::HashMap<String, u32> = (0..100).map(|i| (format!("key{}", i), i)).collect();
+    let data: std::collections::HashMap<String, u32> =
+        (0..100).map(|i| (format!("key{}", i), i)).collect();
     bench_serialize("hashmap (100 elements)", data, c);
 }
 
@@ -108,7 +109,8 @@ fn bench_serialize_result_err(c: &mut Criterion) {
 }
 
 fn bench_serialize_linked_list(c: &mut Criterion) {
-    let data: std::collections::LinkedList<String> = (0..100).map(|i| format!("item{}", i)).collect();
+    let data: std::collections::LinkedList<String> =
+        (0..100).map(|i| format!("item{}", i)).collect();
     bench_serialize("linked list (100 elements)", data, c);
 }
 
@@ -118,7 +120,13 @@ fn bench_serialize_array(c: &mut Criterion) {
 }
 
 fn bench_serialize_enum(c: &mut Criterion) {
-    bench_serialize("enum", TestEnum::C { field: "test".to_string() }, c);
+    bench_serialize(
+        "enum",
+        TestEnum::C {
+            field: "test".to_string(),
+        },
+        c,
+    );
 }
 
 criterion_group!(

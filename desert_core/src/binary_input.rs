@@ -76,7 +76,9 @@ pub trait BinaryInput {
             }
             shift += 7;
             if shift >= 32 {
-                return Err(Error::DeserializationFailure("var_u32 too long".to_string()));
+                return Err(Error::DeserializationFailure(
+                    "var_u32 too long".to_string(),
+                ));
             }
         }
 

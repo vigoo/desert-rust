@@ -1,6 +1,6 @@
-use desert_rust::*;
 use crate::serialization_properties::compatibility_test;
 use bytes::BytesMut;
+use desert_rust::*;
 use lazy_static::lazy_static;
 use test_r::test;
 

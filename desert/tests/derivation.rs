@@ -1,5 +1,5 @@
-use desert_rust::*;
 use assert2::check;
+use desert_rust::*;
 use test_r::test;
 
 test_r::enable!();
@@ -29,6 +29,10 @@ enum Choices {
     B(String),
     C { pt: Option<Point>, z: u64 },
 }
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+#[desert(transparent)]
+struct MyInt(i32);
 
 #[test]
 fn debug() {
@@ -68,4 +72,14 @@ fn debug() {
     println!("{:?}", bytes3);
     let choices2 = deserialize(&bytes3).unwrap();
     check!(choices == choices2);
+
+    let my_int = MyInt(42);
+    let bytes4 = serialize_to_bytes(&my_int).unwrap();
+    let my_int2: MyInt = deserialize(&bytes4).unwrap();
+    check!(my_int == my_int2);
+
+    // Check that transparent serialization matches the inner type
+    let inner: i32 = 42;
+    let bytes_inner = serialize_to_bytes(&inner).unwrap();
+    check!(bytes4 == bytes_inner);
 }

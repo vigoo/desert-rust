@@ -5,6 +5,24 @@ use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::{Attribute, Data, DeriveInput, Expr, Fields, Lit, LitStr, Meta, Token, Type};
 
+fn desert_attrs_from_attributes(attrs: &[Attribute]) -> bool {
+    for attr in attrs {
+        if attr.path().is_ident("desert") {
+            let nested = attr
+                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .expect("desert args");
+            for meta in nested {
+                if let Meta::Path(path) = meta {
+                    if path.is_ident("transparent") {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 fn evolution_steps_from_attributes(
     attrs: &[Attribute],
 ) -> (Vec<proc_macro2::TokenStream>, HashMap<String, Expr>) {
@@ -92,7 +110,10 @@ fn evolution_steps_from_attributes(
 
 // TODO: attribute to force/disable option field detection for a field (because it's based on names only)
 // TODO: attribute to use different field names (for Scala compatibility)
-#[proc_macro_derive(BinaryCodec, attributes(evolution, transient, sorted_constructors))]
+#[proc_macro_derive(
+    BinaryCodec,
+    attributes(evolution, transient, sorted_constructors, desert)
+)]
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
@@ -100,6 +121,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         .attrs
         .iter()
         .any(|attr| attr.path().is_ident("sorted_constructors"));
+    let transparent = desert_attrs_from_attributes(&ast.attrs);
     let (evolution_steps, field_defaults) = evolution_steps_from_attributes(&ast.attrs);
     let version = evolution_steps.len();
     let mut push_evolution_steps = Vec::new();
@@ -122,6 +144,26 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
     match ast.data {
         Data::Struct(struct_data) => {
+            if transparent {
+                match &struct_data.fields {
+                    Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                        let gen = quote! {
+                            impl desert_rust::BinarySerializer for #name {
+                                fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
+                                    self.0.serialize(context)
+                                }
+                            }
+                            impl desert_rust::BinaryDeserializer for #name {
+                                fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
+                                    Ok(Self(desert_rust::BinaryDeserializer::deserialize(context)?))
+                                }
+                            }
+                        };
+                        return gen.into();
+                    }
+                    _ => panic!("transparent can only be used on single-element tuple structs"),
+                }
+            }
             is_record = true;
             let mut field_patterns = Vec::new();
             for field in struct_data.fields.iter() {
@@ -139,6 +181,9 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             );
         }
         Data::Enum(enum_data) => {
+            if transparent {
+                panic!("transparent is not supported for enums");
+            }
             is_record = false;
 
             let mut cases = Vec::new();

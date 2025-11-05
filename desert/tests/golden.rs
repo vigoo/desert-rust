@@ -1,7 +1,7 @@
 // Tests deserialization of a binary from the original Scala desert library
 
-use desert_rust::*;
 use assert2::check;
+use desert_rust::*;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use test_r::test;
