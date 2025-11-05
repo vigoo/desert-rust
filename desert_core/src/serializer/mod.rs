@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
+use std::num::*;
 
 use crate::binary_output::BinaryOutput;
 use crate::error::Result;
@@ -217,12 +218,130 @@ impl BinarySerializer for f64 {
     }
 }
 
+impl BinarySerializer for NonZeroU8 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroI8 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroU16 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroI16 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroU32 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroI32 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroU64 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroI64 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroU128 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroI128 {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroUsize {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
+impl BinarySerializer for NonZeroIsize {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.get().serialize(context)
+    }
+}
+
 impl BinarySerializer for usize {
     fn serialize<Output: BinaryOutput>(
         &self,
         context: &mut SerializationContext<Output>,
     ) -> Result<()> {
         context.write_u64(*self as u64);
+        Ok(())
+    }
+}
+
+impl BinarySerializer for isize {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        context.write_i64(*self as i64);
         Ok(())
     }
 }

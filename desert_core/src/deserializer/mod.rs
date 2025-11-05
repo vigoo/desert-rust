@@ -7,6 +7,7 @@ use std::mem::MaybeUninit;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
+use std::num::*;
 
 use bytes::Bytes;
 use castaway::cast;
@@ -192,9 +193,99 @@ impl BinaryDeserializer for f64 {
     }
 }
 
+impl BinaryDeserializer for NonZeroU8 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = u8::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU8 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroI8 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = i8::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI8 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroU16 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = u16::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU16 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroI16 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = i16::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI16 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroU32 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = u32::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU32 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroI32 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = i32::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI32 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroU64 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = u64::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU64 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroI64 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = i64::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI64 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroU128 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = u128::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU128 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroI128 {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = i128::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI128 cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroUsize {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = usize::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroUsize cannot be zero".to_string()))
+    }
+}
+
+impl BinaryDeserializer for NonZeroIsize {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let value = isize::deserialize(context)?;
+        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroIsize cannot be zero".to_string()))
+    }
+}
+
 impl BinaryDeserializer for usize {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         context.read_u64().map(|r| r as usize)
+    }
+}
+
+impl BinaryDeserializer for isize {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        context.read_i64().map(|r| r as isize)
     }
 }
 

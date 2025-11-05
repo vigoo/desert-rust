@@ -103,6 +103,7 @@ mod tests {
     use std::cell::RefCell;
     use std::collections::LinkedList;
     use std::fmt::Debug;
+    use std::num::*;
     use std::ops::Deref;
     use std::rc::Rc;
     use test_r::test;
@@ -171,6 +172,71 @@ mod tests {
 
         #[test]
         fn roundtrip_u128(value: u128) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_isize(value: isize) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_u8(value in (1u8..=u8::MAX).prop_map(|x| NonZeroU8::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_i8(value in any::<i8>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI8::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_u16(value in (1u16..=u16::MAX).prop_map(|x| NonZeroU16::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_i16(value in any::<i16>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI16::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_u32(value in (1u32..=u32::MAX).prop_map(|x| NonZeroU32::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_i32(value in any::<i32>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI32::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_u64(value in (1u64..=u64::MAX).prop_map(|x| NonZeroU64::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_i64(value in any::<i64>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI64::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_u128(value in (1u128..=u128::MAX).prop_map(|x| NonZeroU128::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_i128(value in any::<i128>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroI128::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_usize(value in (1usize..=usize::MAX).prop_map(|x| NonZeroUsize::new(x).unwrap())) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_non_zero_isize(value in any::<isize>().prop_filter("non-zero", |&x| x != 0).prop_map(|x| NonZeroIsize::new(x).unwrap())) {
             roundtrip(value);
         }
 
