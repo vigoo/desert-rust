@@ -103,6 +103,7 @@ mod tests {
     use std::cell::RefCell;
     use std::collections::LinkedList;
     use std::fmt::Debug;
+    use std::net::IpAddr;
     use std::num::*;
     use std::ops::Deref;
     use std::rc::Rc;
@@ -358,6 +359,11 @@ mod tests {
 
         #[test]
         fn roundtrip_linked_list(value: LinkedList<String>) {
+            roundtrip(value);
+        }
+
+        #[test]
+        fn roundtrip_ipaddr(value: IpAddr) {
             roundtrip(value);
         }
     }

@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDequ
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::num::*;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -503,6 +504,29 @@ impl<T: BinaryDeserializer> BinaryDeserializer for Arc<T> {
 impl<T> BinaryDeserializer for PhantomData<T> {
     fn deserialize(_: &mut DeserializationContext<'_>) -> Result<Self> {
         Ok(PhantomData)
+    }
+}
+
+impl BinaryDeserializer for IpAddr {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let typ = context.read_u8()?;
+        match typ {
+            0 => {
+                let a = context.read_u8()?;
+                let b = context.read_u8()?;
+                let c = context.read_u8()?;
+                let d = context.read_u8()?;
+                Ok(IpAddr::V4(Ipv4Addr::new(a, b, c, d)))
+            }
+            1 => {
+                let bytes: &[u8; 16] = context.read_bytes(16)?.try_into().unwrap();
+                Ok(IpAddr::V6(Ipv6Addr::from_octets(*bytes)))
+            }
+            other => Err(Error::InvalidConstructorId {
+                constructor_id: other as u32,
+                type_name: "IpAddr".to_string(),
+            }),
+        }
     }
 }
 

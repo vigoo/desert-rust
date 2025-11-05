@@ -676,6 +676,7 @@ dependencies = [
  "once_cell",
  "proptest",
  "proptest-arbitrary-interop",
+ "serde_json",
  "test-r",
  "uuid",
 ]

@@ -24,6 +24,7 @@ chrono = { version = "0.4", optional = true }
 chrono-tz = { version = "0.10", optional = true }
 nonempty-collections = { version = "0.3.1", optional = true }
 uuid = { version = "1.18", optional = true }
+serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
 chrono = { version = "0.4", features = ["arbitrary"] }
@@ -34,8 +35,9 @@ test-r = { workspace = true }
 uuid = { version = "1.18", features = ["arbitrary"] }
 
 [features]
-default = ["bigdecimal", "chrono", "uuid", "nonempty-collections"]
+default = ["bigdecimal", "chrono", "uuid", "nonempty-collections", "serde-json"]
 bigdecimal = ["dep:bigdecimal"]
 chrono = ["dep:chrono", "dep:chrono-tz"]
 uuid = ["dep:uuid"]
 nonempty-collections = ["dep:nonempty-collections"]
+serde-json = ["dep:serde_json"]

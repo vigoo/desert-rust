@@ -5,6 +5,7 @@ use castaway::cast;
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::marker::PhantomData;
+use std::net::IpAddr;
 use std::num::*;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -628,6 +629,25 @@ where
         context: &mut SerializationContext<Output>,
     ) -> Result<()> {
         (*self).serialize(context)
+    }
+}
+
+impl BinarySerializer for IpAddr {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        match self {
+            IpAddr::V4(addr) => {
+                context.write_u8(0);
+                context.write_bytes(&addr.octets());
+            }
+            IpAddr::V6(addr) => {
+                context.write_u8(1);
+                context.write_bytes(&addr.octets());
+            }
+        }
+        Ok(())
     }
 }
 

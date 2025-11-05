@@ -39,6 +39,7 @@ pub enum Error {
         constructor_name: String,
         type_name: String,
     },
+    SerializationFailure(String),
 }
 
 impl Display for Error {
@@ -98,6 +99,7 @@ impl Display for Error {
                 f,
                 "Serializing transient constructor: {constructor_name} for type: {type_name}"
             ),
+            Error::SerializationFailure(message) => write!(f, "Serialization failure: {message}"),
         }
     }
 }

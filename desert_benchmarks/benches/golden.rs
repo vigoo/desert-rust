@@ -10,7 +10,7 @@ use desert_rust::{
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec)]
-#[evolution(FieldMadeOptional("option"), FieldAdded("string", "default string".to_string()), FieldAdded("set", HashSet::new()))]
+#[desert(evolution(FieldMadeOptional("option"), FieldAdded("string", "default string".to_string()), FieldAdded("set", HashSet::new())))]
 struct TestModel1 {
     byte: i8,
     short: i16,
@@ -43,7 +43,7 @@ enum ListElement2 {
     First {
         elem: ListElement1,
     },
-    #[evolution(FieldMadeTransient("cached"))]
+    #[desert(evolution(FieldMadeTransient("cached")))]
     Second {
         uuid: Uuid,
         desc: Option<String>,

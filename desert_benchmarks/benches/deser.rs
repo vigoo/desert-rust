@@ -20,7 +20,7 @@ struct WrappedU64 {
 }
 
 #[derive(BinaryCodec)]
-#[evolution(FieldAdded("value", 0))]
+#[desert(evolution(FieldAdded("value", 0)))]
 struct EvolvedU64 {
     value: u64,
 }
