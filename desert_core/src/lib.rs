@@ -90,6 +90,9 @@ impl Display for RefId {
     }
 }
 
+#[doc(hidden)]
+pub use lazy_static::lazy_static;
+
 #[cfg(test)]
 mod tests {
     use crate::{

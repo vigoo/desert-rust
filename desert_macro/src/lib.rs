@@ -280,7 +280,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     );
 
                     metadata.push(quote! {
-                        lazy_static::lazy_static! {
+                        desert_rust::lazy_static! {
                             static ref #case_metadata_name: desert_rust::adt::AdtMetadata = {
                                 let mut evolution_steps: Vec<desert_rust::Evolution> = Vec::new();
                                 evolution_steps.push(desert_rust::Evolution::InitialVersion);
@@ -376,7 +376,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     }
 
     metadata.push(quote! {
-        lazy_static::lazy_static! {
+        desert_rust::lazy_static! {
             static ref #metadata_name: desert_rust::adt::AdtMetadata = {
                 let mut evolution_steps: Vec<desert_rust::Evolution> = Vec::new();
                 evolution_steps.push(desert_rust::Evolution::InitialVersion);
