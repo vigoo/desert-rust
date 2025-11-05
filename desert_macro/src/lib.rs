@@ -443,13 +443,12 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 use desert_rust::BinaryInput;
 
                 let stored_version = context.read_u8()?;
-                if stored_version == 0 {
-                    let mut deserializer = desert_rust::adt::AdtDeserializer::new_v0(&#metadata_name, context)?;
-                    #deserialization
+                let mut deserializer = if stored_version == 0 {
+                    desert_rust::adt::AdtDeserializer::new_v0(&#metadata_name, context)?
                 } else {
-                    let mut deserializer = desert_rust::adt::AdtDeserializer::new(&#metadata_name, context, stored_version)?;
-                    #deserialization
-                }
+                    desert_rust::adt::AdtDeserializer::new(&#metadata_name, context, stored_version)?
+                };
+                #deserialization
             }
         }
     };
