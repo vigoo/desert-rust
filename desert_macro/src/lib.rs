@@ -179,7 +179,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                         let gen = quote! {
                             impl desert_rust::BinarySerializer for #name {
                                 fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
-                                    self.0.serialize(context)
+                                    desert_rust::BinarySerializer::serialize(&self.0, context)
                                 }
                             }
                             impl desert_rust::BinaryDeserializer for #name {
