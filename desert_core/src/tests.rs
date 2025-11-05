@@ -6,6 +6,7 @@ use proptest::prelude::*;
 use std::cell::RefCell;
 use std::collections::{Bound, LinkedList};
 use std::fmt::Debug;
+use std::ops::Range;
 use std::net::IpAddr;
 use std::num::*;
 use std::ops::Deref;
@@ -279,6 +280,16 @@ proptest! {
         fn bound_roundtrip_string(bound in bound_strategy::<String>()) {
             roundtrip(bound);
         }
+
+        #[test]
+        fn range_roundtrip_i32(range in range_strategy::<i32>()) {
+            roundtrip(range);
+        }
+
+        #[test]
+        fn range_roundtrip_string(range in range_strategy::<String>()) {
+            roundtrip(range);
+        }
     }
 
 fn bound_strategy<T: Arbitrary + Clone + 'static>() -> impl Strategy<Value = Bound<T>> {
@@ -287,6 +298,10 @@ fn bound_strategy<T: Arbitrary + Clone + 'static>() -> impl Strategy<Value = Bou
             any::<T>().prop_map(Bound::Included),
             any::<T>().prop_map(Bound::Excluded),
         ]
+}
+
+fn range_strategy<T: Arbitrary + Clone + 'static>() -> impl Strategy<Value = Range<T>> {
+    (any::<T>(), any::<T>()).prop_map(|(start, end)| Range { start, end })
 }
 
 #[test]
@@ -323,6 +338,21 @@ fn bound_included_string() {
 fn bound_excluded_string() {
     let bound: Bound<String> = Bound::Excluded("world".to_string());
     roundtrip(bound);
+}
+
+#[test]
+fn range_i32() {
+    let range: Range<i32> = Range { start: 10, end: 20 };
+    roundtrip(range);
+}
+
+#[test]
+fn range_string() {
+    let range: Range<String> = Range {
+        start: "hello".to_string(),
+        end: "world".to_string(),
+    };
+    roundtrip(range);
 }
 
 #[derive(Debug, Clone)]
