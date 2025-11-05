@@ -12,5 +12,3 @@ mod serde_json;
 
 #[cfg(feature = "uuid")]
 mod uuid;
-
-
