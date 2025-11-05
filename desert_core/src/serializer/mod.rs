@@ -3,12 +3,12 @@ mod tuples;
 use bytes::Bytes;
 use castaway::cast;
 use std::any::Any;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::marker::PhantomData;
+use std::num::*;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
-use std::num::*;
 
 use crate::binary_output::BinaryOutput;
 use crate::error::Result;
@@ -526,6 +526,15 @@ impl<T: BinarySerializer> BinarySerializer for Vec<T> {
         } else {
             serialize_iterator(&mut self.iter(), context)
         }
+    }
+}
+
+impl<T: BinarySerializer> BinarySerializer for VecDeque<T> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        serialize_iterator(&mut self.iter(), context)
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::deserializer::deserialize_iterator;
 use crate::Error::DeserializationFailure;
 use crate::{
     serialize_iterator, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
@@ -32,8 +33,9 @@ impl<T: BinaryDeserializer + 'static> BinaryDeserializer for NEVec<T> {
             Ok(NEVec::try_from_vec(vec)
                 .ok_or_else(|| DeserializationFailure("NEVec was empty".to_string()))?)
         } else {
-            let mut vec = Vec::new();
-            for item in crate::deserializer::deserialize_iterator(context) {
+            let (iter, maybe_size) = deserialize_iterator(context);
+            let mut vec = Vec::with_capacity(maybe_size.unwrap_or_default());
+            for item in iter {
                 vec.push(item?);
             }
             Ok(NEVec::try_from_vec(vec)

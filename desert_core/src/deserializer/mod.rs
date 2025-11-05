@@ -1,13 +1,13 @@
 use std::any::Any;
 use std::char::DecodeUtf16Error;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
+use std::num::*;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
-use std::num::*;
 
 use bytes::Bytes;
 use castaway::cast;
@@ -196,84 +196,108 @@ impl BinaryDeserializer for f64 {
 impl BinaryDeserializer for NonZeroU8 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = u8::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU8 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroU8 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroI8 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = i8::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI8 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroI8 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroU16 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = u16::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU16 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroU16 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroI16 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = i16::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI16 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroI16 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroU32 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = u32::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU32 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroU32 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroI32 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = i32::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI32 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroI32 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroU64 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = u64::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU64 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroU64 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroI64 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = i64::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI64 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroI64 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroU128 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = u128::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroU128 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroU128 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroI128 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = i128::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroI128 cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroI128 cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroUsize {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = usize::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroUsize cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroUsize cannot be zero".to_string(),
+        ))
     }
 }
 
 impl BinaryDeserializer for NonZeroIsize {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let value = isize::deserialize(context)?;
-        Self::new(value).ok_or(Error::DeserializationFailure("NonZeroIsize cannot be zero".to_string()))
+        Self::new(value).ok_or(Error::DeserializationFailure(
+            "NonZeroIsize cannot be zero".to_string(),
+        ))
     }
 }
 
@@ -387,7 +411,7 @@ impl<T: BinaryDeserializer, const L: usize> BinaryDeserializer for [T; L] {
             Ok(unsafe { std::mem::transmute_copy::<_, [T; L]>(&bytes) })
         } else {
             let mut array: [MaybeUninit<T>; L] = unsafe { MaybeUninit::uninit().assume_init() };
-            for (target, item) in array.iter_mut().zip(deserialize_iterator(context)) {
+            for (target, item) in array.iter_mut().zip(deserialize_iterator(context).0) {
                 *target = MaybeUninit::new(item?);
             }
             let array: [T; L] = unsafe { std::mem::transmute_copy(&array) };
@@ -405,8 +429,9 @@ impl<T: BinaryDeserializer + 'static> BinaryDeserializer for Vec<T> {
             let bytes = context.read_bytes(length as usize)?;
             unsafe { Ok(std::mem::transmute::<Vec<u8>, Vec<T>>(bytes.to_vec())) }
         } else {
-            let mut vec = Vec::new();
-            for item in deserialize_iterator(context) {
+            let (iter, maybe_size) = deserialize_iterator(context);
+            let mut vec = Vec::with_capacity(maybe_size.unwrap_or_default());
+            for item in iter {
                 vec.push(item?);
             }
             Ok(vec)
@@ -414,15 +439,26 @@ impl<T: BinaryDeserializer + 'static> BinaryDeserializer for Vec<T> {
     }
 }
 
+impl<T: BinaryDeserializer + 'static> BinaryDeserializer for VecDeque<T> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        let (iter, maybe_size) = deserialize_iterator(context);
+        let mut vec = VecDeque::with_capacity(maybe_size.unwrap_or_default());
+        for item in iter {
+            vec.push_back(item?);
+        }
+        Ok(vec)
+    }
+}
+
 impl<T: BinaryDeserializer + Eq + Hash> BinaryDeserializer for HashSet<T> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        deserialize_iterator(context).collect()
+        deserialize_iterator(context).0.collect()
     }
 }
 
 impl<T: BinaryDeserializer + Ord> BinaryDeserializer for BTreeSet<T> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        deserialize_iterator(context).collect()
+        deserialize_iterator(context).0.collect()
     }
 }
 
@@ -430,19 +466,19 @@ impl<K: BinaryDeserializer + Eq + Hash, V: BinaryDeserializer> BinaryDeserialize
     for HashMap<K, V>
 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        deserialize_iterator(context).collect()
+        deserialize_iterator(context).0.collect()
     }
 }
 
 impl<K: BinaryDeserializer + Ord, V: BinaryDeserializer> BinaryDeserializer for BTreeMap<K, V> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        deserialize_iterator(context).collect()
+        deserialize_iterator(context).0.collect()
     }
 }
 
 impl<T: BinaryDeserializer + Eq + Hash> BinaryDeserializer for LinkedList<T> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        deserialize_iterator(context).collect()
+        deserialize_iterator(context).0.collect()
     }
 }
 
@@ -472,18 +508,27 @@ impl<T> BinaryDeserializer for PhantomData<T> {
 
 pub fn deserialize_iterator<'a, 'b, T: BinaryDeserializer + 'a>(
     context: &'a mut DeserializationContext<'b>,
-) -> DeserializerIterator<'a, 'b, T> {
+) -> (DeserializerIterator<'a, 'b, T>, Option<usize>) {
     match context.read_var_i32() {
-        Err(_) => DeserializerIterator::InputEndedUnexpectedly,
-        Ok(-1) => DeserializerIterator::UnknownSize {
-            context,
-            element: PhantomData,
-        },
-        Ok(length) => DeserializerIterator::KnownSize {
-            context,
-            remaining: length as usize,
-            element: PhantomData,
-        },
+        Err(_) => (DeserializerIterator::InputEndedUnexpectedly, None),
+        Ok(-1) => (
+            DeserializerIterator::UnknownSize {
+                context,
+                element: PhantomData,
+            },
+            None,
+        ),
+        Ok(length) => {
+            let length = length as usize;
+            (
+                DeserializerIterator::KnownSize {
+                    context,
+                    remaining: length,
+                    element: PhantomData,
+                },
+                Some(length),
+            )
+        }
     }
 }
 
