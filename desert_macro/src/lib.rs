@@ -190,6 +190,22 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                         };
                         return gen.into();
                     }
+                    Fields::Named(fields) if fields.named.len() == 1 => {
+                        let field_name = &fields.named[0].ident;
+                        let gen = quote! {
+                            impl desert_rust::BinarySerializer for #name {
+                                fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
+                                    desert_rust::BinarySerializer::serialize(&self.#field_name, context)
+                                }
+                            }
+                            impl desert_rust::BinaryDeserializer for #name {
+                                fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
+                                    Ok(Self { #field_name: desert_rust::BinaryDeserializer::deserialize(context)? })
+                                }
+                            }
+                        };
+                        return gen.into();
+                    }
                     _ => panic!("transparent can only be used on single-element tuple structs"),
                 }
             }

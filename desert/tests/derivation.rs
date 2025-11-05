@@ -34,6 +34,12 @@ enum Choices {
 #[desert(transparent)]
 struct MyInt(i32);
 
+#[derive(Debug, PartialEq, BinaryCodec)]
+#[desert(transparent)]
+struct MyString {
+    pub value: String,
+}
+
 #[test]
 fn debug() {
     let pt = Point {
@@ -82,4 +88,15 @@ fn debug() {
     let inner: i32 = 42;
     let bytes_inner = serialize_to_bytes(&inner).unwrap();
     check!(bytes4 == bytes_inner);
+
+    let my_string = MyString {
+        value: "hello".to_string(),
+    };
+    let bytes5 = serialize_to_bytes(&my_string).unwrap();
+    let my_string2: MyString = deserialize(&bytes5).unwrap();
+    check!(my_string == my_string2);
+
+    let inner2: String = "hello".to_string();
+    let bytes_inner2 = serialize_to_bytes(&inner2).unwrap();
+    check!(bytes5 == bytes_inner2);
 }
