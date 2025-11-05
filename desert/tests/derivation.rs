@@ -40,6 +40,17 @@ struct MyString {
     pub value: String,
 }
 
+#[derive(Debug, PartialEq, BinaryCodec)]
+struct GenericStruct<T> {
+    pub value: T,
+}
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+enum GenericEnum<T> {
+    A(T),
+    B,
+}
+
 #[test]
 fn debug() {
     let pt = Point {
@@ -99,4 +110,21 @@ fn debug() {
     let inner2: String = "hello".to_string();
     let bytes_inner2 = serialize_to_bytes(&inner2).unwrap();
     check!(bytes5 == bytes_inner2);
+
+    // Test generic struct
+    let generic_struct = GenericStruct { value: 42 };
+    let bytes6 = serialize_to_bytes(&generic_struct).unwrap();
+    let generic_struct2: GenericStruct<i32> = deserialize(&bytes6).unwrap();
+    check!(generic_struct == generic_struct2);
+
+    // Test generic enum
+    let generic_enum = GenericEnum::A("hello".to_string());
+    let bytes7 = serialize_to_bytes(&generic_enum).unwrap();
+    let generic_enum2: GenericEnum<String> = deserialize(&bytes7).unwrap();
+    check!(generic_enum == generic_enum2);
+
+    let generic_enum_b = GenericEnum::<String>::B;
+    let bytes8 = serialize_to_bytes(&generic_enum_b).unwrap();
+    let generic_enum_b2: GenericEnum<String> = deserialize(&bytes8).unwrap();
+    check!(generic_enum_b == generic_enum_b2);
 }
