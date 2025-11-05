@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDequ
 use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::num::*;
+use std::ops::Bound;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -463,6 +464,28 @@ impl<R: BinarySerializer, E: BinarySerializer> BinarySerializer for std::result:
             Err(error) => {
                 context.write_u8(0);
                 error.serialize(context)
+            }
+        }
+    }
+}
+
+impl<T: BinarySerializer> BinarySerializer for Bound<T> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        match self {
+            Bound::Unbounded => {
+                context.write_u8(0);
+                Ok(())
+            }
+            Bound::Included(value) => {
+                context.write_u8(1);
+                value.serialize(context)
+            }
+            Bound::Excluded(value) => {
+                context.write_u8(2);
+                value.serialize(context)
             }
         }
     }

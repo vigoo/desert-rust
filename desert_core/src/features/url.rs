@@ -16,9 +16,8 @@ impl BinarySerializer for Url {
 impl BinaryDeserializer for Url {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let s = String::deserialize(context)?;
-        Url::parse(&s).map_err(|e| {
-            Error::DeserializationFailure(format!("Failed to parse URL: {}", e))
-        })
+        Url::parse(&s)
+            .map_err(|e| Error::DeserializationFailure(format!("Failed to parse URL: {}", e)))
     }
 }
 

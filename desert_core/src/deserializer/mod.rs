@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::num::*;
+use std::ops::Bound;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -390,6 +391,19 @@ impl<R: BinaryDeserializer, E: BinaryDeserializer> BinaryDeserializer
             1 => Ok(Ok(R::deserialize(context)?)),
             other => Err(Error::DeserializationFailure(format!(
                 "Failed to deserialize Result: invalid tag: {other}"
+            ))),
+        }
+    }
+}
+
+impl<T: BinaryDeserializer> BinaryDeserializer for Bound<T> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        match context.read_u8()? {
+            0 => Ok(Bound::Unbounded),
+            1 => Ok(Bound::Included(T::deserialize(context)?)),
+            2 => Ok(Bound::Excluded(T::deserialize(context)?)),
+            other => Err(Error::DeserializationFailure(format!(
+                "Failed to deserialize Bound: invalid tag: {other}"
             ))),
         }
     }
