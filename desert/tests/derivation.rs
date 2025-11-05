@@ -5,7 +5,7 @@ use test_r::test;
 test_r::enable!();
 
 #[derive(Debug, PartialEq, BinaryCodec)]
-#[evolution(FieldAdded("x", 0), FieldRemoved("z"))]
+#[desert(evolution(FieldAdded("x", 0), FieldRemoved("z")))]
 struct Point {
     pub x: i32,
     pub y: i32,
@@ -14,7 +14,7 @@ struct Point {
 }
 
 #[derive(Debug, PartialEq, BinaryCodec)]
-#[evolution(FieldAdded("x", 0), FieldRemoved("z"), FieldAdded("description", Some("hello".to_string())), FieldMadeOptional("description"))]
+#[desert(evolution(FieldAdded("x", 0), FieldRemoved("z"), FieldAdded("description", Some("hello".to_string())), FieldMadeOptional("description")))]
 struct Point2 {
     pub x: i32,
     pub y: i32,

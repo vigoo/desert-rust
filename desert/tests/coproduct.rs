@@ -12,14 +12,14 @@ use crate::serialization_properties::{compatibility_test, incompatibility_test, 
 test_r::enable!();
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
-#[evolution()]
+#[desert(evolution())]
 enum TypeV1 {
     Cons1V1,
     Cons2V1(String),
 }
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
-#[evolution()]
+#[desert(evolution())]
 enum TypeV2 {
     Cons1V2,
     Cons2V2(String),

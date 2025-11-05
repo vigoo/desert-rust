@@ -5,124 +5,153 @@ use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::{Attribute, Data, DeriveInput, Expr, Fields, Lit, LitStr, Meta, Token, Type};
 
-fn desert_attrs_from_attributes(attrs: &[Attribute]) -> bool {
+fn parse_desert_attributes(
+    attrs: &[Attribute],
+) -> (
+    bool,
+    bool,
+    Vec<proc_macro2::TokenStream>,
+    HashMap<String, Expr>,
+) {
+    let mut transparent = false;
+    let mut sorted_constructors = false;
+    let mut evolution_steps = Vec::new();
+    let mut field_defaults = HashMap::new();
+
     for attr in attrs {
         if attr.path().is_ident("desert") {
             let nested = attr
                 .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                 .expect("desert args");
             for meta in nested {
-                if let Meta::Path(path) = meta {
-                    if path.is_ident("transparent") {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
-}
-
-fn evolution_steps_from_attributes(
-    attrs: &[Attribute],
-) -> (Vec<proc_macro2::TokenStream>, HashMap<String, Expr>) {
-    let mut evolution_steps = Vec::new();
-    let mut field_defaults = HashMap::new();
-    for attr in attrs {
-        if attr.path().is_ident("evolution") {
-            let nested = attr
-                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-                .expect("evolution steps");
-            for meta in nested {
                 match meta {
                     Meta::Path(path) => {
-                        panic!("Invalid evolution step: {:?}", path.get_ident());
+                        if path.is_ident("transparent") {
+                            transparent = true;
+                        } else if path.is_ident("sorted_constructors") {
+                            sorted_constructors = true;
+                        } else {
+                            panic!("Unknown desert attribute: {:?}", path.get_ident());
+                        }
                     }
                     Meta::List(list) => {
-                        if list.path.is_ident("FieldAdded") {
-                            let args = list
-                                .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
-                                .expect("FieldAdded arguments");
-                            if args.len() != 2 {
-                                panic!("Invalid number of arguments for FieldAdded");
-                            }
-                            let field_name = match &args[0] {
-                                Expr::Lit(lit) =>
-                                    match &lit.lit {
-                                        Lit::Str(field_name) => field_name.value(),
-                                        _ => panic!("Invalid field name for FieldAdded - must be a string literal"),
+                        if list.path.is_ident("evolution") {
+                            let nested_evolution = list
+                                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                                .expect("evolution steps");
+                            for meta in nested_evolution {
+                                match meta {
+                                    Meta::Path(path) => {
+                                        panic!("Invalid evolution step: {:?}", path.get_ident());
                                     }
-                                other => panic!("Invalid field name for FieldAdded - must be a string literal but it was {}",
-                                                expr_type(other)
-                                ),
-                            };
-                            let field_default = &args[1];
+                                    Meta::List(list) => {
+                                        if list.path.is_ident("FieldAdded") {
+                                            let args = list
+                                                .parse_args_with(
+                                                    Punctuated::<Expr, Token![,]>::parse_terminated,
+                                                )
+                                                .expect("FieldAdded arguments");
+                                            if args.len() != 2 {
+                                                panic!(
+                                                    "Invalid number of arguments for FieldAdded"
+                                                );
+                                            }
+                                            let field_name = match &args[0] {
+                                                Expr::Lit(lit) => match &lit.lit {
+                                                    Lit::Str(field_name) => field_name.value(),
+                                                    _ => panic!("Invalid field name for FieldAdded - must be a string literal"),
+                                                }
+                                                other => panic!("Invalid field name for FieldAdded - must be a string literal but it was {}",
+                                                                expr_type(other)
+                                                ),
+                                            };
+                                            let field_default = &args[1];
 
-                            field_defaults.insert(field_name.clone(), field_default.clone());
-                            evolution_steps.push(quote! {
-                                desert_rust::Evolution::FieldAdded {
-                                    name: #field_name.to_string(),
-                                }
-                            });
-                        } else if list.path.is_ident("FieldMadeOptional") {
-                            let field_name_lit: LitStr =
-                                list.parse_args().expect("FieldMadeOptional argument");
-                            let field_name = field_name_lit.value();
+                                            field_defaults
+                                                .insert(field_name.clone(), field_default.clone());
+                                            evolution_steps.push(quote! {
+                                                desert_rust::Evolution::FieldAdded {
+                                                    name: #field_name.to_string(),
+                                                }
+                                            });
+                                        } else if list.path.is_ident("FieldMadeOptional") {
+                                            let field_name_lit: LitStr = list
+                                                .parse_args()
+                                                .expect("FieldMadeOptional argument");
+                                            let field_name = field_name_lit.value();
 
-                            evolution_steps.push(quote! {
-                                desert_rust::Evolution::FieldMadeOptional {
-                                    name: #field_name.to_string(),
-                                }
-                            });
-                        } else if list.path.is_ident("FieldRemoved") {
-                            let field_name_lit: LitStr =
-                                list.parse_args().expect("FieldMadeOptional argument");
-                            let field_name = field_name_lit.value();
+                                            evolution_steps.push(quote! {
+                                                desert_rust::Evolution::FieldMadeOptional {
+                                                    name: #field_name.to_string(),
+                                                }
+                                            });
+                                        } else if list.path.is_ident("FieldRemoved") {
+                                            let field_name_lit: LitStr = list
+                                                .parse_args()
+                                                .expect("FieldMadeOptional argument");
+                                            let field_name = field_name_lit.value();
 
-                            evolution_steps.push(quote! {
-                                desert_rust::Evolution::FieldRemoved {
-                                    name: #field_name.to_string(),
-                                }
-                            });
-                        } else if list.path.is_ident("FieldMadeTransient") {
-                            let field_name_lit: LitStr =
-                                list.parse_args().expect("FieldMadeOptional argument");
-                            let field_name = field_name_lit.value();
+                                            evolution_steps.push(quote! {
+                                                desert_rust::Evolution::FieldRemoved {
+                                                    name: #field_name.to_string(),
+                                                }
+                                            });
+                                        } else if list.path.is_ident("FieldMadeTransient") {
+                                            let field_name_lit: LitStr = list
+                                                .parse_args()
+                                                .expect("FieldMadeOptional argument");
+                                            let field_name = field_name_lit.value();
 
-                            evolution_steps.push(quote! {
-                                desert_rust::Evolution::FieldMadeTransient {
-                                    name: #field_name.to_string(),
+                                            evolution_steps.push(quote! {
+                                                desert_rust::Evolution::FieldMadeTransient {
+                                                    name: #field_name.to_string(),
+                                                }
+                                            });
+                                        } else {
+                                            panic!(
+                                                "Invalid evolution step: {:?}",
+                                                list.path.get_ident()
+                                            );
+                                        }
+                                    }
+                                    Meta::NameValue(name_value) => {
+                                        panic!(
+                                            "Invalid evolution step: {:?}",
+                                            name_value.path.get_ident()
+                                        );
+                                    }
                                 }
-                            });
+                            }
                         } else {
-                            panic!("Invalid evolution step: {:?}", list.path.get_ident());
+                            panic!("Unknown desert list attribute: {:?}", list.path.get_ident());
                         }
                     }
                     Meta::NameValue(name_value) => {
-                        panic!("Invalid evolution step: {:?}", name_value.path.get_ident());
+                        panic!(
+                            "Invalid desert attribute: {:?}",
+                            name_value.path.get_ident()
+                        );
                     }
                 }
             }
         }
     }
-    (evolution_steps, field_defaults)
+    (
+        transparent,
+        sorted_constructors,
+        evolution_steps,
+        field_defaults,
+    )
 }
 
 // TODO: attribute to force/disable option field detection for a field (because it's based on names only)
 // TODO: attribute to use different field names (for Scala compatibility)
-#[proc_macro_derive(
-    BinaryCodec,
-    attributes(evolution, transient, sorted_constructors, desert)
-)]
+#[proc_macro_derive(BinaryCodec, attributes(desert, transient))]
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
-    let use_sorted_constructors = ast
-        .attrs
-        .iter()
-        .any(|attr| attr.path().is_ident("sorted_constructors"));
-    let transparent = desert_attrs_from_attributes(&ast.attrs);
-    let (evolution_steps, field_defaults) = evolution_steps_from_attributes(&ast.attrs);
+    let (transparent, use_sorted_constructors, evolution_steps, field_defaults) =
+        parse_desert_attributes(&ast.attrs);
     let version = evolution_steps.len();
     let mut push_evolution_steps = Vec::new();
     for evolution_step in evolution_steps {
@@ -224,8 +253,11 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 };
 
                 if !is_transient {
-                    let (case_evolution_steps, case_field_defaults) =
-                        evolution_steps_from_attributes(&variant.attrs);
+                    let (variant_transparent, _, case_evolution_steps, case_field_defaults) =
+                        parse_desert_attributes(&variant.attrs);
+                    if variant_transparent {
+                        panic!("transparent not allowed on variants");
+                    }
                     let version = case_evolution_steps.len();
                     let mut case_push_evolution_steps = Vec::new();
                     for evolution_step in case_evolution_steps {

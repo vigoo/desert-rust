@@ -38,7 +38,7 @@ struct ListElement1 {
 }
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec)]
-#[sorted_constructors]
+#[desert(sorted_constructors)]
 enum ListElement2 {
     First {
         elem: ListElement1,

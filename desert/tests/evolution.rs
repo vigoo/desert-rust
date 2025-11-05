@@ -11,14 +11,14 @@ mod serialization_properties;
 //struct TestId(String);
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec)]
-#[evolution()]
+#[desert(evolution())]
 struct ProdV1 {
     field_a: String,
     field_b: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
-#[evolution(FieldAdded("new_field_1", true))]
+#[desert(evolution(FieldAdded("new_field_1", true)))]
 struct ProdV2 {
     field_a: String,
     new_field_1: bool,
@@ -26,7 +26,7 @@ struct ProdV2 {
 }
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
-#[evolution(FieldAdded("new_field_1", true), FieldMadeOptional("field_b"))]
+#[desert(evolution(FieldAdded("new_field_1", true), FieldMadeOptional("field_b")))]
 struct ProdV3 {
     field_a: String,
     new_field_1: bool,
@@ -34,23 +34,23 @@ struct ProdV3 {
 }
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
-#[evolution(
+#[desert(evolution(
     FieldAdded("new_field_1", true),
     FieldMadeOptional("field_b"),
     FieldRemoved("field_b")
-)]
+))]
 struct ProdV4 {
     field_a: String,
     new_field_1: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
-#[evolution(
+#[desert(evolution(
     FieldAdded("new_field_1", true),
     FieldMadeOptional("field_b"),
     FieldRemoved("field_b"),
     FieldMadeTransient("field_a")
-)]
+))]
 struct ProdV5 {
     #[transient("unset".to_string())]
     field_a: String,
@@ -58,14 +58,14 @@ struct ProdV5 {
 }
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
-#[evolution()]
+#[desert(evolution())]
 enum Coprod1 {
     Case11(i32),
     Case21 { x: String },
 }
 
 #[derive(Debug, Clone, PartialEq, BinaryCodec, Arbitrary)]
-#[evolution()]
+#[desert(evolution())]
 enum Coprod2 {
     Case12(i32),
     #[transient]

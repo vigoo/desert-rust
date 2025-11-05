@@ -13,7 +13,7 @@ mod serialization_properties;
 struct DataV1;
 
 #[derive(Debug, PartialEq, BinaryCodec)]
-#[evolution(FieldAdded("new_field", "context".to_string()))]
+#[desert(evolution(FieldAdded("new_field", "context".to_string())))]
 struct DataV2 {
     new_field: String,
 }

@@ -132,7 +132,7 @@ pub struct PromiseId {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
-#[sorted_constructors] // For being compatible with desert-scala
+#[desert(sorted_constructors)] // For being compatible with desert-scala
 pub enum OplogEntry {
     ImportedFunctionInvoked {
         timestamp: Timestamp,
@@ -175,7 +175,7 @@ pub enum OplogEntry {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
-#[sorted_constructors] // For being compatible with desert-scala
+#[desert(sorted_constructors)] // For being compatible with desert-scala
 pub enum WrappedFunctionType {
     ReadLocal,
     WriteLocal,
@@ -191,7 +191,7 @@ pub struct InvocationKey {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
-#[sorted_constructors] // For being compatible with desert-scala
+#[desert(sorted_constructors)] // For being compatible with desert-scala
 pub enum CallingConvention {
     Component,
     Stdio,
