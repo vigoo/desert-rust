@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.1...desert_rust-v0.1.2) - 2025-11-06
+
+### Fixed
+
+- support raw identifiers in type names
+
 ## [0.1.1](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.0...desert_rust-v0.1.1) - 2025-11-05
 
 ### Other
