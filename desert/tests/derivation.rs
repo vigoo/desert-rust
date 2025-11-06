@@ -51,6 +51,11 @@ enum GenericEnum<T> {
     B,
 }
 
+#[derive(Debug, PartialEq, BinaryCodec)]
+struct r#RawIdent {
+    pub r#raw_field: u32,
+}
+
 #[test]
 fn debug() {
     let pt = Point {

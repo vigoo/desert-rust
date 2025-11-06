@@ -144,6 +144,46 @@ fn parse_desert_attributes(
     )
 }
 
+fn check_raw(ident: &Ident) -> (String, bool) {
+    let ident_s = ident.to_string();
+    if let Some(raw_ident_s) = ident_s.strip_prefix("r#") {
+        (raw_ident_s.to_string(), true)
+    } else {
+        (ident_s, false)
+    }
+}
+
+fn get_metadata_ident(name: &Ident) -> Ident {
+    let (base_name, raw) = check_raw(name);
+    if raw {
+        Ident::new_raw(
+            &format!("{base_name}_metadata").to_uppercase(),
+            Span::call_site(),
+        )
+    } else {
+        Ident::new(
+            &format!("{base_name}_metadata").to_uppercase(),
+            Span::call_site(),
+        )
+    }
+}
+
+fn get_case_metadata_ident(name: &Ident, case_name: &Ident) -> Ident {
+    let (base_name, raw1) = check_raw(name);
+    let (base_case_name, raw2) = check_raw(case_name);
+    if raw1 || raw2 {
+        Ident::new_raw(
+            &format!("{base_name}_{base_case_name}_metadata").to_uppercase(),
+            Span::call_site(),
+        )
+    } else {
+        Ident::new(
+            &format!("{base_name}_{base_case_name}_metadata").to_uppercase(),
+            Span::call_site(),
+        )
+    }
+}
+
 // TODO: attribute to force/disable option field detection for a field (because it's based on names only)
 // TODO: attribute to use different field names (for Scala compatibility)
 #[proc_macro_derive(BinaryCodec, attributes(desert, transient))]
@@ -161,10 +201,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     }
 
     let name = &ast.ident;
-    let metadata_name = Ident::new(
-        &format!("{name}_metadata").to_uppercase(),
-        Span::call_site(),
-    );
+    let metadata_name = get_metadata_ident(name);
 
     // Process generics for the impl blocks
     let mut generics_for_impl = ast.generics.clone();
@@ -309,10 +346,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                         quote! { new }
                     };
 
-                    let case_metadata_name = Ident::new(
-                        &format!("{name}_{case_name}_metadata").to_uppercase(),
-                        Span::call_site(),
-                    );
+                    let case_metadata_name = get_case_metadata_ident(name, case_name);
 
                     metadata.push(quote! {
                         desert_rust::lazy_static! {
