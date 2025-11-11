@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.2...desert_rust-v0.1.3) - 2025-11-11
+
+### Added
+
+- Support options and support all character values
+
 ## [0.1.2](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.1...desert_rust-v0.1.2) - 2025-11-06
 
 ### Fixed
