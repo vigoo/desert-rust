@@ -15,7 +15,7 @@ use std::time::Duration;
 use crate::binary_output::BinaryOutput;
 use crate::error::Result;
 use crate::state::State;
-use crate::{DeduplicatedString, Error, RefId, StringId};
+use crate::{DeduplicatedString, Error, Options, RefId, StringId};
 
 pub trait BinarySerializer {
     fn serialize<Output: BinaryOutput>(
@@ -28,14 +28,16 @@ pub struct SerializationContext<Output: BinaryOutput> {
     output: Output,
     state: State,
     buffer_stack: Vec<Vec<u8>>, // TODO: remove it once AdtSerializer does not need it anymore
+    options: Options,
 }
 
 impl<Output: BinaryOutput> SerializationContext<Output> {
-    pub fn new(output: Output) -> Self {
+    pub fn new(output: Output, options: Options) -> Self {
         Self {
             output,
             state: State::default(),
             buffer_stack: Vec::new(),
+            options,
         }
     }
 
@@ -372,13 +374,18 @@ impl BinarySerializer for char {
         &self,
         context: &mut SerializationContext<Output>,
     ) -> Result<()> {
-        let mut buf = [0; 2];
-        let result = self.encode_utf16(&mut buf);
-        if result.len() == 1 {
-            context.write_u16(result[0]);
-            Ok(())
+        if context.options.chars_as_u16 {
+            let mut buf = [0; 2];
+            let result = self.encode_utf16(&mut buf);
+            if result.len() == 1 {
+                context.write_u16(result[0]);
+                Ok(())
+            } else {
+                Err(Error::UnsupportedCharacter(*self))
+            }
         } else {
-            Err(Error::UnsupportedCharacter(*self))
+            context.write_var_u32(*self as u32);
+            Ok(())
         }
     }
 }

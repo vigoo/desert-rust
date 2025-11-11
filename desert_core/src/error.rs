@@ -8,7 +8,7 @@ use std::string::FromUtf8Error;
 #[derive(Debug)]
 pub enum Error {
     UnsupportedCharacter(char),
-    FailedToDecodeCharacter(u16),
+    FailedToDecodeCharacter(u32),
     LengthTooLarge,
     InvalidTimeZone(String),
     InputEndedUnexpectedly,
@@ -127,7 +127,7 @@ impl From<TryFromSliceError> for Error {
 
 impl From<DecodeUtf16Error> for Error {
     fn from(err: DecodeUtf16Error) -> Self {
-        Error::FailedToDecodeCharacter(err.unpaired_surrogate())
+        Error::FailedToDecodeCharacter(err.unpaired_surrogate() as u32)
     }
 }
 

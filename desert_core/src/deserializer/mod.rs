@@ -18,7 +18,7 @@ use once_cell::unsync::Lazy;
 use crate::binary_input::BinaryInput;
 use crate::error::Result;
 use crate::state::State;
-use crate::{DeduplicatedString, Error, RefId, StringId};
+use crate::{DeduplicatedString, Error, Options, RefId, StringId};
 
 #[allow(clippy::type_complexity)]
 mod tuples;
@@ -32,10 +32,11 @@ pub struct DeserializationContext<'a> {
     state: Lazy<State>,
     region_stack: Vec<ResolvedInputRegion>,
     current: ResolvedInputRegion,
+    options: Options,
 }
 
 impl<'a> DeserializationContext<'a> {
-    pub fn new(input: &'a [u8]) -> Self {
+    pub fn new(input: &'a [u8], options: Options) -> Self {
         let whole_input = ResolvedInputRegion {
             start: 0,
             pos: 0,
@@ -47,6 +48,7 @@ impl<'a> DeserializationContext<'a> {
             state: Lazy::new(State::default),
             region_stack: vec![],
             current: whole_input,
+            options,
         }
     }
 
@@ -329,10 +331,15 @@ impl BinaryDeserializer for () {
 
 impl BinaryDeserializer for char {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        let code = context.read_u16()?;
-        let chars: std::result::Result<Vec<char>, DecodeUtf16Error> =
-            char::decode_utf16([code]).collect();
-        Ok(chars?[0])
+        if context.options.chars_as_u16 {
+            let code = context.read_u16()?;
+            let chars: std::result::Result<Vec<char>, DecodeUtf16Error> =
+                char::decode_utf16([code]).collect();
+            Ok(chars?[0])
+        } else {
+            let code = context.read_var_u32()?;
+            char::from_u32(code).ok_or_else(|| Error::FailedToDecodeCharacter(code))
+        }
     }
 }
 

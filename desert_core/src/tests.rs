@@ -1,6 +1,7 @@
 use crate::{
-    deserialize, serialize_to_byte_vec, serialize_to_bytes, BinaryDeserializer, BinaryOutput,
-    BinarySerializer, DeserializationContext, SerializationContext,
+    deserialize, deserialize_with_options, serialize_to_byte_vec,
+    serialize_to_byte_vec_with_options, serialize_to_bytes, BinaryDeserializer, BinaryOutput,
+    BinarySerializer, DeserializationContext, Options, SerializationContext,
 };
 use proptest::prelude::*;
 use std::cell::RefCell;
@@ -16,8 +17,17 @@ use test_r::test;
 pub(crate) fn roundtrip<T: BinarySerializer + BinaryDeserializer + Debug + Clone + PartialEq>(
     value: T,
 ) {
-    let data = serialize_to_byte_vec(&value).unwrap();
-    let result = deserialize::<T>(&data).unwrap();
+    roundtrip_with_options(value, Options::default());
+}
+
+pub(crate) fn roundtrip_with_options<
+    T: BinarySerializer + BinaryDeserializer + Debug + Clone + PartialEq,
+>(
+    value: T,
+    options: Options,
+) {
+    let data = serialize_to_byte_vec_with_options(&value, options.clone()).unwrap();
+    let result = deserialize_with_options::<T>(&data, options).unwrap();
     assert_eq!(value, result);
 }
 
@@ -159,8 +169,13 @@ proptest! {
     }
 
     #[test]
-    fn roundtrip_char(value in any::<char>().prop_filter("only chars that can be encoded in 16 bits", |c| is_supported_char(*c))) {
-        // NOTE: we don't support arbitrary chars, just the ones that can be represented as u16, to keep binary compatibility with the Scala version
+    fn roundtrip_char_scala_compatible(value in any::<char>().prop_filter("only chars that can be encoded in 16 bits", |c| is_supported_char(*c))) {
+        // NOTE: we don't support arbitrary chars when keeping scala compatibility, just the ones that can be represented as u16, to keep binary compatibility with the Scala version
+        roundtrip_with_options(value, Options::scala_compatible());
+    }
+
+    #[test]
+    fn roundtrip_char(value in any::<char>()) {
         roundtrip(value);
     }
 

@@ -31,13 +31,28 @@ impl<T: BinarySerializer + BinaryDeserializer> BinaryCodec for T {}
 const DEFAULT_CAPACITY: usize = 128;
 
 pub fn serialize<T: BinarySerializer, O: BinaryOutput>(value: &T, output: O) -> Result<O> {
-    let mut context = SerializationContext::new(output);
+    serialize_with_options(value, output, Options::default())
+}
+
+pub fn serialize_with_options<T: BinarySerializer, O: BinaryOutput>(
+    value: &T,
+    output: O,
+    options: Options,
+) -> Result<O> {
+    let mut context = SerializationContext::new(output, options);
     value.serialize(&mut context)?;
     Ok(context.into_output())
 }
 
 pub fn deserialize<T: BinaryDeserializer>(input: &[u8]) -> Result<T> {
-    let mut context = DeserializationContext::new(input);
+    deserialize_with_options(input, Options::default())
+}
+
+pub fn deserialize_with_options<T: BinaryDeserializer>(
+    input: &[u8],
+    options: Options,
+) -> Result<T> {
+    let mut context = DeserializationContext::new(input, options);
     T::deserialize(&mut context)
 }
 
@@ -45,8 +60,22 @@ pub fn serialize_to_bytes<T: BinarySerializer>(value: &T) -> Result<Bytes> {
     Ok(serialize(value, BytesMut::with_capacity(DEFAULT_CAPACITY))?.freeze())
 }
 
+pub fn serialize_to_bytes_with_options<T: BinarySerializer>(
+    value: &T,
+    options: Options,
+) -> Result<Bytes> {
+    Ok(serialize_with_options(value, BytesMut::with_capacity(DEFAULT_CAPACITY), options)?.freeze())
+}
+
 pub fn serialize_to_byte_vec<T: BinarySerializer>(value: &T) -> Result<Vec<u8>> {
     serialize(value, Vec::with_capacity(DEFAULT_CAPACITY))
+}
+
+pub fn serialize_to_byte_vec_with_options<T: BinarySerializer>(
+    value: &T,
+    options: Options,
+) -> Result<Vec<u8>> {
+    serialize_with_options(value, Vec::with_capacity(DEFAULT_CAPACITY), options)
 }
 
 /// Wrapper for strings, enabling desert's string deduplication mode.
@@ -90,6 +119,29 @@ impl RefId {
 impl Display for RefId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Clone)]
+pub struct Options {
+    /// The Scala version of desert represented characters as 16-bit Unicode characters. Enabling this
+    /// flag makes desert-rust compatible with that encoding, but serialization will fail on characters
+    /// not fitting into this encoding.
+    pub chars_as_u16: bool,
+}
+
+impl Options {
+    /// Settings for binary compatibility with the Scala version of desert
+    pub fn scala_compatible() -> Self {
+        Self { chars_as_u16: true }
+    }
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            chars_as_u16: false,
+        }
     }
 }
 

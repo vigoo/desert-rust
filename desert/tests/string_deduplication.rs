@@ -72,10 +72,10 @@ fn test_non_dedup_ser<Output: BinaryOutput>(
 
 #[test]
 fn reads_back_duplicated_strings_currently() {
-    let mut context = SerializationContext::new(BytesMut::new());
+    let mut context = SerializationContext::new(BytesMut::new(), Options::default());
     test_dedup_ser(&mut context).unwrap();
     let bytes = context.into_output();
-    let mut context = DeserializationContext::new(&bytes);
+    let mut context = DeserializationContext::new(&bytes, Options::default());
     let (s1, s2, s3, s4, s5, s6) = test_dedup_deser(&mut context).unwrap();
     assert_eq!(s1, *S1);
     assert_eq!(s2, *S2);
@@ -87,12 +87,12 @@ fn reads_back_duplicated_strings_currently() {
 
 #[test]
 fn reduces_serialized_size() {
-    let mut context = SerializationContext::new(BytesMut::new());
+    let mut context = SerializationContext::new(BytesMut::new(), Options::default());
     test_dedup_ser(&mut context).unwrap();
     let bytes = context.into_output();
     let dedup_len = bytes.len();
 
-    let mut context = SerializationContext::new(BytesMut::new());
+    let mut context = SerializationContext::new(BytesMut::new(), Options::default());
     test_non_dedup_ser(&mut context).unwrap();
     let bytes = context.into_output();
     let non_dedup_len = bytes.len();
