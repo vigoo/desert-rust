@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.3...desert_rust-v0.1.4) - 2025-11-11
+
+### Fixed
+
+- Fixes fixed length array codec
+
 ## [0.1.3](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.2...desert_rust-v0.1.3) - 2025-11-11
 
 ### Added
