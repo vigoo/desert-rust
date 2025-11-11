@@ -1,7 +1,7 @@
 use crate::{
-    deserialize, deserialize_with_options, serialize_to_byte_vec,
-    serialize_to_byte_vec_with_options, serialize_to_bytes, BinaryDeserializer, BinaryOutput,
-    BinarySerializer, DeserializationContext, Options, SerializationContext,
+    deserialize, deserialize_with_options, serialize_to_byte_vec_with_options, serialize_to_bytes,
+    BinaryDeserializer, BinaryOutput, BinarySerializer, DeserializationContext, Options,
+    SerializationContext,
 };
 use proptest::prelude::*;
 use std::cell::RefCell;
@@ -190,6 +190,11 @@ proptest! {
     }
 
     #[test]
+    fn roundtrip_byte_array(value: [u8; 16]) {
+        roundtrip(value);
+    }
+
+    #[test]
     fn roundtrip_option(value: Option<u32>) {
         roundtrip(value);
     }
@@ -206,6 +211,11 @@ proptest! {
 
     #[test]
     fn roundtrip_vec_u32(value: Vec<u32>) {
+        roundtrip(value);
+    }
+
+    #[test]
+    fn roundtrip_string_array(value: [String; 16]) {
         roundtrip(value);
     }
 

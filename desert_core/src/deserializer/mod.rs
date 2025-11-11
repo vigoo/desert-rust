@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
 use std::char::DecodeUtf16Error;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::hash::Hash;
@@ -12,9 +12,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use castaway::cast;
 use once_cell::unsync::Lazy;
-
+use stable_intrinsics::transmute_unchecked;
 use crate::binary_input::BinaryInput;
 use crate::error::Result;
 use crate::state::State;
@@ -432,13 +431,13 @@ impl BinaryDeserializer for Bytes {
     }
 }
 
-impl<T: BinaryDeserializer, const L: usize> BinaryDeserializer for [T; L] {
+impl<T: BinaryDeserializer + 'static, const L: usize> BinaryDeserializer for [T; L] {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        let empty: [T; 0] = [];
-        if cast!(empty, [u8; 0]).is_ok() {
+        if TypeId::of::<T>() == TypeId::of::<u8>() {
             let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.read_bytes(length as usize)?;
-            Ok(unsafe { std::mem::transmute_copy::<_, [T; L]>(&bytes) })
+            let array: [u8; L] = bytes.try_into().unwrap();
+            Ok(unsafe { transmute_unchecked(array) })
         } else {
             let mut array: [MaybeUninit<T>; L] = unsafe { MaybeUninit::uninit().assume_init() };
             for (target, item) in array.iter_mut().zip(deserialize_iterator(context).0) {
