@@ -11,13 +11,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bytes::Bytes;
-use once_cell::unsync::Lazy;
-use stable_intrinsics::transmute_unchecked;
 use crate::binary_input::BinaryInput;
 use crate::error::Result;
 use crate::state::State;
 use crate::{DeduplicatedString, Error, Options, RefId, StringId};
+use bytes::Bytes;
+use once_cell::unsync::Lazy;
+use stable_intrinsics::transmute_unchecked;
 
 #[allow(clippy::type_complexity)]
 mod tuples;
@@ -337,7 +337,7 @@ impl BinaryDeserializer for char {
             Ok(chars?[0])
         } else {
             let code = context.read_var_u32()?;
-            char::from_u32(code).ok_or_else(|| Error::FailedToDecodeCharacter(code))
+            char::from_u32(code).ok_or(Error::FailedToDecodeCharacter(code))
         }
     }
 }

@@ -122,7 +122,7 @@ impl Display for RefId {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Options {
     /// The Scala version of desert represented characters as 16-bit Unicode characters. Enabling this
     /// flag makes desert-rust compatible with that encoding, but serialization will fail on characters
@@ -134,14 +134,6 @@ impl Options {
     /// Settings for binary compatibility with the Scala version of desert
     pub fn scala_compatible() -> Self {
         Self { chars_as_u16: true }
-    }
-}
-
-impl Default for Options {
-    fn default() -> Self {
-        Self {
-            chars_as_u16: false,
-        }
     }
 }
 
