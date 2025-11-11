@@ -52,6 +52,7 @@ enum GenericEnum<T> {
 }
 
 #[derive(Debug, PartialEq, BinaryCodec)]
+#[allow(dead_code)]
 struct r#RawIdent {
     pub r#raw_field: u32,
 }
