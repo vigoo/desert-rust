@@ -131,7 +131,7 @@ pub struct PromiseId {
     pub oplog_idx: i32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
 #[desert(sorted_constructors)] // For being compatible with desert-scala
 pub enum OplogEntry {
     ImportedFunctionInvoked {
@@ -144,13 +144,13 @@ pub enum OplogEntry {
     ExportedFunctionInvoked {
         timestamp: Timestamp,
         function_name: String,
-        request: Vec<u8>,
+        request: Vec<Value>,
         invocation_key: Option<InvocationKey>,
         calling_convention: Option<CallingConvention>,
     },
     ExportedFunctionCompleted {
         timestamp: Timestamp,
-        response: Vec<u8>,
+        response: Vec<Value>,
         consumed_fuel: i64,
     },
     CreatePromise {
@@ -291,7 +291,9 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
                     .take(16)
                     .map(char::from)
                     .collect(),
-                request,
+                request: vec![Value::List(
+                    request.into_iter().map(|b| Value::U8(b)).collect(),
+                )],
                 invocation_key: random_invocation_key(rng),
                 calling_convention: random_calling_convention(rng),
             }
@@ -302,7 +304,9 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
 
             OplogEntry::ExportedFunctionCompleted {
                 timestamp: random_timestamp(rng),
-                response,
+                response: vec![Value::List(
+                    response.into_iter().map(|b| Value::U8(b)).collect(),
+                )],
                 consumed_fuel: rng.random(),
             }
         }
@@ -333,4 +337,57 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
 pub struct Case {
     pub payload_size: usize,
     pub entries: Vec<OplogEntry>,
+}
+
+/// A tree representation of Value - isomorphic to the protobuf Val type but easier to work with in Rust
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
+pub enum Value {
+    #[desert(transparent)]
+    Bool(bool),
+    #[desert(transparent)]
+    U8(u8),
+    #[desert(transparent)]
+    U16(u16),
+    #[desert(transparent)]
+    U32(u32),
+    #[desert(transparent)]
+    U64(u64),
+    #[desert(transparent)]
+    S8(i8),
+    #[desert(transparent)]
+    S16(i16),
+    #[desert(transparent)]
+    S32(i32),
+    #[desert(transparent)]
+    S64(i64),
+    #[desert(transparent)]
+    F32(f32),
+    #[desert(transparent)]
+    F64(f64),
+    #[desert(transparent)]
+    Char(char),
+    #[desert(transparent)]
+    String(String),
+    #[desert(transparent)]
+    List(Vec<Value>),
+    #[desert(transparent)]
+    Tuple(Vec<Value>),
+    #[desert(transparent)]
+    Record(Vec<Value>),
+    Variant {
+        case_idx: u32,
+        case_value: Option<Box<Value>>,
+    },
+    #[desert(transparent)]
+    Enum(u32),
+    #[desert(transparent)]
+    Flags(Vec<bool>),
+    #[desert(transparent)]
+    Option(Option<Box<Value>>),
+    #[desert(transparent)]
+    Result(Result<Option<Box<Value>>, Option<Box<Value>>>),
+    Handle {
+        uri: String,
+        resource_id: u64,
+    },
 }

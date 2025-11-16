@@ -1,7 +1,6 @@
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
-use bytes::{BufMut, Bytes, BytesMut};
 use rand::prelude::StdRng;
 use rand::*;
 use serde::{Deserialize, Serialize};
@@ -20,7 +19,7 @@ struct Report {
     de_duration: Duration,
 }
 
-fn benchmark<S: Fn(&OplogEntry) -> Bytes, D: Fn(&Bytes) -> OplogEntry>(
+fn benchmark<S: Fn(&OplogEntry) -> Vec<u8>, D: Fn(&[u8]) -> OplogEntry>(
     case: &Case,
     name: &str,
     ser: S,
@@ -75,10 +74,11 @@ fn json_benchmark(case: &Case) -> Report {
         case,
         "JSON",
         |entry| {
-            let mut writer = Vec::with_capacity(128);
-            writer.push(1u8);
-            serde_json::to_writer(&mut writer, entry).unwrap();
-            Bytes::from(writer)
+            let data = serde_json::to_vec(entry).unwrap();
+            let mut result = Vec::with_capacity(data.len() + 1);
+            result.push(1u8);
+            result.extend(data);
+            result
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
@@ -93,10 +93,10 @@ fn bincode_benchmark(case: &Case) -> Report {
         "bincode",
         |entry| {
             let data = bincode::serde::encode_to_vec(entry, bincode::config::standard()).unwrap();
-            let mut bytes = BytesMut::new();
-            bytes.put_u8(1);
-            bytes.extend_from_slice(&data);
-            bytes.freeze()
+            let mut result = Vec::with_capacity(data.len() + 1);
+            result.push(1u8);
+            result.extend(data);
+            result
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
@@ -113,10 +113,10 @@ fn bincode_noserde_benchmark(case: &Case) -> Report {
         "bincode without serde",
         |entry| {
             let data = bincode::encode_to_vec(entry, bincode::config::standard()).unwrap();
-            let mut bytes = BytesMut::new();
-            bytes.put_u8(1);
-            bytes.extend_from_slice(&data);
-            bytes.freeze()
+            let mut result = Vec::with_capacity(data.len() + 1);
+            result.push(1u8);
+            result.extend(data);
+            result
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
@@ -131,10 +131,11 @@ fn messagepack_benchmark(case: &Case) -> Report {
         case,
         "MessagePack (rmp-serde)",
         |entry| {
-            let mut writer = Vec::with_capacity(128);
-            writer.push(1u8);
-            rmp_serde::encode::write(&mut writer, entry).unwrap();
-            Bytes::from(writer)
+            let data = rmp_serde::encode::to_vec(entry).unwrap();
+            let mut result = Vec::with_capacity(data.len() + 1);
+            result.push(1u8);
+            result.extend(data);
+            result
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
@@ -153,7 +154,7 @@ fn dlhn_benchmark(case: &Case) -> Report {
             writer.push(1u8);
             let mut ser = dlhn::Serializer::new(&mut writer);
             entry.serialize(&mut ser).unwrap();
-            Bytes::from(writer)
+            writer
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
@@ -172,7 +173,7 @@ fn postcard_benchmark(case: &Case) -> Report {
             let mut writer = Vec::with_capacity(128);
             writer.push(1u8);
             postcard::to_io(entry, &mut writer).unwrap();
-            Bytes::from(writer)
+            writer
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
@@ -189,7 +190,7 @@ fn bare_benchmark(case: &Case) -> Report {
             let mut writer = Vec::with_capacity(128);
             writer.push(1u8);
             serde_bare::to_writer(&mut writer, entry).unwrap();
-            Bytes::from(writer)
+            writer
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
@@ -203,11 +204,11 @@ fn bitcode_benchmark(case: &Case) -> Report {
         case,
         "bitcode",
         |entry| {
-            let mut bytes = BytesMut::new();
-            bytes.put_u8(1);
-            let encoded = bitcode::serialize(&entry).unwrap();
-            bytes.extend_from_slice(&encoded);
-            bytes.freeze()
+            let data = bitcode::serialize(&entry).unwrap();
+            let mut result = Vec::with_capacity(data.len() + 1);
+            result.push(1u8);
+            result.extend(data);
+            result
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);
@@ -221,11 +222,11 @@ fn desert_benchmark(case: &Case) -> Report {
         case,
         "desert",
         |entry| {
-            let encoded = serialize_to_byte_vec(entry).unwrap();
-            let mut bytes = BytesMut::new();
-            bytes.put_u8(1);
-            bytes.extend_from_slice(&encoded);
-            bytes.freeze()
+            let data = serialize_to_byte_vec(entry).unwrap();
+            let mut result = Vec::with_capacity(data.len() + 1);
+            result.push(1u8);
+            result.extend(data);
+            result
         },
         |bytes| {
             let (_, data) = bytes.split_at(1);

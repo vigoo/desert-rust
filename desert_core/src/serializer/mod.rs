@@ -72,6 +72,7 @@ impl<Output: BinaryOutput> SerializationContext<Output> {
 }
 
 impl<Output: BinaryOutput> BinaryOutput for SerializationContext<Output> {
+    #[inline(always)]
     fn write_u8(&mut self, value: u8) {
         match self.buffer_stack.last_mut() {
             Some(buffer) => buffer.write_u8(value),
@@ -79,6 +80,7 @@ impl<Output: BinaryOutput> BinaryOutput for SerializationContext<Output> {
         }
     }
 
+    #[inline(always)]
     fn write_bytes(&mut self, bytes: &[u8]) {
         match self.buffer_stack.last_mut() {
             Some(buffer) => buffer.write_bytes(bytes),
@@ -103,6 +105,8 @@ pub enum StoreRefResult {
 }
 
 impl BinarySerializer for u8 {
+
+    #[inline(always)]
     fn serialize<Output: BinaryOutput>(
         &self,
         context: &mut SerializationContext<Output>,
