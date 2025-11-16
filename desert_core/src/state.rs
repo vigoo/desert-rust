@@ -27,7 +27,7 @@ pub struct State {
 
 impl State {
     pub fn store_string(&mut self, value: String) -> StoreStringResult {
-        self.strings.get_or_init(|| StringsState::default());
+        self.strings.get_or_init(StringsState::default);
         let strings = unsafe { self.strings.get_mut().unwrap_unchecked() };
         match strings.ids_by_string.entry(value) {
             Entry::Occupied(entry) => StoreStringResult::StringAlreadyStored { id: *entry.get() },
@@ -46,7 +46,7 @@ impl State {
     }
 
     pub fn store_ref(&mut self, value: &impl Any) -> StoreRefResult {
-        self.refs.get_or_init(|| RefsState::default());
+        self.refs.get_or_init(RefsState::default);
         let refs = unsafe { self.refs.get_mut().unwrap_unchecked() };
         match refs.ids_by_ref.entry(value) {
             Entry::Occupied(entry) => StoreRefResult::RefAlreadyStored { id: *entry.get() },
@@ -63,7 +63,7 @@ impl State {
 
     pub fn get_string_by_id(&self, id: StringId) -> Option<&str> {
         self.strings
-            .get_or_init(|| StringsState::default())
+            .get_or_init(StringsState::default)
             .strings_by_id
             .get(&id)
             .map(|s| s.as_str())
@@ -72,7 +72,7 @@ impl State {
     pub fn get_ref_by_id(&self, id: RefId) -> Option<&dyn Any> {
         let ptr = self
             .refs
-            .get_or_init(|| RefsState::default())
+            .get_or_init(RefsState::default)
             .refs_by_id
             .get(&id);
         match ptr {

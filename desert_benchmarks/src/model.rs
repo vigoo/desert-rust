@@ -4,13 +4,15 @@ use bincode::de::{BorrowDecoder, Decoder};
 use bincode::enc::Encoder;
 use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
+use desert_rust::deserializer::deserialize_iterator;
 use desert_rust::{
-    BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
-    DeserializationContext, SerializationContext,
+    serialize_iterator, BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput,
+    BinarySerializer, DeserializationContext, SerializationContext,
 };
 use rand::distr::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize, Serializer};
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::ops::Add;
 use std::time::{Duration, SystemTime};
@@ -365,6 +367,7 @@ pub enum Value {
     #[desert(transparent)]
     String(String),
     #[desert(transparent)]
+    // NOTE: custom case disabled for fair comparison in benchmarks // #[desert(custom = VecValueWrapper)]
     List(Vec<Value>),
     #[desert(transparent)]
     Tuple(Vec<Value>),
@@ -386,4 +389,61 @@ pub enum Value {
         uri: String,
         resource_id: u64,
     },
+}
+
+#[allow(dead_code)]
+pub struct VecValueWrapper<'a>(pub Cow<'a, [Value]>);
+
+impl<'a> BinarySerializer for VecValueWrapper<'a> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> desert_rust::Result<()> {
+        let all_u8 = self.0.iter().all(|v| matches!(v, Value::U8(_)));
+        if all_u8 {
+            context.write_u8(1); // special case 1
+            let bytes = self
+                .0
+                .iter()
+                .map(|v| match v {
+                    Value::U8(b) => *b,
+                    _ => unreachable!(),
+                })
+                .collect::<Vec<u8>>();
+            context.write_var_u32(bytes.len() as u32);
+            context.write_bytes(&bytes);
+            Ok(())
+        } else {
+            context.write_u8(0); // default case 0
+            serialize_iterator(&mut self.0.iter(), context)
+        }
+    }
+}
+
+impl<'a> BinaryDeserializer for VecValueWrapper<'a> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> desert_rust::Result<Self> {
+        let tag = context.read_u8()?;
+        match tag {
+            0 => {
+                let (iter, maybe_size) = deserialize_iterator(context);
+                let mut vec = Vec::with_capacity(maybe_size.unwrap_or_default());
+                for item in iter {
+                    vec.push(item?);
+                }
+
+                Ok(Self(Cow::Owned(vec)))
+            }
+            1 => {
+                let length = context.read_var_u32()? as usize;
+                let bytes = context.read_bytes(length)?;
+                Ok(Self(Cow::Owned(
+                    bytes.iter().map(|b| Value::U8(*b)).collect(),
+                )))
+            }
+            other => Err(desert_rust::Error::DeserializationFailure(format!(
+                "Invalid Vec<Value> tag: {}",
+                other
+            ))),
+        }
+    }
 }

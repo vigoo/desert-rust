@@ -1,5 +1,6 @@
 use assert2::check;
 use desert_rust::*;
+use std::borrow::Cow;
 use test_r::test;
 
 test_r::enable!();
@@ -55,6 +56,33 @@ enum GenericEnum<T> {
 #[allow(dead_code)]
 struct r#RawIdent {
     pub r#raw_field: u32,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct CustomWrapper<'a>(Cow<'a, str>);
+
+impl<'a> BinarySerializer for CustomWrapper<'a> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> Result<()> {
+        self.0.as_bytes().serialize(context)
+    }
+}
+
+impl<'a> BinaryDeserializer for CustomWrapper<'a> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
+        Ok(CustomWrapper(Cow::Owned(
+            String::from_utf8(Vec::<u8>::deserialize(context)?).unwrap(),
+        )))
+    }
+}
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+enum EnumWithCustom {
+    #[desert(custom = CustomWrapper)]
+    Wrapped(String),
+    Regular(String),
 }
 
 #[test]
@@ -133,4 +161,15 @@ fn debug() {
     let bytes8 = serialize_to_bytes(&generic_enum_b).unwrap();
     let generic_enum_b2: GenericEnum<String> = deserialize(&bytes8).unwrap();
     check!(generic_enum_b == generic_enum_b2);
+
+    // Test custom wrapper
+    let wrapped = EnumWithCustom::Wrapped("hello".to_string());
+    let bytes_wrapped = serialize_to_bytes(&wrapped).unwrap();
+    let wrapped2: EnumWithCustom = deserialize(&bytes_wrapped).unwrap();
+    check!(wrapped == wrapped2);
+
+    let regular = EnumWithCustom::Regular("test".to_string());
+    let bytes_regular = serialize_to_bytes(&regular).unwrap();
+    let regular2: EnumWithCustom = deserialize(&bytes_regular).unwrap();
+    check!(regular == regular2);
 }

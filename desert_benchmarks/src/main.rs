@@ -254,7 +254,7 @@ fn main() {
     println!();
     println!("This benchmark serializes/deserializes 10000 \"oplog entries\", where oplog entries is a big enum type,");
     println!("taken from an early prototype of [Golem](https://github.com/golemcloud/golem). Some of the cases have");
-    println!("an arbitrary byte array payload in them, which the benchmark sets to various sizes to see the effect on");
+    println!("an arbitrary dynamic 'Value' payload in them, which the benchmark sets to various sizes to see the effect on");
     println!("serialization speed.");
     println!();
 

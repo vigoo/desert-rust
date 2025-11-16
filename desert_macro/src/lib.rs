@@ -1,20 +1,23 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::{Attribute, Data, DeriveInput, Expr, Fields, Lit, LitStr, Meta, Token, Type};
 
-fn parse_desert_attributes(
-    attrs: &[Attribute],
-) -> (
-    bool,
-    bool,
-    Vec<proc_macro2::TokenStream>,
-    HashMap<String, Expr>,
-) {
+#[derive(Debug, Clone)]
+struct DesertAttributes {
+    transparent: bool,
+    sorted_constructors: bool,
+    custom: Option<Type>,
+    evolution_steps: Vec<proc_macro2::TokenStream>,
+    field_defaults: HashMap<String, Expr>,
+}
+
+fn parse_desert_attributes(attrs: &[Attribute]) -> DesertAttributes {
     let mut transparent = false;
     let mut sorted_constructors = false;
+    let mut custom: Option<Type> = None;
     let mut evolution_steps = Vec::new();
     let mut field_defaults = HashMap::new();
 
@@ -127,21 +130,28 @@ fn parse_desert_attributes(
                         }
                     }
                     Meta::NameValue(name_value) => {
-                        panic!(
-                            "Invalid desert attribute: {:?}",
-                            name_value.path.get_ident()
-                        );
+                        if name_value.path.is_ident("custom") {
+                            let ty: Type = syn::parse2(name_value.value.to_token_stream())
+                                .expect("custom attribute must be a type");
+                            custom = Some(ty);
+                        } else {
+                            panic!(
+                                "Invalid desert attribute: {:?}",
+                                name_value.path.get_ident()
+                            );
+                        }
                     }
                 }
             }
         }
     }
-    (
+    DesertAttributes {
         transparent,
         sorted_constructors,
+        custom,
         evolution_steps,
         field_defaults,
-    )
+    }
 }
 
 fn check_raw(ident: &Ident) -> (String, bool) {
@@ -190,8 +200,11 @@ fn get_case_metadata_ident(name: &Ident, case_name: &Ident) -> Ident {
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
-    let (transparent, use_sorted_constructors, evolution_steps, field_defaults) =
-        parse_desert_attributes(&ast.attrs);
+    let attrs = parse_desert_attributes(&ast.attrs);
+    let transparent = attrs.transparent;
+    let use_sorted_constructors = attrs.sorted_constructors;
+    let evolution_steps = &attrs.evolution_steps;
+    let field_defaults = attrs.field_defaults;
     let version = evolution_steps.len();
     let vplus1 = version + 1;
 
@@ -328,13 +341,17 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 };
 
                 if !is_transient {
-                    let (variant_transparent, _, case_evolution_steps, case_field_defaults) =
-                        parse_desert_attributes(&variant.attrs);
-                    if variant_transparent {
+                    let variant_attrs = parse_desert_attributes(&variant.attrs);
+                    let variant_transparent = variant_attrs.transparent;
+                    let variant_custom = variant_attrs.custom;
+                    let case_evolution_steps = &variant_attrs.evolution_steps;
+                    let case_field_defaults = variant_attrs.field_defaults;
+                    if variant_transparent || variant_custom.is_some() {
                         // transparent on a variant case means we don't want to treat it as an evolvable record type, but directly
                         // serialize the single-element field of it as-is
+                        // custom is similar to transparent but wraps the field in the provided type
                         if variant.fields.len() != 1 {
-                            panic!("transparent not allowed on non-single field variants");
+                            panic!("transparent/custom not allowed on non-single field variants");
                         } else {
                             let single_field = match &variant.fields {
                                 Fields::Named(named_fields) => {
@@ -344,29 +361,67 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                                 Fields::Unit => unreachable!(),
                             };
 
-                            ser_cases.push(
-                                quote! {
-                                    #pattern => {
-                                        serializer.write_constructor(
-                                            #effective_case_idx,
-                                            |desert_inner_serialization_context| {
-                                                desert_rust::BinarySerializer::serialize(#single_field, desert_inner_serialization_context)
-                                            }
-                                        )?;
+                            if let Some(ref custom_type) = variant_custom {
+                                ser_cases.push(
+                                    quote! {
+                                        #pattern => {
+                                            serializer.write_constructor(
+                                                #effective_case_idx,
+                                                |desert_inner_serialization_context| {
+                                                    let wrapped = #custom_type(::std::borrow::Cow::Borrowed(#single_field));
+                                                    desert_rust::BinarySerializer::serialize(&wrapped, desert_inner_serialization_context)
+                                                }
+                                            )?;
+                                        }
                                     }
-                                }
-                            );
+                                );
+                            } else {
+                                ser_cases.push(
+                                    quote! {
+                                        #pattern => {
+                                            serializer.write_constructor(
+                                                #effective_case_idx,
+                                                |desert_inner_serialization_context| {
+                                                    desert_rust::BinarySerializer::serialize(#single_field, desert_inner_serialization_context)
+                                                }
+                                            )?;
+                                        }
+                                    }
+                                );
+                            }
 
-                            let construct_case = match &variant.fields {
-                                Fields::Unit => unreachable!(),
-                                Fields::Named(_) => {
-                                    quote! { #name::#case_name {
-                                            #single_field: desert_rust::BinaryDeserializer::deserialize(context)?
+                            let construct_case = if let Some(ref custom_type) = variant_custom {
+                                match &variant.fields {
+                                    Fields::Unit => unreachable!(),
+                                    Fields::Named(_) => {
+                                        quote! { #name::#case_name {
+                                                #single_field: {
+                                                    let #custom_type(inner) = desert_rust::BinaryDeserializer::deserialize(context)?;
+                                                    inner.into_owned()
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Fields::Unnamed(_) => {
+                                        quote! { #name::#case_name({
+                                                let #custom_type(inner) = desert_rust::BinaryDeserializer::deserialize(context)?;
+                                                inner.into_owned()
+                                            })
                                         }
                                     }
                                 }
-                                Fields::Unnamed(_) => {
-                                    quote! { #name::#case_name(desert_rust::BinaryDeserializer::deserialize(context)?) }
+                            } else {
+                                match &variant.fields {
+                                    Fields::Unit => unreachable!(),
+                                    Fields::Named(_) => {
+                                        quote! { #name::#case_name {
+                                                #single_field: desert_rust::BinaryDeserializer::deserialize(context)?
+                                            }
+                                        }
+                                    }
+                                    Fields::Unnamed(_) => {
+                                        quote! { #name::#case_name(desert_rust::BinaryDeserializer::deserialize(context)?) }
+                                    }
                                 }
                             };
 
