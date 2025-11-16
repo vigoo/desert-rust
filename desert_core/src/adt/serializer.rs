@@ -98,16 +98,13 @@ impl<'a, 'b, Output: BinaryOutput, const V: usize> AdtSerializer<'a, 'b, Output,
 
     fn record_field_index(&mut self, field_name: &str, chunk: u8) {
         if let Some(last_index_per_chunk) = self.last_index_per_chunk.as_mut() {
-            match &mut last_index_per_chunk[chunk as usize] {
-                last_index => {
-                    let new_index = *last_index + 1;
-                    *last_index = new_index;
-                    self.field_indices.as_mut().unwrap().insert(
-                        field_name.to_string(),
-                        FieldPosition::new(chunk, new_index as u8),
-                    );
-                }
-            }
+            let last_index = &mut last_index_per_chunk[chunk as usize];
+            let new_index = *last_index + 1;
+            *last_index = new_index;
+            self.field_indices.as_mut().unwrap().insert(
+                field_name.to_string(),
+                FieldPosition::new(chunk, new_index as u8),
+            );
         }
     }
 

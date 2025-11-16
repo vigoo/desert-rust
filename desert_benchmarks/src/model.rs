@@ -291,9 +291,7 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
                     .take(16)
                     .map(char::from)
                     .collect(),
-                request: vec![Value::List(
-                    request.into_iter().map(|b| Value::U8(b)).collect(),
-                )],
+                request: vec![Value::List(request.into_iter().map(Value::U8).collect())],
                 invocation_key: random_invocation_key(rng),
                 calling_convention: random_calling_convention(rng),
             }
@@ -304,9 +302,7 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
 
             OplogEntry::ExportedFunctionCompleted {
                 timestamp: random_timestamp(rng),
-                response: vec![Value::List(
-                    response.into_iter().map(|b| Value::U8(b)).collect(),
-                )],
+                response: vec![Value::List(response.into_iter().map(Value::U8).collect())],
                 consumed_fuel: rng.random(),
             }
         }
