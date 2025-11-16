@@ -4,13 +4,15 @@ use bincode::de::{BorrowDecoder, Decoder};
 use bincode::enc::Encoder;
 use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
+use desert_rust::deserializer::deserialize_iterator;
 use desert_rust::{
-    BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer,
-    DeserializationContext, SerializationContext,
+    serialize_iterator, BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput,
+    BinarySerializer, DeserializationContext, SerializationContext,
 };
 use rand::distr::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize, Serializer};
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::ops::Add;
 use std::time::{Duration, SystemTime};
@@ -131,7 +133,7 @@ pub struct PromiseId {
     pub oplog_idx: i32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
 #[desert(sorted_constructors)] // For being compatible with desert-scala
 pub enum OplogEntry {
     ImportedFunctionInvoked {
@@ -144,13 +146,13 @@ pub enum OplogEntry {
     ExportedFunctionInvoked {
         timestamp: Timestamp,
         function_name: String,
-        request: Vec<u8>,
+        request: Vec<Value>,
         invocation_key: Option<InvocationKey>,
         calling_convention: Option<CallingConvention>,
     },
     ExportedFunctionCompleted {
         timestamp: Timestamp,
-        response: Vec<u8>,
+        response: Vec<Value>,
         consumed_fuel: i64,
     },
     CreatePromise {
@@ -291,7 +293,7 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
                     .take(16)
                     .map(char::from)
                     .collect(),
-                request,
+                request: vec![Value::List(request.into_iter().map(Value::U8).collect())],
                 invocation_key: random_invocation_key(rng),
                 calling_convention: random_calling_convention(rng),
             }
@@ -302,7 +304,7 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
 
             OplogEntry::ExportedFunctionCompleted {
                 timestamp: random_timestamp(rng),
-                response,
+                response: vec![Value::List(response.into_iter().map(Value::U8).collect())],
                 consumed_fuel: rng.random(),
             }
         }
@@ -333,4 +335,115 @@ pub fn random_oplog_entry(rng: &mut impl Rng, payload_size: usize) -> OplogEntry
 pub struct Case {
     pub payload_size: usize,
     pub entries: Vec<OplogEntry>,
+}
+
+/// A tree representation of Value - isomorphic to the protobuf Val type but easier to work with in Rust
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Encode, Decode, BinaryCodec)]
+pub enum Value {
+    #[desert(transparent)]
+    Bool(bool),
+    #[desert(transparent)]
+    U8(u8),
+    #[desert(transparent)]
+    U16(u16),
+    #[desert(transparent)]
+    U32(u32),
+    #[desert(transparent)]
+    U64(u64),
+    #[desert(transparent)]
+    S8(i8),
+    #[desert(transparent)]
+    S16(i16),
+    #[desert(transparent)]
+    S32(i32),
+    #[desert(transparent)]
+    S64(i64),
+    #[desert(transparent)]
+    F32(f32),
+    #[desert(transparent)]
+    F64(f64),
+    #[desert(transparent)]
+    Char(char),
+    #[desert(transparent)]
+    String(String),
+    #[desert(transparent)]
+    // NOTE: custom case disabled for fair comparison in benchmarks // #[desert(custom = VecValueWrapper)]
+    List(Vec<Value>),
+    #[desert(transparent)]
+    Tuple(Vec<Value>),
+    #[desert(transparent)]
+    Record(Vec<Value>),
+    Variant {
+        case_idx: u32,
+        case_value: Option<Box<Value>>,
+    },
+    #[desert(transparent)]
+    Enum(u32),
+    #[desert(transparent)]
+    Flags(Vec<bool>),
+    #[desert(transparent)]
+    Option(Option<Box<Value>>),
+    #[desert(transparent)]
+    Result(Result<Option<Box<Value>>, Option<Box<Value>>>),
+    Handle {
+        uri: String,
+        resource_id: u64,
+    },
+}
+
+#[allow(dead_code)]
+pub struct VecValueWrapper<'a>(pub Cow<'a, [Value]>);
+
+impl<'a> BinarySerializer for VecValueWrapper<'a> {
+    fn serialize<Output: BinaryOutput>(
+        &self,
+        context: &mut SerializationContext<Output>,
+    ) -> desert_rust::Result<()> {
+        let all_u8 = self.0.iter().all(|v| matches!(v, Value::U8(_)));
+        if all_u8 {
+            context.write_u8(1); // special case 1
+            let bytes = self
+                .0
+                .iter()
+                .map(|v| match v {
+                    Value::U8(b) => *b,
+                    _ => unreachable!(),
+                })
+                .collect::<Vec<u8>>();
+            context.write_var_u32(bytes.len() as u32);
+            context.write_bytes(&bytes);
+            Ok(())
+        } else {
+            context.write_u8(0); // default case 0
+            serialize_iterator(&mut self.0.iter(), context)
+        }
+    }
+}
+
+impl<'a> BinaryDeserializer for VecValueWrapper<'a> {
+    fn deserialize(context: &mut DeserializationContext<'_>) -> desert_rust::Result<Self> {
+        let tag = context.read_u8()?;
+        match tag {
+            0 => {
+                let (iter, maybe_size) = deserialize_iterator(context);
+                let mut vec = Vec::with_capacity(maybe_size.unwrap_or_default());
+                for item in iter {
+                    vec.push(item?);
+                }
+
+                Ok(Self(Cow::Owned(vec)))
+            }
+            1 => {
+                let length = context.read_var_u32()? as usize;
+                let bytes = context.read_bytes(length)?;
+                Ok(Self(Cow::Owned(
+                    bytes.iter().map(|b| Value::U8(*b)).collect(),
+                )))
+            }
+            other => Err(desert_rust::Error::DeserializationFailure(format!(
+                "Invalid Vec<Value> tag: {}",
+                other
+            ))),
+        }
+    }
 }

@@ -10,3 +10,7 @@ members = [
 
 [workspace.dependencies]
 test-r = "2.3.1"
+
+# Enable when profiling
+#[profile.release]
+#debug = true

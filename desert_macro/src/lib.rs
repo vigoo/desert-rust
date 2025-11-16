@@ -1,20 +1,23 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::{Attribute, Data, DeriveInput, Expr, Fields, Lit, LitStr, Meta, Token, Type};
 
-fn parse_desert_attributes(
-    attrs: &[Attribute],
-) -> (
-    bool,
-    bool,
-    Vec<proc_macro2::TokenStream>,
-    HashMap<String, Expr>,
-) {
+#[derive(Debug, Clone)]
+struct DesertAttributes {
+    transparent: bool,
+    sorted_constructors: bool,
+    custom: Option<Type>,
+    evolution_steps: Vec<proc_macro2::TokenStream>,
+    field_defaults: HashMap<String, Expr>,
+}
+
+fn parse_desert_attributes(attrs: &[Attribute]) -> DesertAttributes {
     let mut transparent = false;
     let mut sorted_constructors = false;
+    let mut custom: Option<Type> = None;
     let mut evolution_steps = Vec::new();
     let mut field_defaults = HashMap::new();
 
@@ -127,21 +130,28 @@ fn parse_desert_attributes(
                         }
                     }
                     Meta::NameValue(name_value) => {
-                        panic!(
-                            "Invalid desert attribute: {:?}",
-                            name_value.path.get_ident()
-                        );
+                        if name_value.path.is_ident("custom") {
+                            let ty: Type = syn::parse2(name_value.value.to_token_stream())
+                                .expect("custom attribute must be a type");
+                            custom = Some(ty);
+                        } else {
+                            panic!(
+                                "Invalid desert attribute: {:?}",
+                                name_value.path.get_ident()
+                            );
+                        }
                     }
                 }
             }
         }
     }
-    (
+    DesertAttributes {
         transparent,
         sorted_constructors,
+        custom,
         evolution_steps,
         field_defaults,
-    )
+    }
 }
 
 fn check_raw(ident: &Ident) -> (String, bool) {
@@ -190,9 +200,14 @@ fn get_case_metadata_ident(name: &Ident, case_name: &Ident) -> Ident {
 pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).expect("derive input");
 
-    let (transparent, use_sorted_constructors, evolution_steps, field_defaults) =
-        parse_desert_attributes(&ast.attrs);
+    let attrs = parse_desert_attributes(&ast.attrs);
+    let transparent = attrs.transparent;
+    let use_sorted_constructors = attrs.sorted_constructors;
+    let evolution_steps = &attrs.evolution_steps;
+    let field_defaults = attrs.field_defaults;
     let version = evolution_steps.len();
+    let vplus1 = version + 1;
+
     let mut push_evolution_steps = Vec::new();
     for evolution_step in evolution_steps {
         push_evolution_steps.push(quote! {
@@ -233,32 +248,32 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 match &struct_data.fields {
                     Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
                         let gen = quote! {
-                        impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
-                        fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
-                        desert_rust::BinarySerializer::serialize(&self.0, context)
-                        }
-                        }
-                        impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
-                        fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
-                        Ok(Self(desert_rust::BinaryDeserializer::deserialize(context)?))
-                        }
-                        }
+                            impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
+                                fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
+                                    desert_rust::BinarySerializer::serialize(&self.0, context)
+                                }
+                            }
+                            impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
+                                fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
+                                    Ok(Self(desert_rust::BinaryDeserializer::deserialize(context)?))
+                                }
+                            }
                         };
                         return gen.into();
                     }
                     Fields::Named(fields) if fields.named.len() == 1 => {
                         let field_name = &fields.named[0].ident;
                         let gen = quote! {
-                        impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
-                        fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
-                        desert_rust::BinarySerializer::serialize(&self.#field_name, context)
-                        }
-                        }
-                        impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
-                        fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
-                        Ok(Self { #field_name: desert_rust::BinaryDeserializer::deserialize(context)? })
-                        }
-                        }
+                            impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
+                                fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
+                                    desert_rust::BinarySerializer::serialize(&self.#field_name, context)
+                                }
+                            }
+                            impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
+                                fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
+                                    Ok(Self { #field_name: desert_rust::BinaryDeserializer::deserialize(context)? })
+                                }
+                            }
                         };
                         return gen.into();
                     }
@@ -287,14 +302,15 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             }
             is_record = false;
 
-            let mut cases = Vec::new();
+            let mut ser_cases = Vec::new();
+            let mut deser_cases = Vec::new();
 
             let mut variants = enum_data.variants.iter().cloned().collect::<Vec<_>>();
             if use_sorted_constructors {
                 variants.sort_by_key(|variant| variant.ident.to_string());
             }
 
-            let mut effective_case_idx = 0;
+            let mut effective_case_idx: u32 = 0;
             for variant in variants {
                 let is_transient = variant
                     .attrs
@@ -325,103 +341,188 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 };
 
                 if !is_transient {
-                    let (variant_transparent, _, case_evolution_steps, case_field_defaults) =
-                        parse_desert_attributes(&variant.attrs);
-                    if variant_transparent {
-                        panic!("transparent not allowed on variants");
-                    }
-                    let version = case_evolution_steps.len();
-                    let mut case_push_evolution_steps = Vec::new();
-                    for evolution_step in case_evolution_steps {
-                        case_push_evolution_steps.push(quote! {
-                            evolution_steps.push(#evolution_step);
-                        });
-                    }
-                    let mut case_serialization_commands = Vec::new();
-                    let mut case_deserialization_commands = Vec::new();
-
-                    let new_v = if version == 0 {
-                        quote! { new_v0 }
-                    } else {
-                        quote! { new }
-                    };
-
-                    let case_metadata_name = get_case_metadata_ident(name, case_name);
-
-                    metadata.push(quote! {
-                        desert_rust::lazy_static! {
-                            static ref #case_metadata_name: desert_rust::adt::AdtMetadata = {
-                                let mut evolution_steps: Vec<desert_rust::Evolution> = Vec::new();
-                                evolution_steps.push(desert_rust::Evolution::InitialVersion);
-                                #(#case_push_evolution_steps)*
-
-                                desert_rust::adt::AdtMetadata::new(
-                                    evolution_steps,
-                                )
+                    let variant_attrs = parse_desert_attributes(&variant.attrs);
+                    let variant_transparent = variant_attrs.transparent;
+                    let variant_custom = variant_attrs.custom;
+                    let case_evolution_steps = &variant_attrs.evolution_steps;
+                    let case_field_defaults = variant_attrs.field_defaults;
+                    if variant_transparent || variant_custom.is_some() {
+                        // transparent on a variant case means we don't want to treat it as an evolvable record type, but directly
+                        // serialize the single-element field of it as-is
+                        // custom is similar to transparent but wraps the field in the provided type
+                        if variant.fields.len() != 1 {
+                            panic!("transparent/custom not allowed on non-single field variants");
+                        } else {
+                            let single_field = match &variant.fields {
+                                Fields::Named(named_fields) => {
+                                    named_fields.named[0].ident.clone().unwrap()
+                                }
+                                Fields::Unnamed(_) => Ident::new("field0", Span::call_site()),
+                                Fields::Unit => unreachable!(),
                             };
-                        }
-                    });
 
-                    derive_field_serialization(
-                        case_field_defaults,
-                        &mut case_serialization_commands,
-                        &mut case_deserialization_commands,
-                        &variant.fields,
-                    );
+                            if let Some(ref custom_type) = variant_custom {
+                                ser_cases.push(
+                                    quote! {
+                                        #pattern => {
+                                            serializer.write_constructor(
+                                                #effective_case_idx,
+                                                |desert_inner_serialization_context| {
+                                                    let wrapped = #custom_type(::std::borrow::Cow::Borrowed(#single_field));
+                                                    desert_rust::BinarySerializer::serialize(&wrapped, desert_inner_serialization_context)
+                                                }
+                                            )?;
+                                        }
+                                    }
+                                );
+                            } else {
+                                ser_cases.push(
+                                    quote! {
+                                        #pattern => {
+                                            serializer.write_constructor(
+                                                #effective_case_idx,
+                                                |desert_inner_serialization_context| {
+                                                    desert_rust::BinarySerializer::serialize(#single_field, desert_inner_serialization_context)
+                                                }
+                                            )?;
+                                        }
+                                    }
+                                );
+                            }
 
-                    cases.push(
-                        quote! {
-                        #pattern => {
-                            serializer.write_constructor(
-                                #effective_case_idx as u32,
-                                |desert_inner_serialization_context| {
-                                    let mut serializer = desert_rust::adt::AdtSerializer::#new_v(&#case_metadata_name, desert_inner_serialization_context);
-                                    #(#case_serialization_commands)*
-                                    serializer.finish()
+                            let construct_case = if let Some(ref custom_type) = variant_custom {
+                                match &variant.fields {
+                                    Fields::Unit => unreachable!(),
+                                    Fields::Named(_) => {
+                                        quote! { #name::#case_name {
+                                                #single_field: {
+                                                    let #custom_type(inner) = desert_rust::BinaryDeserializer::deserialize(context)?;
+                                                    inner.into_owned()
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Fields::Unnamed(_) => {
+                                        quote! { #name::#case_name({
+                                                let #custom_type(inner) = desert_rust::BinaryDeserializer::deserialize(context)?;
+                                                inner.into_owned()
+                                            })
+                                        }
+                                    }
                                 }
-                            )?;
-                        }
-                    }
-                    );
-
-                    let construct_case = match &variant.fields {
-                        Fields::Unit => {
-                            quote! { #name::#case_name }
-                        }
-                        Fields::Named(_) => {
-                            quote! { #name::#case_name {
-                                    #(#case_deserialization_commands)*
+                            } else {
+                                match &variant.fields {
+                                    Fields::Unit => unreachable!(),
+                                    Fields::Named(_) => {
+                                        quote! { #name::#case_name {
+                                                #single_field: desert_rust::BinaryDeserializer::deserialize(context)?
+                                            }
+                                        }
+                                    }
+                                    Fields::Unnamed(_) => {
+                                        quote! { #name::#case_name(desert_rust::BinaryDeserializer::deserialize(context)?) }
+                                    }
                                 }
+                            };
+
+                            deser_cases.push(quote! {
+                                #effective_case_idx => {
+                                    Ok(#construct_case)
+                                },
+                            });
+                        }
+                    } else {
+                        let version = case_evolution_steps.len();
+                        let vplus1 = version + 1;
+
+                        let mut case_push_evolution_steps = Vec::new();
+                        for evolution_step in case_evolution_steps {
+                            case_push_evolution_steps.push(quote! {
+                                evolution_steps.push(#evolution_step);
+                            });
+                        }
+                        let mut case_serialization_commands = Vec::new();
+                        let mut case_deserialization_commands = Vec::new();
+
+                        let new_v = if version == 0 {
+                            quote! { new_v0 }
+                        } else {
+                            quote! { new }
+                        };
+
+                        let case_metadata_name = get_case_metadata_ident(name, case_name);
+
+                        metadata.push(quote! {
+                            desert_rust::lazy_static! {
+                                static ref #case_metadata_name: desert_rust::adt::AdtMetadata = {
+                                    let mut evolution_steps: Vec<desert_rust::Evolution> = Vec::new();
+                                    evolution_steps.push(desert_rust::Evolution::InitialVersion);
+                                    #(#case_push_evolution_steps)*
+
+                                    desert_rust::adt::AdtMetadata::new(
+                                        evolution_steps,
+                                    )
+                                };
+                            }
+                        });
+
+                        derive_field_serialization(
+                            case_field_defaults,
+                            &mut case_serialization_commands,
+                            &mut case_deserialization_commands,
+                            &variant.fields,
+                        );
+
+                        ser_cases.push(
+                            quote! {
+                            #pattern => {
+                                serializer.write_constructor(
+                                    #effective_case_idx,
+                                    |desert_inner_serialization_context| {
+                                        let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#case_metadata_name, desert_inner_serialization_context);
+                                        #(#case_serialization_commands)*
+                                        serializer.finish()
+                                    }
+                                )?;
                             }
                         }
-                        Fields::Unnamed(_) => {
-                            quote! { #name::#case_name(#(#case_deserialization_commands)*) }
-                        }
-                    };
+                        );
 
-                    deserialization_commands.push(
-                        quote! {
-                            if let Some(result) = deserializer.read_constructor(#effective_case_idx as u32,
-                                |desert_inner_serialization_context| {
-                                    let stored_version = desert_inner_serialization_context.read_u8()?;
+                        let construct_case = match &variant.fields {
+                            Fields::Unit => {
+                                quote! { #name::#case_name }
+                            }
+                            Fields::Named(_) => {
+                                quote! { #name::#case_name {
+                                        #(#case_deserialization_commands)*
+                                    }
+                                }
+                            }
+                            Fields::Unnamed(_) => {
+                                quote! { #name::#case_name(#(#case_deserialization_commands)*) }
+                            }
+                        };
+
+                        deser_cases.push(
+                            quote! {
+                                #effective_case_idx => {
+                                    let stored_version = context.read_u8()?;
                                     let mut deserializer = if stored_version == 0 {
-                                        desert_rust::adt::AdtDeserializer::new_v0(&#case_metadata_name, desert_inner_serialization_context)?
+                                        desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#case_metadata_name, context)?
                                     } else {
-                                        desert_rust::adt::AdtDeserializer::new(&#case_metadata_name, desert_inner_serialization_context, stored_version)?
+                                        desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?
                                     };
                                     Ok(#construct_case)
-                                }
-                            )? {
-                                return Ok(result)
+                                },
                             }
-                       }
-                    );
+                        );
+                    }
 
                     effective_case_idx += 1;
                 } else {
                     let name_string = name.to_string();
                     let case_name_string = case_name.to_string();
-                    cases.push(quote! {
+                    ser_cases.push(quote! {
                         #pattern => {
                             return Err(desert_rust::Error::SerializingTransientConstructor {
                                 type_name: #name_string.to_string(),
@@ -434,8 +535,21 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
             serialization_commands.push(quote! {
                 match self {
-                    #(#cases),*
+                    #(#ser_cases),*
                 }
+            });
+
+            deserialization_commands.push(quote! {
+                 let desert_constructor_idx = deserializer.read_constructor_idx()?;
+                 match desert_constructor_idx {
+                     #(#deser_cases)*
+                    other => {
+                        Err(desert_rust::Error::InvalidConstructorId {
+                            type_name: stringify!(#name).to_string(),
+                            constructor_id: other,
+                        })
+                    }
+                 }
             });
         }
         Data::Union(_) => {
@@ -472,10 +586,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     } else {
         quote! {
             #(#deserialization_commands)*
-            Err(desert_rust::Error::InvalidConstructorId {
-                type_name: stringify!(#name).to_string(),
-                constructor_id: deserializer.read_or_get_constructor_idx().unwrap_or(u32::MAX),
-            })
         }
     };
 
@@ -485,7 +595,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         #[allow(unused_variables)]
         impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
             fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
-                let mut serializer = desert_rust::adt::AdtSerializer::#new_v(&#metadata_name, context);
+                let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#metadata_name, context);
                 #(#serialization_commands)*
                 serializer.finish()
             }
@@ -497,9 +607,9 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
                 let stored_version = context.read_u8()?;
                 let mut deserializer = if stored_version == 0 {
-                    desert_rust::adt::AdtDeserializer::new_v0(&#metadata_name, context)?
+                    desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#metadata_name, context)?
                 } else {
-                    desert_rust::adt::AdtDeserializer::new(&#metadata_name, context, stored_version)?
+                    desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?
                 };
                 #deserialization
             }

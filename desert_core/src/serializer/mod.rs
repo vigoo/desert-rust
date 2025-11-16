@@ -24,11 +24,16 @@ pub trait BinarySerializer {
     ) -> Result<()>;
 }
 
+pub enum BufferStack {
+    Direct,
+    Stacked { buffer_stack: Vec<Vec<u8>> },
+}
+
 pub struct SerializationContext<Output: BinaryOutput> {
     output: Output,
     state: State,
-    buffer_stack: Vec<Vec<u8>>, // TODO: remove it once AdtSerializer does not need it anymore
     options: Options,
+    buffer_stack: BufferStack,
 }
 
 impl<Output: BinaryOutput> SerializationContext<Output> {
@@ -36,8 +41,8 @@ impl<Output: BinaryOutput> SerializationContext<Output> {
         Self {
             output,
             state: State::default(),
-            buffer_stack: Vec::new(),
             options,
+            buffer_stack: BufferStack::Direct,
         }
     }
 
@@ -62,27 +67,62 @@ impl<Output: BinaryOutput> SerializationContext<Output> {
         }
     }
 
+    pub fn options(&self) -> &Options {
+        &self.options
+    }
+
     pub fn push_buffer(&mut self, buffer: Vec<u8>) {
-        self.buffer_stack.push(buffer);
+        match &mut self.buffer_stack {
+            BufferStack::Direct => {
+                self.buffer_stack = BufferStack::Stacked {
+                    buffer_stack: vec![buffer],
+                };
+            }
+            BufferStack::Stacked { buffer_stack } => {
+                buffer_stack.push(buffer);
+            }
+        }
     }
 
     pub fn pop_buffer(&mut self) -> Vec<u8> {
-        self.buffer_stack.pop().unwrap()
+        match &mut self.buffer_stack {
+            BufferStack::Direct => {
+                panic!("pop_buffer called with no buffer on stack");
+            }
+            BufferStack::Stacked { buffer_stack } => {
+                let bytes = unsafe { buffer_stack.pop().unwrap_unchecked() };
+                if buffer_stack.is_empty() {
+                    self.buffer_stack = BufferStack::Direct;
+                }
+                bytes
+            }
+        }
     }
 }
 
 impl<Output: BinaryOutput> BinaryOutput for SerializationContext<Output> {
+    #[inline(always)]
     fn write_u8(&mut self, value: u8) {
-        match self.buffer_stack.last_mut() {
-            Some(buffer) => buffer.write_u8(value),
-            None => self.output.write_u8(value),
+        match &mut self.buffer_stack {
+            BufferStack::Direct => self.output.write_u8(value),
+            BufferStack::Stacked { buffer_stack, .. } => {
+                unsafe { buffer_stack.last_mut().unwrap_unchecked().write_u8(value) };
+            }
         }
     }
 
+    #[inline(always)]
     fn write_bytes(&mut self, bytes: &[u8]) {
-        match self.buffer_stack.last_mut() {
-            Some(buffer) => buffer.write_bytes(bytes),
-            None => self.output.write_bytes(bytes),
+        match &mut self.buffer_stack {
+            BufferStack::Direct => self.output.write_bytes(bytes),
+            BufferStack::Stacked { buffer_stack } => {
+                unsafe {
+                    buffer_stack
+                        .last_mut()
+                        .unwrap_unchecked()
+                        .write_bytes(bytes)
+                };
+            }
         }
     }
 }
@@ -103,6 +143,7 @@ pub enum StoreRefResult {
 }
 
 impl BinarySerializer for u8 {
+    #[inline(always)]
     fn serialize<Output: BinaryOutput>(
         &self,
         context: &mut SerializationContext<Output>,
@@ -374,7 +415,7 @@ impl BinarySerializer for char {
         &self,
         context: &mut SerializationContext<Output>,
     ) -> Result<()> {
-        if context.options.chars_as_u16 {
+        if context.options().chars_as_u16 {
             let mut buf = [0; 2];
             let result = self.encode_utf16(&mut buf);
             if result.len() == 1 {

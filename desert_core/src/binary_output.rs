@@ -116,10 +116,12 @@ impl BinaryOutput for BytesMut {
 }
 
 impl BinaryOutput for Vec<u8> {
+    #[inline(always)]
     fn write_u8(&mut self, value: u8) {
         self.push(value);
     }
 
+    #[inline(always)]
     fn write_bytes(&mut self, bytes: &[u8]) {
         self.extend_from_slice(bytes);
     }

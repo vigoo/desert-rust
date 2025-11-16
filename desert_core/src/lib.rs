@@ -1,7 +1,7 @@
 pub mod adt;
 mod binary_input;
 mod binary_output;
-mod deserializer;
+pub mod deserializer;
 mod error;
 mod evolution;
 mod features;
@@ -16,7 +16,7 @@ use std::fmt::{Display, Formatter};
 
 pub use binary_input::{BinaryInput, OwnedInput, SliceInput};
 pub use binary_output::{BinaryOutput, SizeCalculator};
-pub use deserializer::{BinaryDeserializer, DeserializationContext};
+pub use deserializer::{deserialize_iterator, BinaryDeserializer, DeserializationContext};
 pub use error::{Error, Result};
 pub use evolution::Evolution;
 pub use serializer::{serialize_iterator, BinarySerializer, SerializationContext};
