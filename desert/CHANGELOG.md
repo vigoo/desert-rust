@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.4...desert_rust-v0.1.5) - 2025-11-16
+
+### Other
+
+- Ability to write custom serializers for transparent variant cases
+- More optimizations
+- Serializer opts
+- Further deser opt
+- Better benchmark, v0 deser optimizations
+
 ## [0.1.4](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.3...desert_rust-v0.1.4) - 2025-11-11
 
 ### Fixed
