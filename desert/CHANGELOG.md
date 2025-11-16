@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.5...desert_rust-v0.1.6) - 2025-11-16
+
+### Other
+
+- Extend the transparent variant feature to work on unit cases
+
 ## [0.1.5](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.4...desert_rust-v0.1.5) - 2025-11-16
 
 ### Other

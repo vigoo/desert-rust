@@ -1,6 +1,6 @@
 [package]
 name = "desert_rust"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 license = "Apache-2.0"
 description = "Binary serialization library for Rust"
@@ -13,7 +13,7 @@ path = "src/lib.rs"
 
 [dependencies]
 desert_core = { path = "../desert_core", version = "0.1.4" }
-desert_macro = { path = "../desert_macro", version = "0.1.5" }
+desert_macro = { path = "../desert_macro", version = "0.1.6" }
 
 [dev-dependencies]
 arbitrary = { version = "1.4.2", features = ["derive"] }
