@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::{Attribute, Data, DeriveInput, Expr, Fields, Lit, LitStr, Meta, Token, Type};
 
-#[derive(Debug, Clone)]
 struct DesertAttributes {
     transparent: bool,
     sorted_constructors: bool,
