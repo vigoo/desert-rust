@@ -349,86 +349,108 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                         // transparent on a variant case means we don't want to treat it as an evolvable record type, but directly
                         // serialize the single-element field of it as-is
                         // custom is similar to transparent but wraps the field in the provided type
-                        if variant.fields.len() != 1 {
-                            panic!("transparent/custom not allowed on non-single field variants");
+                        if !((variant.fields.len() == 0 && variant_transparent)
+                            || variant.fields.len() == 1)
+                        {
+                            panic!("transparent and custom are not allowed on non-single field variants");
                         } else {
-                            let single_field = match &variant.fields {
-                                Fields::Named(named_fields) => {
-                                    named_fields.named[0].ident.clone().unwrap()
-                                }
-                                Fields::Unnamed(_) => Ident::new("field0", Span::call_site()),
-                                Fields::Unit => unreachable!(),
-                            };
-
-                            if let Some(ref custom_type) = variant_custom {
-                                ser_cases.push(
-                                    quote! {
-                                        #pattern => {
-                                            serializer.write_constructor(
-                                                #effective_case_idx,
-                                                |desert_inner_serialization_context| {
-                                                    let wrapped = #custom_type(::std::borrow::Cow::Borrowed(#single_field));
-                                                    desert_rust::BinarySerializer::serialize(&wrapped, desert_inner_serialization_context)
-                                                }
-                                            )?;
-                                        }
+                            if matches!(variant.fields, Fields::Unit) {
+                                // A transparent unit variant is represented by just the constructor idx and
+                                // not extendable later with fields
+                                ser_cases.push(quote! {
+                                    #pattern => {
+                                        serializer.write_constructor(
+                                            #effective_case_idx,
+                                            |desert_inner_serialization_context| {
+                                                Ok(())
+                                            }
+                                        )?;
                                     }
-                                );
+                                });
+                                deser_cases.push(quote! {
+                                    #effective_case_idx => {
+                                        Ok(#name::#case_name)
+                                    },
+                                });
                             } else {
-                                ser_cases.push(
-                                    quote! {
-                                        #pattern => {
-                                            serializer.write_constructor(
-                                                #effective_case_idx,
-                                                |desert_inner_serialization_context| {
-                                                    desert_rust::BinarySerializer::serialize(#single_field, desert_inner_serialization_context)
-                                                }
-                                            )?;
-                                        }
+                                let single_field = match &variant.fields {
+                                    Fields::Named(named_fields) => {
+                                        named_fields.named[0].ident.clone().unwrap()
                                     }
-                                );
-                            }
-
-                            let construct_case = if let Some(ref custom_type) = variant_custom {
-                                match &variant.fields {
+                                    Fields::Unnamed(_) => Ident::new("field0", Span::call_site()),
                                     Fields::Unit => unreachable!(),
-                                    Fields::Named(_) => {
-                                        quote! { #name::#case_name {
-                                                #single_field: {
+                                };
+
+                                if let Some(ref custom_type) = variant_custom {
+                                    ser_cases.push(
+                                        quote! {
+                                            #pattern => {
+                                                serializer.write_constructor(
+                                                    #effective_case_idx,
+                                                    |desert_inner_serialization_context| {
+                                                        let wrapped = #custom_type(::std::borrow::Cow::Borrowed(#single_field));
+                                                        desert_rust::BinarySerializer::serialize(&wrapped, desert_inner_serialization_context)
+                                                    }
+                                                )?;
+                                            }
+                                        }
+                                    );
+                                } else {
+                                    ser_cases.push(
+                                        quote! {
+                                            #pattern => {
+                                                serializer.write_constructor(
+                                                    #effective_case_idx,
+                                                    |desert_inner_serialization_context| {
+                                                        desert_rust::BinarySerializer::serialize(#single_field, desert_inner_serialization_context)
+                                                    }
+                                                )?;
+                                            }
+                                        }
+                                    );
+                                }
+
+                                let construct_case = if let Some(ref custom_type) = variant_custom {
+                                    match &variant.fields {
+                                        Fields::Unit => unreachable!(),
+                                        Fields::Named(_) => {
+                                            quote! { #name::#case_name {
+                                                    #single_field: {
+                                                        let #custom_type(inner) = desert_rust::BinaryDeserializer::deserialize(context)?;
+                                                        inner.into_owned()
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Fields::Unnamed(_) => {
+                                            quote! { #name::#case_name({
                                                     let #custom_type(inner) = desert_rust::BinaryDeserializer::deserialize(context)?;
                                                     inner.into_owned()
+                                                })
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    match &variant.fields {
+                                        Fields::Unit => unreachable!(),
+                                        Fields::Named(_) => {
+                                            quote! { #name::#case_name {
+                                                    #single_field: desert_rust::BinaryDeserializer::deserialize(context)?
                                                 }
                                             }
                                         }
-                                    }
-                                    Fields::Unnamed(_) => {
-                                        quote! { #name::#case_name({
-                                                let #custom_type(inner) = desert_rust::BinaryDeserializer::deserialize(context)?;
-                                                inner.into_owned()
-                                            })
+                                        Fields::Unnamed(_) => {
+                                            quote! { #name::#case_name(desert_rust::BinaryDeserializer::deserialize(context)?) }
                                         }
                                     }
-                                }
-                            } else {
-                                match &variant.fields {
-                                    Fields::Unit => unreachable!(),
-                                    Fields::Named(_) => {
-                                        quote! { #name::#case_name {
-                                                #single_field: desert_rust::BinaryDeserializer::deserialize(context)?
-                                            }
-                                        }
-                                    }
-                                    Fields::Unnamed(_) => {
-                                        quote! { #name::#case_name(desert_rust::BinaryDeserializer::deserialize(context)?) }
-                                    }
-                                }
-                            };
+                                };
 
-                            deser_cases.push(quote! {
-                                #effective_case_idx => {
-                                    Ok(#construct_case)
-                                },
-                            });
+                                deser_cases.push(quote! {
+                                    #effective_case_idx => {
+                                        Ok(#construct_case)
+                                    },
+                                });
+                            }
                         }
                     } else {
                         let version = case_evolution_steps.len();

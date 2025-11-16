@@ -85,6 +85,19 @@ enum EnumWithCustom {
     Regular(String),
 }
 
+#[derive(Debug, PartialEq, BinaryCodec)]
+enum EnumWithTransparent {
+    #[desert(transparent)]
+    A,
+    #[desert(transparent)]
+    B,
+    #[desert(transparent)]
+    C(String),
+    D {
+        value: String,
+    },
+}
+
 #[test]
 fn debug() {
     let pt = Point {
@@ -172,4 +185,27 @@ fn debug() {
     let bytes_regular = serialize_to_bytes(&regular).unwrap();
     let regular2: EnumWithCustom = deserialize(&bytes_regular).unwrap();
     check!(regular == regular2);
+
+    // Test transparent variants
+    let transparent_a = EnumWithTransparent::A;
+    let bytes_transparent_a = serialize_to_bytes(&transparent_a).unwrap();
+    let transparent_a2: EnumWithTransparent = deserialize(&bytes_transparent_a).unwrap();
+    check!(transparent_a == transparent_a2);
+
+    let transparent_b = EnumWithTransparent::B;
+    let bytes_transparent_b = serialize_to_bytes(&transparent_b).unwrap();
+    let transparent_b2: EnumWithTransparent = deserialize(&bytes_transparent_b).unwrap();
+    check!(transparent_b == transparent_b2);
+
+    let transparent_c = EnumWithTransparent::C("hello".to_string());
+    let bytes_transparent_c = serialize_to_bytes(&transparent_c).unwrap();
+    let transparent_c2: EnumWithTransparent = deserialize(&bytes_transparent_c).unwrap();
+    check!(transparent_c == transparent_c2);
+
+    let transparent_d = EnumWithTransparent::D {
+        value: "hello".to_string(),
+    };
+    let bytes_transparent_d = serialize_to_bytes(&transparent_d).unwrap();
+    let transparent_d2: EnumWithTransparent = deserialize(&bytes_transparent_d).unwrap();
+    check!(transparent_d == transparent_d2);
 }
