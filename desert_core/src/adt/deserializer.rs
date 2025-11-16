@@ -10,7 +10,6 @@ pub struct AdtDeserializer<'a, 'b, 'c, const V: usize> {
     metadata: &'a AdtMetadata,
     context: &'b mut DeserializationContext<'c>,
     last_index_per_chunk: Option<[i8; V]>,
-    read_constructor_idx: Option<u32>,
 
     stored_version: u8,
     made_optional_at: Option<BTreeMap<FieldPosition, u8>>,
@@ -27,7 +26,6 @@ impl<'a, 'b, 'c, const V: usize> AdtDeserializer<'a, 'b, 'c, V> {
             metadata,
             context,
             last_index_per_chunk: None,
-            read_constructor_idx: None,
             stored_version: 0,
             made_optional_at: None,
             removed_fields: None,
@@ -79,7 +77,6 @@ impl<'a, 'b, 'c, const V: usize> AdtDeserializer<'a, 'b, 'c, V> {
             } else {
                 Some([-1i8; V])
             },
-            read_constructor_idx: None,
             stored_version,
             made_optional_at: if made_optional_at.is_empty() {
                 None
@@ -213,19 +210,6 @@ impl<'a, 'b, 'c, const V: usize> AdtDeserializer<'a, 'b, 'c, V> {
         }
     }
 
-    pub fn read_constructor<T>(
-        &mut self,
-        case_idx: u32,
-        deserialize_case: impl FnOnce(&mut DeserializationContext<'c>) -> Result<T>,
-    ) -> Result<Option<T>> {
-        let constructor_idx = self.read_or_get_constructor_idx()?;
-        if constructor_idx == case_idx {
-            Ok(Some(deserialize_case(self.context)?))
-        } else {
-            Ok(None)
-        }
-    }
-
     fn record_field_index(&mut self, chunk: u8) -> FieldPosition {
         if let Some(last_index_per_chunk) = self.last_index_per_chunk.as_mut() {
             // We only need to track this information when we have made_optional_at information
@@ -240,14 +224,7 @@ impl<'a, 'b, 'c, const V: usize> AdtDeserializer<'a, 'b, 'c, V> {
         }
     }
 
-    pub fn read_or_get_constructor_idx(&mut self) -> Result<u32> {
-        match self.read_constructor_idx {
-            Some(idx) => Ok(idx),
-            None => {
-                let constructor_idx = self.context.read_var_u32()?;
-                self.read_constructor_idx = Some(constructor_idx);
-                Ok(constructor_idx)
-            }
-        }
+    pub fn read_constructor_idx(&mut self) -> Result<u32> {
+        self.context.read_var_u32()
     }
 }
