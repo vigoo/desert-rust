@@ -84,7 +84,10 @@ pub struct FieldPosition {
 }
 
 impl FieldPosition {
-    const EMPTY: Self = FieldPosition { chunk: 0, position: 0 };
+    const EMPTY: Self = FieldPosition {
+        chunk: 0,
+        position: 0,
+    };
 
     pub fn new(chunk: u8, position: u8) -> Self {
         Self { chunk, position }

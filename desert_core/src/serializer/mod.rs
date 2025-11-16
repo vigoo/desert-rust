@@ -27,7 +27,7 @@ pub trait BinarySerializer {
 pub struct SerializationContext<Output: BinaryOutput> {
     output: Output,
     state: State,
-    buffer_stack: Vec<Vec<u8>>, // TODO: remove it once AdtSerializer does not need it anymore
+    buffer_stack: Vec<Vec<u8>>,
     options: Options,
 }
 
@@ -105,7 +105,6 @@ pub enum StoreRefResult {
 }
 
 impl BinarySerializer for u8 {
-
     #[inline(always)]
     fn serialize<Output: BinaryOutput>(
         &self,

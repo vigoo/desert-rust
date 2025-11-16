@@ -424,7 +424,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                                 serializer.write_constructor(
                                     #effective_case_idx,
                                     |desert_inner_serialization_context| {
-                                        let mut serializer = desert_rust::adt::AdtSerializer::#new_v(&#case_metadata_name, desert_inner_serialization_context);
+                                        let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#case_metadata_name, desert_inner_serialization_context);
                                         #(#case_serialization_commands)*
                                         serializer.finish()
                                     }
@@ -540,7 +540,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         #[allow(unused_variables)]
         impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
             fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
-                let mut serializer = desert_rust::adt::AdtSerializer::#new_v(&#metadata_name, context);
+                let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#metadata_name, context);
                 #(#serialization_commands)*
                 serializer.finish()
             }
