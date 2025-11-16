@@ -707,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "desert_macro"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "arbitrary",
  "assert2",
@@ -725,7 +725,7 @@ dependencies = [
 
 [[package]]
 name = "desert_rust"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "arbitrary",
  "assert2",
