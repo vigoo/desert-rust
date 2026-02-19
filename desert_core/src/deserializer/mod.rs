@@ -18,7 +18,6 @@ use crate::{DeduplicatedString, Error, Options, RefId, StringId};
 use bytes::Bytes;
 use once_cell::unsync::Lazy;
 
-
 #[allow(clippy::type_complexity)]
 mod tuples;
 
