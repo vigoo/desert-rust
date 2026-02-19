@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.6...desert_rust-v0.1.7) - 2026-02-19
+
+### Other
+
+- Warning fix
+- Removed the stable-intrinsics dep
+- Merge pull request #27 from vigoo/no-stable-intrinsics
+
 ## [0.1.6](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.5...desert_rust-v0.1.6) - 2025-11-16
 
 ### Other
