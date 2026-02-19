@@ -17,7 +17,6 @@ use crate::state::State;
 use crate::{DeduplicatedString, Error, Options, RefId, StringId};
 use bytes::Bytes;
 use once_cell::unsync::Lazy;
-use stable_intrinsics::transmute_unchecked;
 
 #[allow(clippy::type_complexity)]
 mod tuples;
@@ -437,7 +436,7 @@ impl<T: BinaryDeserializer + 'static, const L: usize> BinaryDeserializer for [T;
             let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.read_bytes(length as usize)?;
             let array: [u8; L] = bytes.try_into().unwrap();
-            Ok(unsafe { transmute_unchecked(array) })
+            Ok(unsafe { std::mem::transmute_copy(&array) })
         } else {
             let mut array: [MaybeUninit<T>; L] = unsafe { MaybeUninit::uninit().assume_init() };
             for (target, item) in array.iter_mut().zip(deserialize_iterator(context).0) {

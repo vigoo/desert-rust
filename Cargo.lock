@@ -266,9 +266,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
+checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
 name = "cast"
@@ -691,7 +691,6 @@ dependencies = [
  "proptest",
  "proptest-arbitrary-interop",
  "serde_json",
- "stable-intrinsics",
  "test-r",
  "url",
  "uuid",
@@ -2016,15 +2015,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 dependencies = [
  "lock_api",
-]
-
-[[package]]
-name = "stable-intrinsics"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "280951ef0d09e36756bee26e4d72f3d7af006ebd6bea4e1d021d010ab08b47be"
-dependencies = [
- "rustversion",
 ]
 
 [[package]]

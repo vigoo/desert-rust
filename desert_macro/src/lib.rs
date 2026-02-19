@@ -247,11 +247,13 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 match &struct_data.fields {
                     Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
                         let gen = quote! {
+                            #[allow(unused_assignments, unused_variables)]
                             impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
                                 fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
                                     desert_rust::BinarySerializer::serialize(&self.0, context)
                                 }
                             }
+                            #[allow(unused_assignments, unused_variables)]
                             impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
                                 fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
                                     Ok(Self(desert_rust::BinaryDeserializer::deserialize(context)?))
@@ -263,11 +265,13 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     Fields::Named(fields) if fields.named.len() == 1 => {
                         let field_name = &fields.named[0].ident;
                         let gen = quote! {
+                            #[allow(unused_assignments, unused_variables)]
                             impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
                                 fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
                                     desert_rust::BinarySerializer::serialize(&self.#field_name, context)
                                 }
                             }
+                            #[allow(unused_assignments, unused_variables)]
                             impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
                                 fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
                                     Ok(Self { #field_name: desert_rust::BinaryDeserializer::deserialize(context)? })
@@ -611,8 +615,8 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let gen = quote! {
         #(#metadata)*
 
-        #[allow(unused_variables)]
         impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
+            #[allow(unused_assignments, unused_variables)]
             fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
                 let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#metadata_name, context);
                 #(#serialization_commands)*
@@ -621,6 +625,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
         }
 
         impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
+            #[allow(unused_assignments, unused_variables)]
             fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
                 use desert_rust::BinaryInput;
 
