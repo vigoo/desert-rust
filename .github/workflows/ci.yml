@@ -16,7 +16,7 @@
 # -------------------------------------------------------------------
 
 name: CI
-on:
+'on':
   pull_request: {}
   push:
     branches:
@@ -77,4 +77,4 @@ jobs:
       with:
         cname: desert-rust.vigoo.dev
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./book/book
+        publish_dir: './book/book'

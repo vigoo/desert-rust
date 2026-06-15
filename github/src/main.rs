@@ -28,7 +28,7 @@ fn main() {
                     ),
                 ))
                 .runs_on("${{ matrix.os }}")
-                .add_step(Step::checkout())
+                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v6"))
                 .add_step(toolchain.clone())
                 .add_step(Cargo::new("test")),
         )
@@ -36,7 +36,7 @@ fn main() {
             "checks",
             Job::new("Checks")
                 .runs_on_("ubuntu-latest")
-                .add_step(Step::checkout())
+                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v6"))
                 .add_step(toolchain.clone())
                 .add_step(Step::install_action().add_tool("cargo-deny"))
                 .add_step(Cargo::new("clippy").args("--no-deps --all-targets -- -Dwarnings"))
@@ -47,7 +47,7 @@ fn main() {
             "deploy-book",
             Job::new("Deploy book")
                 .runs_on_("ubuntu-latest")
-                .add_step(Step::checkout())
+                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v6"))
                 .add_step(Step::setup_mdbook())
                 .add_step(
                     Step::new("Build MDbook")
@@ -72,7 +72,11 @@ fn main() {
             Job::new("Release plz")
                 .runs_on_("ubuntu-latest")
                 .concurrency(Concurrency::default().group("release-plz-${{ github.ref }}").cancel_in_progress(true))
-                .add_step(Step::checkout().add_with(("fetch-depth", "0")))
+                .add_step(
+                    Step::new("Checkout Code")
+                        .uses("actions", "checkout", "v6")
+                        .add_with(("fetch-depth", "0")),
+                )
                 .add_step(toolchain)
                 .add_step(
                     Step::new("Close old release PR").run(r#"
@@ -87,7 +91,22 @@ fn main() {
                           fi"#)
                         .add_env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}")),
                 )
-                .add_step(Step::new("release-plz").uses("MarcoIeni", "release-plz-action", "v0.5")
+                .add_step(Step::new("release-plz release-pr").uses("MarcoIeni", "release-plz-action", "v0.5")
+                    .add_with(("command", "release-pr"))
+                    .add_env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
+                    .add_env(("CARGO_REGISTRY_TOKEN", "${{ secrets.CARGO_REGISTRY_TOKEN }}"))
+                )
+                .add_step(
+                    Step::new("Remove Cargo.lock before publishing").run(r#"
+                          # cargo publish uses Cargo.lock while preparing workspace packages.
+                          # The latest test-r depends on the previously published desert_rust,
+                          # which can lock older desert_core versions during staged releases.
+                          # Publishing without the workspace lock lets Cargo resolve the freshly
+                          # published crate versions from crates.io.
+                          rm Cargo.lock"#),
+                )
+                .add_step(Step::new("release-plz release").uses("MarcoIeni", "release-plz-action", "v0.5")
+                    .add_with(("command", "release"))
                     .add_env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
                     .add_env(("CARGO_REGISTRY_TOKEN", "${{ secrets.CARGO_REGISTRY_TOKEN }}"))
                 )

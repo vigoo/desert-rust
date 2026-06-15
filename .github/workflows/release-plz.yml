@@ -16,7 +16,7 @@
 # -------------------------------------------------------------------
 
 name: release-plz
-on:
+'on':
   push:
     branches:
     - master
@@ -27,6 +27,9 @@ jobs:
   release-plz:
     name: Release plz
     runs-on: ubuntu-latest
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: true
     steps:
     - name: Checkout Code
       uses: actions/checkout@v6
@@ -48,11 +51,26 @@ jobs:
                                   fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: release-plz
+    - name: release-plz release-pr
       uses: MarcoIeni/release-plz-action@v0.5
+      with:
+        command: release-pr
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-    concurrency:
-      group: release-plz-${{ github.ref }}
-      cancel-in-progress: true
+    - name: Remove Cargo.lock before publishing
+      run: |2-
+
+                                  # cargo publish uses Cargo.lock while preparing workspace packages.
+                                  # The latest test-r depends on the previously published desert_rust,
+                                  # which can lock older desert_core versions during staged releases.
+                                  # Publishing without the workspace lock lets Cargo resolve the freshly
+                                  # published crate versions from crates.io.
+                                  rm Cargo.lock
+    - name: release-plz release
+      uses: MarcoIeni/release-plz-action@v0.5
+      with:
+        command: release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
