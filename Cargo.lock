@@ -2218,39 +2218,14 @@ dependencies = [
 
 [[package]]
 name = "test-r"
-version = "2.3.1"
+version = "3.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e625ae01bded7c86830e0f101f456fca4578c3ac5f85851fd8c442c4d085fb9a"
+checksum = "54f55a46ee6142eaef8e458cea84684ee2de40508fd41c27a547b845e3a74e78"
 dependencies = [
  "ctor",
- "test-r-core 5.0.1",
+ "test-r-core",
  "test-r-macro",
  "tokio",
-]
-
-[[package]]
-name = "test-r-core"
-version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0662d87d46d255dd0d2704c2e7909d21299c6498851a24f73edf5e026c9bd902"
-dependencies = [
- "anstream",
- "anstyle",
- "anstyle-query",
- "anstyle-wincon",
- "bincode",
- "clap",
- "ctrf-rs",
- "escape8259",
- "futures",
- "interprocess",
- "parking_lot",
- "quick-xml",
- "rand 0.9.4",
- "serde_json",
- "tokio",
- "topological-sort",
- "uuid",
 ]
 
 [[package]]
@@ -2293,7 +2268,7 @@ dependencies = [
  "quote",
  "rand 0.10.1",
  "syn 2.0.117",
- "test-r-core 10.0.0",
+ "test-r-core",
 ]
 
 [[package]]
