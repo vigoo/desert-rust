@@ -745,20 +745,16 @@ fn is_option(ty: &Type) -> bool {
     match ty {
         Type::Group(group) => is_option(&group.elem),
         Type::Paren(paren) => is_option(&paren.elem),
-        Type::Path(type_path) => {
-            if type_path.qself.is_none() {
-                let idents = type_path
-                    .path
-                    .segments
-                    .iter()
-                    .map(|segment| segment.ident.to_string())
-                    .collect::<Vec<_>>();
-                idents == vec!["Option"]
-                    || idents == vec!["std", "option", "Option"]
-                    || idents == vec!["core", "option", "Option"]
-            } else {
-                false
-            }
+        Type::Path(type_path) if type_path.qself.is_none() => {
+            let idents = type_path
+                .path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>();
+            idents == vec!["Option"]
+                || idents == vec!["std", "option", "Option"]
+                || idents == vec!["core", "option", "Option"]
         }
         _ => false,
     }
