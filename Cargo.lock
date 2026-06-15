@@ -663,26 +663,6 @@ dependencies = [
 
 [[package]]
 name = "desert_core"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47c629b264e47dba69c637cfd85b36c0fe75d4cbabbef46e71a21d644153b1f6"
-dependencies = [
- "bigdecimal 0.4.10",
- "bytes",
- "castaway",
- "chrono",
- "chrono-tz",
- "flate2",
- "hashbrown 0.16.1",
- "lazy_static",
- "nonempty-collections 0.3.1",
- "once_cell",
- "serde_json",
- "uuid",
-]
-
-[[package]]
-name = "desert_core"
 version = "0.1.6"
 dependencies = [
  "bigdecimal 0.4.10",
@@ -695,13 +675,33 @@ dependencies = [
  "hashbrown 0.16.1",
  "lazy_static",
  "mac_address",
- "nonempty-collections 1.3.0",
+ "nonempty-collections",
  "once_cell",
  "proptest",
  "proptest-arbitrary-interop",
  "serde_json",
  "test-r",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "desert_core"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b8c38f257bbf71fa47c1dfdec787bdd20d86579652717dcd13de600e707c529"
+dependencies = [
+ "bigdecimal 0.4.10",
+ "bytes",
+ "castaway",
+ "chrono",
+ "chrono-tz",
+ "flate2",
+ "hashbrown 0.16.1",
+ "lazy_static",
+ "nonempty-collections",
+ "once_cell",
+ "serde_json",
  "uuid",
 ]
 
@@ -720,7 +720,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773a12aadc426df848e875d473fbf4b6fe05d41153276627e94a37902071a0ea"
 dependencies = [
  "bytes",
- "desert_core 0.1.5",
+ "desert_core 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static",
  "proc-macro2",
  "quote",
@@ -751,7 +751,7 @@ version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05b00e5b0b0514bb580f5f504422069a48d4e213ccace4973ff3ee16ee11a346"
 dependencies = [
- "desert_core 0.1.5",
+ "desert_core 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "desert_macro 0.1.7",
 ]
 
@@ -1505,12 +1505,6 @@ dependencies = [
  "libc",
  "memoffset",
 ]
-
-[[package]]
-name = "nonempty-collections"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e216d0e8cf9d54fa66e5780f6e1d5dc96d1c1b3c25aeba3b6758548bcbbd8b9d"
 
 [[package]]
 name = "nonempty-collections"
