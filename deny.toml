@@ -9,9 +9,7 @@ exclude = ["desert_github", "desert_benchmarks"]
 feature-depth = 1
 
 [advisories]
-ignore = [
-    "RUSTSEC-2025-0141", # bincode unmaintained - transitive dep from test-r
-]
+ignore = []
 
 [licenses]
 allow = ["Apache-2.0", "MIT", "Unicode-3.0", "Zlib"]
@@ -33,7 +31,9 @@ external-default-features = "allow"
 allow = []
 deny = []
 
-skip = []
+skip = [
+    { name = "wit-bindgen", version = "0.51.0" },
+]
 skip-tree = []
 
 [sources]

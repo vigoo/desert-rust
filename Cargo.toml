@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.dependencies]
-test-r = "2.3.1"
+test-r = "3.0.10"
 
 # Enable when profiling
 #[profile.release]
