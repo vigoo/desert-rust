@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - desert</title>
-        <base href="/">
+        <title>Rust and Scala differences - desert</title>
 
 
         <!-- Custom HTML head -->
@@ -176,14 +175,155 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="rust-and-scala-differences"><a class="header" href="#rust-and-scala-differences">Rust and Scala differences</a></h1>
+<p>The Rust library follows the same design goals as the original Scala <code>desert</code>
+library: compact binary data, ADT support, and schema evolution. The APIs are
+different because Rust and Scala expose different language tools.</p>
+<p>This page is a guide for readers who know the Scala documentation and want to
+understand what changed in <code>desert-rust</code>.</p>
+<h2 id="crate-layout"><a class="header" href="#crate-layout">Crate layout</a></h2>
+<p>Rust has three workspace crates:</p>
+<ul>
+<li><code>desert_rust</code>: public facade crate, re-exporting the core library and derive
+macro</li>
+<li><code>desert_core</code>: serialization, deserialization, state, codecs, and evolution
+logic</li>
+<li><code>desert_macro</code>: <code>#[derive(BinaryCodec)]</code></li>
+</ul>
+<p>Scala has separate modules for core codecs, derivation implementations, and
+ecosystem integrations such as Akka, Pekko, Cats, ZIO, and Shardcake. Those
+integration modules do not exist in the Rust project.</p>
+<h2 id="dependency-model"><a class="header" href="#dependency-model">Dependency model</a></h2>
+<p>Scala users choose between derivation modules such as Shapeless or ZIO Schema.
+Rust users depend on <code>desert_rust</code> and use one derive macro:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(BinaryCodec)]
+struct Point {
+    x: i32,
+    y: i32,
+}</code></pre>
+<p>Third-party Rust codecs are controlled by Cargo feature flags, for example
+<code>uuid</code>, <code>chrono</code>, and <code>serde-json</code>.</p>
+<h2 id="codec-discovery"><a class="header" href="#codec-discovery">Codec discovery</a></h2>
+<p>Scala uses implicit <code>BinaryCodec[T]</code> values. Rust uses trait implementations:</p>
+<ul>
+<li><code>BinarySerializer</code> writes a type.</li>
+<li><code>BinaryDeserializer</code> reads a type.</li>
+<li><code>BinaryCodec</code> is implemented automatically when both are present.</li>
+</ul>
+<p>There is no implicit search at runtime. If a generic function needs a codec, it
+uses Rust trait bounds:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinarySerializer, Result, serialize_to_byte_vec};
+
+fn encode&lt;T: BinarySerializer&gt;(value: &amp;T) -&gt; Result&lt;Vec&lt;u8&gt;&gt; {
+    serialize_to_byte_vec(value)
+}</code></pre>
+<h2 id="error-handling"><a class="header" href="#error-handling">Error handling</a></h2>
+<p>Scala APIs return an effect or an <code>Either</code>-like result depending on the module.
+Rust APIs return <code>desert_rust::Result&lt;T&gt;</code>, whose error type is
+<code>desert_rust::Error</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, Error};
+
+let result: Result&lt;i32, Error&gt; = deserialize(&amp;[0, 0, 0, 1]);</code></pre>
+<h2 id="derivation-attributes"><a class="header" href="#derivation-attributes">Derivation attributes</a></h2>
+<p>Scala evolution uses annotations such as <code>@evolutionSteps</code> and
+<code>@transientField</code>. Rust uses derive helper attributes:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(BinaryCodec)]
+#[desert(evolution(
+    FieldAdded("description", Some("new".to_string())),
+    FieldMadeOptional("description")
+))]
+struct Item {
+    name: String,
+    description: Option&lt;String&gt;,
+    #[transient(0usize)]
+    cached_hash: usize,
+}</code></pre>
+<p>The Rust derive macro currently supports:</p>
+<ul>
+<li><code>#[desert(evolution(...))]</code></li>
+<li><code>FieldAdded("field", default_expr)</code></li>
+<li><code>FieldMadeOptional("field")</code></li>
+<li><code>FieldRemoved("field")</code></li>
+<li><code>FieldMadeTransient("field")</code></li>
+<li><code>#[transient(default_expr)]</code> on fields</li>
+<li><code>#[transient]</code> on enum variants</li>
+<li><code>#[desert(transparent)]</code> on single-field structs and enum variants</li>
+<li><code>#[desert(sorted_constructors)]</code> on enums</li>
+</ul>
+<h2 id="character-encoding"><a class="header" href="#character-encoding">Character encoding</a></h2>
+<p>The Scala library encoded characters as 16-bit Unicode values. The Rust default
+encodes <code>char</code> as a Unicode scalar value using a variable-length unsigned
+integer.</p>
+<p>Use <code>Options::scala_compatible()</code> when Rust must read or write data compatible
+with Scala character encoding:</p>
+<pre><code class="language-rust ignore">use desert_rust::{Options, serialize_to_byte_vec_with_options};
+
+fn main() -&gt; desert_rust::Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec_with_options(&amp;'A', Options::scala_compatible())?;
+    assert_eq!(bytes, vec![0, 65]);
+    Ok(())
+}</code></pre>
+<p>In Scala-compatible mode, characters outside a single UTF-16 code unit cannot be
+serialized as <code>char</code>.</p>
+<h2 id="strings-and-byte-arrays"><a class="header" href="#strings-and-byte-arrays">Strings and byte arrays</a></h2>
+<p>Normal strings use the same basic shape: a compact byte length followed by
+UTF-8. <code>DeduplicatedString</code> also follows the same idea as Scala: first
+occurrences are written normally, repeated occurrences in the same context are
+written as negative ids.</p>
+<p>Raw byte blocks in Rust are represented by <code>Vec&lt;u8&gt;</code>, <code>[u8]</code>, <code>[u8; N]</code>,
+<code>bytes::Bytes</code>, and <code>NEVec&lt;u8&gt;</code>. These use a compact unsigned length plus raw
+bytes for compatibility with Scala byte chunks.</p>
+<h2 id="collections"><a class="header" href="#collections">Collections</a></h2>
+<p>Both implementations use a shared iterable representation so collection type
+changes can be compatible. Rust collection compatibility is constrained by Rust
+trait bounds: for example, deserializing into <code>HashSet&lt;T&gt;</code> requires <code>T: Eq + Hash</code>, while deserializing into <code>BTreeSet&lt;T&gt;</code> requires <code>T: Ord</code>.</p>
+<h2 id="type-registry"><a class="header" href="#type-registry">Type registry</a></h2>
+<p>The Scala library has a type registry for serializing values whose concrete type
+is not known statically.</p>
+<p>The Rust crate does not currently expose an equivalent type registry API. For
+now, model closed sets of runtime alternatives as enums, or define an
+application-level tag plus custom <code>BinarySerializer</code> and <code>BinaryDeserializer</code>
+implementations.</p>
+<h2 id="ecosystem-integrations"><a class="header" href="#ecosystem-integrations">Ecosystem integrations</a></h2>
+<p>Scala-specific modules described in the original documentation are not part of
+<code>desert-rust</code>:</p>
+<ul>
+<li>Akka and Pekko serializers</li>
+<li>Cats and Cats Effect codecs</li>
+<li>ZIO effect wrappers and codecs</li>
+<li>ZIO Prelude API</li>
+<li>Shardcake serializer</li>
+</ul>
+<p>Rust integration points are currently lower-level: implement the codec traits,
+use the byte helper functions, and integrate those bytes with your framework of
+choice.</p>
+<h2 id="compatibility-expectation"><a class="header" href="#compatibility-expectation">Compatibility expectation</a></h2>
+<p>The projects are similar, but not every Rust type has a Scala equivalent and not
+every Scala codec has a Rust equivalent. For cross-language data, prefer a small
+golden dataset and test it from both sides. Pay special attention to:</p>
+<ul>
+<li><code>char</code> encoding and <code>Options::scala_compatible()</code></li>
+<li>enabled Rust feature flags</li>
+<li>enum constructor order</li>
+<li>byte collection formats</li>
+<li>derived evolution history</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="evolution.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="type_registry.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -191,7 +331,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="evolution.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="type_registry.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

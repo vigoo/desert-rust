@@ -28,7 +28,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="src/styles-5f396312.css">
+        <link rel="stylesheet" href="src/styles-ead747d8.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-98c34d6d.js";
+            window.path_to_searchindex_js = "searchindex-48cab41d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-fbb9c718.js"></script>
+        <script src="toc-bc47af81.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -176,12 +176,78 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="type-registry"><a class="header" href="#type-registry">Type registry</a></h1>
+<p>The original Scala <code>desert</code> library includes a type registry for cases where the
+concrete type is not known at compile time. A serialized value carries a compact
+type id, and the registry maps that id back to a codec during deserialization.</p>
+<p><code>desert-rust</code> does not currently expose an equivalent public type registry API.
+The placeholder remains in the book because this is an important concept in the
+Scala documentation and a likely future Rust feature.</p>
+<h2 id="what-to-use-today"><a class="header" href="#what-to-use-today">What to use today</a></h2>
+<p>For closed sets of alternatives, use an enum:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum Message {
+    Ping,
+    Rename { id: u64, name: String },
+    Delete { id: u64 },
+}</code></pre>
+<p>This is the most idiomatic Rust option when all possible variants are known to
+the crate defining the protocol.</p>
+<p>For open sets, define an application-level tag and implement the codec traits
+manually:</p>
+<pre><code class="language-rust ignore">use desert_rust::{
+    BinaryDeserializer, BinaryOutput, BinarySerializer, DeserializationContext,
+    Error, Result, SerializationContext,
+};
+
+trait PluginMessage {}
+
+struct TextMessage(String);
+impl PluginMessage for TextMessage {}
+
+enum AnyMessage {
+    Text(TextMessage),
+}
+
+impl BinarySerializer for AnyMessage {
+    fn serialize&lt;Output: BinaryOutput&gt;(
+        &amp;self,
+        context: &amp;mut SerializationContext&lt;Output&gt;,
+    ) -&gt; Result&lt;()&gt; {
+        match self {
+            AnyMessage::Text(TextMessage(text)) =&gt; {
+                1u32.serialize(context)?;
+                text.serialize(context)
+            }
+        }
+    }
+}
+
+impl BinaryDeserializer for AnyMessage {
+    fn deserialize(context: &amp;mut DeserializationContext&lt;'_&gt;) -&gt; Result&lt;Self&gt; {
+        match u32::deserialize(context)? {
+            1 =&gt; Ok(AnyMessage::Text(TextMessage(String::deserialize(context)?))),
+            other =&gt; Err(Error::InvalidConstructorId {
+                constructor_id: other,
+                type_name: "AnyMessage".to_string(),
+            }),
+        }
+    }
+}</code></pre>
+<p>Keep ids stable once data has been written. If an id is retired, leave it
+reserved so newer variants do not take over old meanings.</p>
+<h2 id="difference-from-scala"><a class="header" href="#difference-from-scala">Difference from Scala</a></h2>
+<p>In Scala, the type registry is part of the public library API and is used by
+integrations such as actor serializers. In Rust, framework integration is
+currently expected to happen at the byte boundary: serialize a statically known
+type, or define your own dynamic envelope type as shown above.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="evolution.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="rust_vs_scala.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
@@ -192,7 +258,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="evolution.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="rust_vs_scala.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 

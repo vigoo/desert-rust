@@ -28,7 +28,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="src/styles-5f396312.css">
+        <link rel="stylesheet" href="src/styles-ead747d8.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-98c34d6d.js";
+            window.path_to_searchindex_js = "searchindex-48cab41d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-fbb9c718.js"></script>
+        <script src="toc-bc47af81.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,48 +175,128 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="getting-started-with-desert"><a class="header" href="#getting-started-with-desert">Getting started with desert</a></h1>
-<p>Desert is a <em>binary serialization library</em> for Rust (and Scala), focusing on creating small binaries
-while still enabling binary compatible evolution of the data model.</p>
-<p>It is suitable for any kind of short or long term storage.</p>
-<p>First add <code>desert</code> as a dependency:</p>
-<pre><code class="language-toml">desert_rust = "0.1.0"
+                        <h1 id="getting-started-with-desert-rust"><a class="header" href="#getting-started-with-desert-rust">Getting started with desert-rust</a></h1>
+<p><code>desert-rust</code> is a binary serialization library for Rust. It focuses on compact
+binary data while still allowing compatible changes to structs and enums over
+time.</p>
+<p>The Rust crate is the counterpart of the original Scala <code>desert</code> library. The
+wire format is intentionally similar, but the API is shaped around Rust traits,
+derive macros, feature flags, and explicit error handling.</p>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<p>Add the public crate to <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[dependencies]
+desert_rust = "0.1.8"
 </code></pre>
-<p>The most simple use case is to serialize a known type to an array of bytes and read it back:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span>use desert_rust::serialize_to_byte_vec;
+<p>Additional codecs are controlled with crate features:</p>
+<pre><code class="language-toml">[dependencies]
+desert_rust = { version = "0.1.8", features = ["uuid", "chrono", "url"] }
+</code></pre>
+<p>Feature flags exposed by the public crate are:</p>
+<ul>
+<li><code>bigdecimal</code></li>
+<li><code>bit-vec</code></li>
+<li><code>chrono</code></li>
+<li><code>mac_address</code></li>
+<li><code>nonempty-collections</code></li>
+<li><code>serde-json</code></li>
+<li><code>url</code></li>
+<li><code>uuid</code></li>
+</ul>
+<p>The current <code>desert_core</code> default features already enable <code>bigdecimal</code>,
+<code>chrono</code>, <code>uuid</code>, <code>nonempty-collections</code>, and <code>serde-json</code>. Features such as
+<code>url</code>, <code>mac_address</code>, and <code>bit-vec</code> must be enabled explicitly.</p>
+<h2 id="serialize-and-deserialize-a-known-type"><a class="header" href="#serialize-and-deserialize-a-known-type">Serialize and deserialize a known type</a></h2>
+<p>The most direct API works with a <code>Vec&lt;u8&gt;</code> or <code>bytes::Bytes</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, Result};
 
-<span class="boring">fn main() {
-</span>let data_or_failure = serialize_to_byte_vec(&amp;"Hello world".to_string());
-<span class="boring">}</span></code></pre>
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span><span class="boring">use desert_rust::serialize_to_byte_vec;
-</span><span class="boring">use desert_rust::deserialize;
-</span>
-<span class="boring">fn main() {
-</span><span class="boring"> let data_or_failure = serialize_to_byte_vec(&amp;"Hello world".to_string());
-</span>let y = data_or_failure.and_then(|data| deserialize::&lt;String&gt;(&amp;data));
-<span class="boring">}</span></code></pre>
-<h3 id="codecs"><a class="header" href="#codecs">Codecs</a></h3>
-<p>This works because the <code>BinaryCodec</code> (a combination of <code>BinarySerializer</code> and <code>BinaryDeserializer</code>) trait is implemented for <code>String</code>. Read
-the <a href="./codecs.html">codecs page</a> to learn about the available codecs and how to define custom ones.</p>
-<h3 id="low-level-inputoutput"><a class="header" href="#low-level-inputoutput">Low level input/output</a></h3>
-<p>The above example shows the convenient functions to work with <code>Vec&lt;u8&gt;</code> and <code>&amp;[u8]</code> directly, but they have a more generic
-version working on the low level <code>BinaryInput</code> and <code>BinaryOutput</code> interfaces. These are described on
-the <a href="./input_output.html">input/output page</a>.</p>
-<h3 id="evolution"><a class="header" href="#evolution">Evolution</a></h3>
-<p>One of the primary features of the library is the support for <em>evolving the data model</em>. The possibilities
-are described on a <a href="./evolution.html">separate page</a>.</p>
-<h3 id="type-registry"><a class="header" href="#type-registry">Type registry</a></h3>
-<p>For cases when the exact type to be deserialized is not known at compile type, the possibilities
-can be registered to a <a href="./type_registry.html">type registry</a>.</p>
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec(&amp;"Hello world".to_string())?;
+    let value: String = deserialize(&amp;bytes)?;
+
+    assert_eq!(value, "Hello world");
+    Ok(())
+}</code></pre>
+<p>This works because <code>String</code> implements both <code>BinarySerializer</code> and
+<code>BinaryDeserializer</code>. Their combination is named <code>BinaryCodec</code>.</p>
+<h2 id="derive-codecs-for-your-data"><a class="header" href="#derive-codecs-for-your-data">Derive codecs for your data</a></h2>
+<p>For structs and enums, derive <code>BinaryCodec</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, BinaryCodec, Result};
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+enum Command {
+    Move { to: Point },
+    Label(String),
+    Stop,
+}
+
+fn main() -&gt; Result&lt;()&gt; {
+    let command = Command::Move {
+        to: Point { x: 10, y: -5 },
+    };
+
+    let bytes = serialize_to_byte_vec(&amp;command)?;
+    let decoded: Command = deserialize(&amp;bytes)?;
+
+    assert_eq!(decoded, command);
+    Ok(())
+}</code></pre>
+<p>The derive macro generates trait implementations and metadata needed for schema
+evolution. There is no runtime reflection or registration step for statically
+known types.</p>
+<h2 id="top-level-helper-functions"><a class="header" href="#top-level-helper-functions">Top-level helper functions</a></h2>
+<p>The main helper functions are:</p>
+<ul>
+<li><code>serialize(value, output)</code> writes to any <code>BinaryOutput</code>.</li>
+<li><code>serialize_with_options(value, output, options)</code> does the same with explicit
+options.</li>
+<li><code>serialize_to_byte_vec(value)</code> returns <code>Vec&lt;u8&gt;</code>.</li>
+<li><code>serialize_to_bytes(value)</code> returns <code>bytes::Bytes</code>.</li>
+<li><code>deserialize::&lt;T&gt;(input)</code> reads <code>T</code> from a byte slice.</li>
+<li><code>deserialize_with_options::&lt;T&gt;(input, options)</code> reads with explicit options.</li>
+</ul>
+<h2 id="scala-compatibility-option"><a class="header" href="#scala-compatibility-option">Scala compatibility option</a></h2>
+<p>Rust <code>char</code> normally serializes as a variable-length Unicode scalar value.
+The Scala library encoded characters as 16-bit Unicode units. Use
+<code>Options::scala_compatible()</code> when reading or writing data that must match the
+Scala character encoding:</p>
+<pre><code class="language-rust ignore">use desert_rust::{
+    deserialize_with_options, serialize_to_byte_vec_with_options, Options, Result,
+};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let options = Options::scala_compatible();
+    let bytes = serialize_to_byte_vec_with_options(&amp;'x', options.clone())?;
+    let decoded: char = deserialize_with_options(&amp;bytes, options)?;
+
+    assert_eq!(decoded, 'x');
+    Ok(())
+}</code></pre>
+<p>If a character cannot be represented as a single 16-bit unit in this mode,
+serialization fails with <code>Error::UnsupportedCharacter</code>.</p>
+<h2 id="building-this-book-locally"><a class="header" href="#building-this-book-locally">Building this book locally</a></h2>
+<p>The byte-layout examples in this book are generated by the <code>mdbook-desert</code>
+preprocessor. Build it first, then put Cargo’s debug binary directory on
+<code>PATH</code> while running mdBook:</p>
+<pre><code class="language-sh">cargo build -p desert_book
+PATH="$PWD/target/debug:$PATH" mdbook build book
+</code></pre>
+<h2 id="where-to-go-next"><a class="header" href="#where-to-go-next">Where to go next</a></h2>
+<p>Read <a href="./codecs.html">Codecs and derivation</a> for built-in types and custom codec
+implementations. Read <a href="./evolution.html">Data model evolution</a> before persisting
+data long term or sending it between independently deployed versions.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
 
-                            <a rel="next prefetch" href="input_output.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="codecs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -227,7 +307,7 @@ can be registered to a <a href="./type_registry.html">type registry</a>.</p>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
-                    <a rel="next prefetch" href="input_output.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="codecs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

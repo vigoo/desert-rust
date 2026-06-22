@@ -29,7 +29,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="src/styles-5f396312.css">
+        <link rel="stylesheet" href="src/styles-ead747d8.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-98c34d6d.js";
+            window.path_to_searchindex_js = "searchindex-48cab41d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-fbb9c718.js"></script>
+        <script src="toc-bc47af81.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -176,128 +176,1792 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="getting-started-with-desert"><a class="header" href="#getting-started-with-desert">Getting started with desert</a></h1>
-<p>Desert is a <em>binary serialization library</em> for Rust (and Scala), focusing on creating small binaries
-while still enabling binary compatible evolution of the data model.</p>
-<p>It is suitable for any kind of short or long term storage.</p>
-<p>First add <code>desert</code> as a dependency:</p>
-<pre><code class="language-toml">desert_rust = "0.1.0"
+                        <h1 id="getting-started-with-desert-rust"><a class="header" href="#getting-started-with-desert-rust">Getting started with desert-rust</a></h1>
+<p><code>desert-rust</code> is a binary serialization library for Rust. It focuses on compact
+binary data while still allowing compatible changes to structs and enums over
+time.</p>
+<p>The Rust crate is the counterpart of the original Scala <code>desert</code> library. The
+wire format is intentionally similar, but the API is shaped around Rust traits,
+derive macros, feature flags, and explicit error handling.</p>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<p>Add the public crate to <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[dependencies]
+desert_rust = "0.1.8"
 </code></pre>
-<p>The most simple use case is to serialize a known type to an array of bytes and read it back:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span>use desert_rust::serialize_to_byte_vec;
+<p>Additional codecs are controlled with crate features:</p>
+<pre><code class="language-toml">[dependencies]
+desert_rust = { version = "0.1.8", features = ["uuid", "chrono", "url"] }
+</code></pre>
+<p>Feature flags exposed by the public crate are:</p>
+<ul>
+<li><code>bigdecimal</code></li>
+<li><code>bit-vec</code></li>
+<li><code>chrono</code></li>
+<li><code>mac_address</code></li>
+<li><code>nonempty-collections</code></li>
+<li><code>serde-json</code></li>
+<li><code>url</code></li>
+<li><code>uuid</code></li>
+</ul>
+<p>The current <code>desert_core</code> default features already enable <code>bigdecimal</code>,
+<code>chrono</code>, <code>uuid</code>, <code>nonempty-collections</code>, and <code>serde-json</code>. Features such as
+<code>url</code>, <code>mac_address</code>, and <code>bit-vec</code> must be enabled explicitly.</p>
+<h2 id="serialize-and-deserialize-a-known-type"><a class="header" href="#serialize-and-deserialize-a-known-type">Serialize and deserialize a known type</a></h2>
+<p>The most direct API works with a <code>Vec&lt;u8&gt;</code> or <code>bytes::Bytes</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, Result};
 
-<span class="boring">fn main() {
-</span>let data_or_failure = serialize_to_byte_vec(&amp;"Hello world".to_string());
-<span class="boring">}</span></code></pre>
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span><span class="boring">use desert_rust::serialize_to_byte_vec;
-</span><span class="boring">use desert_rust::deserialize;
-</span>
-<span class="boring">fn main() {
-</span><span class="boring"> let data_or_failure = serialize_to_byte_vec(&amp;"Hello world".to_string());
-</span>let y = data_or_failure.and_then(|data| deserialize::&lt;String&gt;(&amp;data));
-<span class="boring">}</span></code></pre>
-<h3 id="codecs"><a class="header" href="#codecs">Codecs</a></h3>
-<p>This works because the <code>BinaryCodec</code> (a combination of <code>BinarySerializer</code> and <code>BinaryDeserializer</code>) trait is implemented for <code>String</code>. Read
-the <a href="#codecs-1">codecs page</a> to learn about the available codecs and how to define custom ones.</p>
-<h3 id="low-level-inputoutput"><a class="header" href="#low-level-inputoutput">Low level input/output</a></h3>
-<p>The above example shows the convenient functions to work with <code>Vec&lt;u8&gt;</code> and <code>&amp;[u8]</code> directly, but they have a more generic
-version working on the low level <code>BinaryInput</code> and <code>BinaryOutput</code> interfaces. These are described on
-the <a href="#inputoutput">input/output page</a>.</p>
-<h3 id="evolution"><a class="header" href="#evolution">Evolution</a></h3>
-<p>One of the primary features of the library is the support for <em>evolving the data model</em>. The possibilities
-are described on a <a href="#evolution-1">separate page</a>.</p>
-<h3 id="type-registry"><a class="header" href="#type-registry">Type registry</a></h3>
-<p>For cases when the exact type to be deserialized is not known at compile type, the possibilities
-can be registered to a <a href="#type-registry-1">type registry</a>.</p>
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec(&amp;"Hello world".to_string())?;
+    let value: String = deserialize(&amp;bytes)?;
+
+    assert_eq!(value, "Hello world");
+    Ok(())
+}</code></pre>
+<p>This works because <code>String</code> implements both <code>BinarySerializer</code> and
+<code>BinaryDeserializer</code>. Their combination is named <code>BinaryCodec</code>.</p>
+<h2 id="derive-codecs-for-your-data"><a class="header" href="#derive-codecs-for-your-data">Derive codecs for your data</a></h2>
+<p>For structs and enums, derive <code>BinaryCodec</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, BinaryCodec, Result};
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+enum Command {
+    Move { to: Point },
+    Label(String),
+    Stop,
+}
+
+fn main() -&gt; Result&lt;()&gt; {
+    let command = Command::Move {
+        to: Point { x: 10, y: -5 },
+    };
+
+    let bytes = serialize_to_byte_vec(&amp;command)?;
+    let decoded: Command = deserialize(&amp;bytes)?;
+
+    assert_eq!(decoded, command);
+    Ok(())
+}</code></pre>
+<p>The derive macro generates trait implementations and metadata needed for schema
+evolution. There is no runtime reflection or registration step for statically
+known types.</p>
+<h2 id="top-level-helper-functions"><a class="header" href="#top-level-helper-functions">Top-level helper functions</a></h2>
+<p>The main helper functions are:</p>
+<ul>
+<li><code>serialize(value, output)</code> writes to any <code>BinaryOutput</code>.</li>
+<li><code>serialize_with_options(value, output, options)</code> does the same with explicit
+options.</li>
+<li><code>serialize_to_byte_vec(value)</code> returns <code>Vec&lt;u8&gt;</code>.</li>
+<li><code>serialize_to_bytes(value)</code> returns <code>bytes::Bytes</code>.</li>
+<li><code>deserialize::&lt;T&gt;(input)</code> reads <code>T</code> from a byte slice.</li>
+<li><code>deserialize_with_options::&lt;T&gt;(input, options)</code> reads with explicit options.</li>
+</ul>
+<h2 id="scala-compatibility-option"><a class="header" href="#scala-compatibility-option">Scala compatibility option</a></h2>
+<p>Rust <code>char</code> normally serializes as a variable-length Unicode scalar value.
+The Scala library encoded characters as 16-bit Unicode units. Use
+<code>Options::scala_compatible()</code> when reading or writing data that must match the
+Scala character encoding:</p>
+<pre><code class="language-rust ignore">use desert_rust::{
+    deserialize_with_options, serialize_to_byte_vec_with_options, Options, Result,
+};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let options = Options::scala_compatible();
+    let bytes = serialize_to_byte_vec_with_options(&amp;'x', options.clone())?;
+    let decoded: char = deserialize_with_options(&amp;bytes, options)?;
+
+    assert_eq!(decoded, 'x');
+    Ok(())
+}</code></pre>
+<p>If a character cannot be represented as a single 16-bit unit in this mode,
+serialization fails with <code>Error::UnsupportedCharacter</code>.</p>
+<h2 id="building-this-book-locally"><a class="header" href="#building-this-book-locally">Building this book locally</a></h2>
+<p>The byte-layout examples in this book are generated by the <code>mdbook-desert</code>
+preprocessor. Build it first, then put Cargo’s debug binary directory on
+<code>PATH</code> while running mdBook:</p>
+<pre><code class="language-sh">cargo build -p desert_book
+PATH="$PWD/target/debug:$PATH" mdbook build book
+</code></pre>
+<h2 id="where-to-go-next"><a class="header" href="#where-to-go-next">Where to go next</a></h2>
+<p>Read <a href="#codecs-and-derivation">Codecs and derivation</a> for built-in types and custom codec
+implementations. Read <a href="#data-model-evolution">Data model evolution</a> before persisting
+data long term or sending it between independently deployed versions.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="inputoutput"><a class="header" href="#inputoutput">Input/output</a></h1>
+<h1 id="codecs-and-derivation"><a class="header" href="#codecs-and-derivation">Codecs and derivation</a></h1>
+<p>A codec is the pair of traits that defines how a type is written and read:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryDeserializer, BinarySerializer};
+
+trait BinaryCodec: BinarySerializer + BinaryDeserializer {}</code></pre>
+<p>In the crate this is a blanket trait: any type implementing both serializer and
+deserializer automatically implements <code>BinaryCodec</code>.</p>
+<h2 id="built-in-codecs"><a class="header" href="#built-in-codecs">Built-in codecs</a></h2>
+<p>The <code>desert_rust</code> crate re-exports the core implementations. The always
+available codecs include:</p>
+<ul>
+<li>integers: <code>u8</code>, <code>i8</code>, <code>u16</code>, <code>i16</code>, <code>u32</code>, <code>i32</code>, <code>u64</code>, <code>i64</code>, <code>u128</code>,
+<code>i128</code>, <code>usize</code>, <code>isize</code></li>
+<li>non-zero integers from <code>std::num</code></li>
+<li>floats: <code>f32</code>, <code>f64</code></li>
+<li><code>bool</code>, <code>()</code>, <code>char</code>, <code>String</code>, <code>str</code></li>
+<li><code>std::time::Duration</code></li>
+<li><code>Option&lt;T&gt;</code> and <code>Result&lt;T, E&gt;</code></li>
+<li><code>std::ops::Bound&lt;T&gt;</code> and <code>Range&lt;T&gt;</code></li>
+<li><code>bytes::Bytes</code></li>
+<li>arrays, <code>Vec&lt;T&gt;</code>, <code>VecDeque&lt;T&gt;</code>, <code>LinkedList&lt;T&gt;</code></li>
+<li><code>HashSet&lt;T&gt;</code>, <code>BTreeSet&lt;T&gt;</code>, <code>HashMap&lt;K, V&gt;</code>, <code>BTreeMap&lt;K, V&gt;</code></li>
+<li><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Arc&lt;T&gt;</code>, references, and <code>PhantomData&lt;T&gt;</code></li>
+<li><code>std::net::IpAddr</code></li>
+<li>tuples from arity 1 to 8</li>
+</ul>
+<p>Feature flags control codecs for third-party types:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Feature</th><th>Types</th></tr>
+</thead>
+<tbody>
+<tr><td><code>bigdecimal</code></td><td><code>bigdecimal::BigDecimal</code>, <code>bigdecimal::num_bigint::BigInt</code></td></tr>
+<tr><td><code>bit-vec</code></td><td><code>bit_vec::BitVec</code></td></tr>
+<tr><td><code>chrono</code></td><td><code>chrono</code> dates, times, offsets, <code>chrono_tz::Tz</code></td></tr>
+<tr><td><code>mac_address</code></td><td><code>mac_address::MacAddress</code></td></tr>
+<tr><td><code>nonempty-collections</code></td><td><code>nonempty_collections::NEVec&lt;T&gt;</code></td></tr>
+<tr><td><code>serde-json</code></td><td><code>serde_json::Value</code></td></tr>
+<tr><td><code>url</code></td><td><code>url::Url</code></td></tr>
+<tr><td><code>uuid</code></td><td><code>uuid::Uuid</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>The facade currently pulls in the <code>desert_core</code> default feature set, so
+<code>bigdecimal</code>, <code>chrono</code>, <code>uuid</code>, <code>nonempty-collections</code>, and <code>serde-json</code> are
+enabled by default. Enable <code>bit-vec</code>, <code>mac_address</code>, or <code>url</code> explicitly when
+you need those codecs.</p>
+<p>The same generator is used for optional third-party codecs:</p>
+<h3 id="uuid"><a class="header" href="#uuid">uuid</a></h3>
+<pre><code class="language-rust ignore">let value = uuid::Uuid::from_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>01</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>02</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>03</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>04</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>05</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>06</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>07</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>08</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>09</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>0A</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>0B</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>0C</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>0D</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>0E</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>0F</code></td><td class="desert-byte-cell desert-segment-color-0" title="raw UUID bytes"><code>10</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="16"><strong>uuid</strong><span>raw UUID bytes</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="chrononaivedate"><a class="header" href="#chrononaivedate">chrono::NaiveDate</a></h3>
+<pre><code class="language-rust ignore">let value = chrono::NaiveDate::from_ymd_opt(2024, 6, 22).unwrap();
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0xE8, 0x0F, 0x06, 0x16]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="year as var_u32"><code>E8</code></td><td class="desert-byte-cell desert-segment-color-0" title="year as var_u32"><code>0F</code></td><td class="desert-byte-cell desert-segment-color-1" title="month byte"><code>06</code></td><td class="desert-byte-cell desert-segment-color-2" title="day byte"><code>16</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="2"><strong>year</strong><span>year as var_u32</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>month</strong><span>month byte</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>day</strong><span>day byte</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="chrononaivetime"><a class="header" href="#chrononaivetime">chrono::NaiveTime</a></h3>
+<pre><code class="language-rust ignore">let value = chrono::NaiveTime::from_hms_nano_opt(9, 30, 5, 125).unwrap();
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x09, 0x1E, 0x05, 0x7D]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="hour byte"><code>09</code></td><td class="desert-byte-cell desert-segment-color-1" title="minute byte"><code>1E</code></td><td class="desert-byte-cell desert-segment-color-2" title="second byte"><code>05</code></td><td class="desert-byte-cell desert-segment-color-3" title="nanosecond fraction as var_u32"><code>7D</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>hour</strong><span>hour byte</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>minute</strong><span>minute byte</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>second</strong><span>second byte</span></td><td class="desert-segment desert-segment-color-3" colspan="1"><strong>nanos</strong><span>nanosecond fraction as var_u32</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="bigdecimal"><a class="header" href="#bigdecimal">bigdecimal</a></h3>
+<pre><code class="language-rust ignore">let value: bigdecimal::BigDecimal = "123.45".parse().unwrap();
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x0C, 0x31, 0x32, 0x33, 0x2E, 0x34, 0x35]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="byte length encoded as var_i32"><code>0C</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>31</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>32</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>33</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>2E</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>34</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>35</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>byte length encoded as var_i32</span></td><td class="desert-segment desert-segment-color-1" colspan="6"><strong>decimal</strong><span>UTF-8 bytes</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="bit-vec"><a class="header" href="#bit-vec">bit-vec</a></h3>
+<pre><code class="language-rust ignore">let value = bit_vec::BitVec::from_bytes(&amp;[0b1010_0000]);
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x01, 0xA0]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="byte count for packed bits"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="packed bit payload"><code>A0</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>byte count for packed bits</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>bits</strong><span>packed bit payload</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="mac_address"><a class="header" href="#mac_address">mac_address</a></h3>
+<pre><code class="language-rust ignore">let value = mac_address::MacAddress::new([0, 17, 34, 51, 68, 85]);
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x00, 0x11, 0x22, 0x33, 0x44, 0x55]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="six raw address bytes"><code>00</code></td><td class="desert-byte-cell desert-segment-color-0" title="six raw address bytes"><code>11</code></td><td class="desert-byte-cell desert-segment-color-0" title="six raw address bytes"><code>22</code></td><td class="desert-byte-cell desert-segment-color-0" title="six raw address bytes"><code>33</code></td><td class="desert-byte-cell desert-segment-color-0" title="six raw address bytes"><code>44</code></td><td class="desert-byte-cell desert-segment-color-0" title="six raw address bytes"><code>55</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="6"><strong>mac</strong><span>six raw address bytes</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="url"><a class="header" href="#url">url</a></h3>
+<pre><code class="language-rust ignore">let value = url::Url::parse("https://desert-rust.vigoo.dev/").unwrap();
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x3C, 0x68, 0x74, 0x74, 0x70, 0x73, 0x3A, 0x2F, 0x2F, 0x64, 0x65, 0x73, 0x65, 0x72, 0x74, 0x2D, 0x72, 0x75, 0x73, 0x74, 0x2E, 0x76, 0x69, 0x67, 0x6F, 0x6F, 0x2E, 0x64, 0x65, 0x76, 0x2F]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="byte length encoded as var_i32"><code>3C</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>68</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>74</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>74</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>70</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>73</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>3A</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>2F</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>2F</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>64</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>65</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>73</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>65</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>72</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>74</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>2D</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>byte length encoded as var_i32</span></td><td class="desert-segment desert-segment-color-1" colspan="15"><strong>URL</strong><span>UTF-8 bytes</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>72</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>75</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>73</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>74</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>2E</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>76</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>69</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>67</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>6F</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>6F</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>2E</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>64</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>65</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>76</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>2F</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-1" colspan="15"><strong>URL</strong><span>UTF-8 bytes</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="serde_json"><a class="header" href="#serde_json">serde_json</a></h3>
+<pre><code class="language-rust ignore">let value = serde_json::json!({ "a": 1 });
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x07, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="JSON byte count as var_u32"><code>07</code></td><td class="desert-byte-cell desert-segment-color-1" title="compact JSON bytes"><code>7B</code></td><td class="desert-byte-cell desert-segment-color-1" title="compact JSON bytes"><code>22</code></td><td class="desert-byte-cell desert-segment-color-1" title="compact JSON bytes"><code>61</code></td><td class="desert-byte-cell desert-segment-color-1" title="compact JSON bytes"><code>22</code></td><td class="desert-byte-cell desert-segment-color-1" title="compact JSON bytes"><code>3A</code></td><td class="desert-byte-cell desert-segment-color-1" title="compact JSON bytes"><code>31</code></td><td class="desert-byte-cell desert-segment-color-1" title="compact JSON bytes"><code>7D</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>JSON byte count as var_u32</span></td><td class="desert-segment desert-segment-color-1" colspan="7"><strong>JSON</strong><span>compact JSON bytes</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="nonempty-collections"><a class="header" href="#nonempty-collections">nonempty-collections</a></h3>
+<pre><code class="language-rust ignore">let value = nonempty_collections::NEVec::try_from_vec(vec![1u8, 2, 3]).unwrap();
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x03, 0x01, 0x02, 0x03]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="non-empty byte count as var_u32"><code>03</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>02</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>03</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>non-empty byte count as var_u32</span></td><td class="desert-segment desert-segment-color-1" colspan="3"><strong>bytes</strong><span>raw byte payload</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h2 id="primitive-representation"><a class="header" href="#primitive-representation">Primitive representation</a></h2>
+<p>Fixed-width numeric types are written in big-endian byte order:</p>
+<pre><code class="language-rust ignore">use desert_rust::{serialize_to_byte_vec, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    assert_eq!(serialize_to_byte_vec(&amp;100u16)?, vec![0, 100]);
+    assert_eq!(serialize_to_byte_vec(&amp;100u32)?, vec![0, 0, 0, 100]);
+    Ok(())
+}</code></pre>
+<p><code>bool</code> is encoded as a single byte: <code>0</code> for <code>false</code>, <code>1</code> for <code>true</code>.
+<code>String</code> and <code>str</code> are encoded as a variable-length signed byte count followed
+by UTF-8 bytes.</p>
+<h3 id="i32"><a class="header" href="#i32">i32</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;42i32)?;</code></pre>
+<pre><code class="language-text">[0x00, 0x00, 0x00, 0x2A]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="fixed-width big-endian signed integer"><code>00</code></td><td class="desert-byte-cell desert-segment-color-0" title="fixed-width big-endian signed integer"><code>00</code></td><td class="desert-byte-cell desert-segment-color-0" title="fixed-width big-endian signed integer"><code>00</code></td><td class="desert-byte-cell desert-segment-color-0" title="fixed-width big-endian signed integer"><code>2A</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="4"><strong>i32</strong><span>fixed-width big-endian signed integer</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="u16"><a class="header" href="#u16">u16</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;1000u16)?;</code></pre>
+<pre><code class="language-text">[0x03, 0xE8]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="fixed-width big-endian unsigned integer"><code>03</code></td><td class="desert-byte-cell desert-segment-color-0" title="fixed-width big-endian unsigned integer"><code>E8</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="2"><strong>u16</strong><span>fixed-width big-endian unsigned integer</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="bool"><a class="header" href="#bool">bool</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;true)?;</code></pre>
+<pre><code class="language-text">[0x01]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="one byte: 1 for true, 0 for false"><code>01</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>true</strong><span>one byte: 1 for true, 0 for false</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="unit"><a class="header" href="#unit">unit</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;())?;</code></pre>
+<pre><code class="language-text">[]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="char"><a class="header" href="#char">char</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;'λ')?;</code></pre>
+<pre><code class="language-text">[0xBB, 0x07]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="Unicode scalar value written as var_u32"><code>BB</code></td><td class="desert-byte-cell desert-segment-color-0" title="Unicode scalar value written as var_u32"><code>07</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="2"><strong>code point</strong><span>Unicode scalar value written as var_u32</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="string"><a class="header" href="#string">String</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;"desert".to_string())?;</code></pre>
+<pre><code class="language-text">[0x0C, 0x64, 0x65, 0x73, 0x65, 0x72, 0x74]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="byte length encoded as var_i32"><code>0C</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>64</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>65</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>73</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>65</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>72</code></td><td class="desert-byte-cell desert-segment-color-1" title="UTF-8 bytes"><code>74</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>byte length encoded as var_i32</span></td><td class="desert-segment desert-segment-color-1" colspan="6"><strong>UTF-8</strong><span>UTF-8 bytes</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p><code>Option&lt;T&gt;</code> and <code>Result&lt;T, E&gt;</code> start with a single tag byte and then write only
+the payload selected by that tag:</p>
+<h3 id="optionsome"><a class="header" href="#optionsome">Option::Some</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;Some(7i32))?;</code></pre>
+<pre><code class="language-text">[0x01, 0x00, 0x00, 0x00, 0x07]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="presence marker"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="inner i32 payload"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="inner i32 payload"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="inner i32 payload"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="inner i32 payload"><code>07</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>Some</strong><span>presence marker</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>value</strong><span>inner i32 payload</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="optionnone"><a class="header" href="#optionnone">Option::None</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;Option::&lt;i32&gt;::None)?;</code></pre>
+<pre><code class="language-text">[0x00]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="absence marker"><code>00</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>None</strong><span>absence marker</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="resultok"><a class="header" href="#resultok">Result::Ok</a></h3>
+<pre><code class="language-rust ignore">let value: Result&lt;i32, String&gt; = Ok(7);
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x01, 0x00, 0x00, 0x00, 0x07]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="result marker"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="success payload"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="success payload"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="success payload"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="success payload"><code>07</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>Ok</strong><span>result marker</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>value</strong><span>success payload</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="resulterr"><a class="header" href="#resulterr">Result::Err</a></h3>
+<pre><code class="language-rust ignore">let value: Result&lt;i32, String&gt; = Err("no".to_string());
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x00, 0x04, 0x6E, 0x6F]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="result marker"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="byte length encoded as var_i32"><code>04</code></td><td class="desert-byte-cell desert-segment-color-2" title="UTF-8 bytes"><code>6E</code></td><td class="desert-byte-cell desert-segment-color-2" title="UTF-8 bytes"><code>6F</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>Err</strong><span>result marker</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>length</strong><span>byte length encoded as var_i32</span></td><td class="desert-segment desert-segment-color-2" colspan="2"><strong>error</strong><span>UTF-8 bytes</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p><code>Vec&lt;u8&gt;</code>, <code>[u8]</code>, <code>[u8; N]</code>, <code>bytes::Bytes</code>, and <code>NEVec&lt;u8&gt;</code> use an optimized
+byte-block encoding: a variable-length unsigned length followed by raw bytes.
+This is intentionally compatible with the Scala library’s byte chunk format.</p>
+<h3 id="vecu8"><a class="header" href="#vecu8">Vec&lt;u8&gt;</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;vec![1u8, 2, 3, 4])?;</code></pre>
+<pre><code class="language-text">[0x04, 0x01, 0x02, 0x03, 0x04]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="var_u32 byte count"><code>04</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>02</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>03</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>04</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>var_u32 byte count</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>bytes</strong><span>raw byte payload</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="bytesbytes"><a class="header" href="#bytesbytes">bytes::Bytes</a></h3>
+<pre><code class="language-rust ignore">let value = bytes::Bytes::from_static(b"abc");
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x03, 0x61, 0x62, 0x63]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="var_u32 byte count"><code>03</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>61</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>62</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>63</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>var_u32 byte count</span></td><td class="desert-segment desert-segment-color-1" colspan="3"><strong>bytes</strong><span>raw byte payload</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h2 id="collections"><a class="header" href="#collections">Collections</a></h2>
+<p>All generic iterable collection codecs share the same representation:</p>
+<ul>
+<li>If the iterator reports an exact size, desert writes that size as a
+variable-length signed integer and then all elements.</li>
+<li>If the size is not known, desert writes <code>-1</code>, then each element prefixed by a
+<code>1</code> byte, then a final <code>0</code> byte.</li>
+</ul>
+<p>Because the representation is shared, many collection changes are binary
+compatible. For example, a <code>Vec&lt;i32&gt;</code> can be read as a <code>LinkedList&lt;i32&gt;</code>, and a
+<code>BTreeSet&lt;i32&gt;</code> can be read as a <code>HashSet&lt;i32&gt;</code>, as long as the target
+collection’s type constraints are satisfied.</p>
+<h3 id="veci32"><a class="header" href="#veci32">Vec&lt;i32&gt;</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;vec![1i32, 2, 3])?;</code></pre>
+<pre><code class="language-text">[0x06, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="exact-size iterable count as var_i32"><code>06</code></td><td class="desert-byte-cell desert-segment-color-1" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first i32"><code>01</code></td><td class="desert-byte-cell desert-segment-color-2" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="second i32"><code>02</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>count</strong><span>exact-size iterable count as var_i32</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>item 0</strong><span>first i32</span></td><td class="desert-segment desert-segment-color-2" colspan="4"><strong>item 1</strong><span>second i32</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-3" title="third i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="third i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="third i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="third i32"><code>03</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-3" colspan="4"><strong>item 2</strong><span>third i32</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="btreemapstring-i32"><a class="header" href="#btreemapstring-i32">BTreeMap&lt;String, i32&gt;</a></h3>
+<pre><code class="language-rust ignore">let value = std::collections::BTreeMap::from([
+    ("a".to_string(), 1i32),
+    ("b".to_string(), 2i32),
+]);
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x04, 0x00, 0x02, 0x61, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x62, 0x00, 0x00, 0x00, 0x02]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="exact-size iterable count as var_i32"><code>04</code></td><td class="desert-byte-cell desert-segment-color-1" title="tuple marker for key/value pair"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="string key: length plus UTF-8"><code>02</code></td><td class="desert-byte-cell desert-segment-color-2" title="string key: length plus UTF-8"><code>61</code></td><td class="desert-byte-cell desert-segment-color-3" title="i32 map value"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="i32 map value"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="i32 map value"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="i32 map value"><code>01</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>count</strong><span>exact-size iterable count as var_i32</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>entry</strong><span>tuple marker for key/value pair</span></td><td class="desert-segment desert-segment-color-2" colspan="2"><strong>key a</strong><span>string key: length plus UTF-8</span></td><td class="desert-segment desert-segment-color-3" colspan="4"><strong>value 1</strong><span>i32 map value</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-4" title="tuple marker for key/value pair"><code>00</code></td><td class="desert-byte-cell desert-segment-color-5" title="string key: length plus UTF-8"><code>02</code></td><td class="desert-byte-cell desert-segment-color-5" title="string key: length plus UTF-8"><code>62</code></td><td class="desert-byte-cell desert-segment-color-6" title="i32 map value"><code>00</code></td><td class="desert-byte-cell desert-segment-color-6" title="i32 map value"><code>00</code></td><td class="desert-byte-cell desert-segment-color-6" title="i32 map value"><code>00</code></td><td class="desert-byte-cell desert-segment-color-6" title="i32 map value"><code>02</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-4" colspan="1"><strong>entry</strong><span>tuple marker for key/value pair</span></td><td class="desert-segment desert-segment-color-5" colspan="2"><strong>key b</strong><span>string key: length plus UTF-8</span></td><td class="desert-segment desert-segment-color-6" colspan="4"><strong>value 2</strong><span>i32 map value</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="i32-bool"><a class="header" href="#i32-bool">(i32, bool)</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;(42i32, true))?;</code></pre>
+<pre><code class="language-text">[0x00, 0x00, 0x00, 0x00, 0x2A, 0x01]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="tuple payload marker compatible with version-0 structs"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first tuple item"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first tuple item"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first tuple item"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first tuple item"><code>2A</code></td><td class="desert-byte-cell desert-segment-color-2" title="second tuple item"><code>01</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>version</strong><span>tuple payload marker compatible with version-0 structs</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>field 0</strong><span>first tuple item</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>field 1</strong><span>second tuple item</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h2 id="deriving-structs"><a class="header" href="#deriving-structs">Deriving structs</a></h2>
+<p>Use <code>#[derive(BinaryCodec)]</code> for ordinary named-field structs:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+struct User {
+    id: u64,
+    name: String,
+    email: Option&lt;String&gt;,
+}</code></pre>
+<p>The generated format starts with a version byte. Version <code>0</code> structs are
+compatible with tuples of the same field order and arity, which allows simple
+tuple-to-struct migrations.</p>
+<h3 id="derived-struct"><a class="header" href="#derived-struct">derived struct</a></h3>
+<pre><code class="language-rust ignore">#[derive(Debug, Clone, PartialEq, desert_rust::BinaryCodec)]
+struct User {
+    id: u32,
+    name: String,
+    email: Option&lt;String&gt;,
+}
+
+let value = User {
+    id: 7,
+    name: "Ada".to_string(),
+    email: None,
+};
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x00, 0x00, 0x00, 0x00, 0x07, 0x06, 0x41, 0x64, 0x61, 0x00]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="version-0 struct marker"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="u32 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="u32 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="u32 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="u32 field"><code>07</code></td><td class="desert-byte-cell desert-segment-color-2" title="string byte count as var_i32"><code>06</code></td><td class="desert-byte-cell desert-segment-color-3" title="string bytes"><code>41</code></td><td class="desert-byte-cell desert-segment-color-3" title="string bytes"><code>64</code></td><td class="desert-byte-cell desert-segment-color-3" title="string bytes"><code>61</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>version</strong><span>version-0 struct marker</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>id</strong><span>u32 field</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>name length</strong><span>string byte count as var_i32</span></td><td class="desert-segment desert-segment-color-3" colspan="3"><strong>name UTF-8</strong><span>string bytes</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-4" title="Option::None marker"><code>00</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-4" colspan="1"><strong>email</strong><span>Option::None marker</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>For generic types, the derive macro adds serializer and deserializer bounds for
+generic parameters:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+struct Wrapper&lt;T&gt; {
+    value: T,
+}</code></pre>
+<h2 id="deriving-enums"><a class="header" href="#deriving-enums">Deriving enums</a></h2>
+<p>Enums are encoded as a constructor id followed by constructor payload data:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum Event {
+    Started,
+    Message(String),
+    Moved { x: i32, y: i32 },
+}</code></pre>
+<p>Constructor ids are assigned from the enum variant order, skipping transient
+variants. Adding new variants at the end is compatible with old data, but old
+code cannot read values using the new variant.</p>
+<h3 id="derived-enum"><a class="header" href="#derived-enum">derived enum</a></h3>
+<pre><code class="language-rust ignore">#[derive(Debug, Clone, PartialEq, desert_rust::BinaryCodec)]
+enum Event {
+    Started,
+    Message(String),
+    Moved { x: i32, y: i32 },
+}
+
+let bytes = desert_rust::serialize_to_byte_vec(&amp;Event::Message("hi".to_string()))?;</code></pre>
+<pre><code class="language-text">[0x00, 0x01, 0x00, 0x04, 0x68, 0x69]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="outer enum version"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="variant id as var_u32"><code>01</code></td><td class="desert-byte-cell desert-segment-color-2" title="variant payload version"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="byte length encoded as var_i32"><code>04</code></td><td class="desert-byte-cell desert-segment-color-4" title="UTF-8 bytes"><code>68</code></td><td class="desert-byte-cell desert-segment-color-4" title="UTF-8 bytes"><code>69</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>version</strong><span>outer enum version</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>constructor</strong><span>variant id as var_u32</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>case version</strong><span>variant payload version</span></td><td class="desert-segment desert-segment-color-3" colspan="1"><strong>length</strong><span>byte length encoded as var_i32</span></td><td class="desert-segment desert-segment-color-4" colspan="2"><strong>payload</strong><span>UTF-8 bytes</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>You can ask the derive macro to assign constructor ids by sorted variant name:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+#[desert(sorted_constructors)]
+enum StableByName {
+    B,
+    A,
+}</code></pre>
+<p>Use this only when all versions agree on the same naming scheme. Reordering
+without <code>sorted_constructors</code> changes constructor ids and breaks compatibility.</p>
+<h2 id="transparent-wrappers"><a class="header" href="#transparent-wrappers">Transparent wrappers</a></h2>
+<p>Single-field structs can be encoded exactly as their inner type:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+#[desert(transparent)]
+struct UserId(u64);</code></pre>
+<p>This is the Rust equivalent of using the Scala wrapper derivation. It is useful
+when a primitive value is promoted to a domain-specific newtype without changing
+the wire format.</p>
+<p>Transparent enum variants are also supported for unit variants and single-field
+variants:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum Value {
+    #[desert(transparent)]
+    Text(String),
+    Structured { value: String },
+}</code></pre>
+<p>The transparent variant still has an enum constructor id. The attribute affects
+how the variant payload is encoded.</p>
+<h2 id="transient-fields-and-variants"><a class="header" href="#transient-fields-and-variants">Transient fields and variants</a></h2>
+<p>A transient field is not serialized. It must provide a default expression used
+when deserializing:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+struct Cached {
+    value: String,
+    #[transient(None::&lt;usize&gt;)]
+    cached_len: Option&lt;usize&gt;,
+}</code></pre>
+<p>Transient enum variants are not assigned constructor ids. Serializing such a
+variant returns <code>Error::SerializingTransientConstructor</code>.</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum State {
+    Stored,
+    #[transient]
+    RuntimeOnly,
+}</code></pre>
+<p>Transient variants can be inserted or removed without shifting the ids of stored
+variants.</p>
+<h2 id="custom-codecs"><a class="header" href="#custom-codecs">Custom codecs</a></h2>
+<p>Implement <code>BinarySerializer</code> and <code>BinaryDeserializer</code> manually when the derived
+format is not appropriate:</p>
+<pre><code class="language-rust ignore">use desert_rust::{
+    BinaryDeserializer, BinaryOutput, BinarySerializer, DeserializationContext,
+    Result, SerializationContext,
+};
+
+#[derive(Debug, PartialEq)]
+struct Lowercase(String);
+
+impl BinarySerializer for Lowercase {
+    fn serialize&lt;Output: BinaryOutput&gt;(
+        &amp;self,
+        context: &amp;mut SerializationContext&lt;Output&gt;,
+    ) -&gt; Result&lt;()&gt; {
+        self.0.to_lowercase().serialize(context)
+    }
+}
+
+impl BinaryDeserializer for Lowercase {
+    fn deserialize(context: &amp;mut DeserializationContext&lt;'_&gt;) -&gt; Result&lt;Self&gt; {
+        Ok(Self(String::deserialize(context)?))
+    }
+}</code></pre>
+<p>The enum derive macro can also wrap a single-field variant through a custom
+type. The wrapper type must be constructible from a borrowed value in the shape
+expected by the macro, so this is mainly useful for specialized string wrappers.</p>
+<h2 id="string-deduplication"><a class="header" href="#string-deduplication">String deduplication</a></h2>
+<p>Normal <code>String</code> serialization does not deduplicate values. This keeps schema
+evolution safe: when an older reader skips a newly added string field, it does
+not accidentally miss a string id assignment needed by a later field.</p>
+<p>For streams where the writer and reader agree that deduplication is safe, wrap
+values in <code>DeduplicatedString</code>:</p>
+<pre><code class="language-rust ignore">use bytes::BytesMut;
+use desert_rust::{
+    BinaryDeserializer, BinarySerializer, DeduplicatedString, DeserializationContext,
+    Options, Result, SerializationContext,
+};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let mut output = SerializationContext::new(BytesMut::new(), Options::default());
+
+    DeduplicatedString("same".to_string()).serialize(&amp;mut output)?;
+    DeduplicatedString("same".to_string()).serialize(&amp;mut output)?;
+
+    let bytes = output.into_output();
+    let mut input = DeserializationContext::new(&amp;bytes, Options::default());
+
+    let first = DeduplicatedString::deserialize(&amp;mut input)?.0;
+    let second = DeduplicatedString::deserialize(&amp;mut input)?.0;
+
+    assert_eq!(first, second);
+    Ok(())
+}</code></pre>
+<p>The first occurrence is encoded like a normal string. Later occurrences in the
+same serialization context are encoded as a negative id.</p>
+<h3 id="deduplicatedstring"><a class="header" href="#deduplicatedstring">DeduplicatedString</a></h3>
+<pre><code class="language-rust ignore">let mut context = desert_rust::SerializationContext::new(
+    Vec::new(),
+    desert_rust::Options::default(),
+);
+desert_rust::DeduplicatedString("same".to_string()).serialize(&amp;mut context)?;
+desert_rust::DeduplicatedString("same".to_string()).serialize(&amp;mut context)?;
+let bytes = context.into_output();</code></pre>
+<pre><code class="language-text">[0x08, 0x73, 0x61, 0x6D, 0x65, 0x01]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="first occurrence uses normal string length"><code>08</code></td><td class="desert-byte-cell desert-segment-color-1" title="first string bytes"><code>73</code></td><td class="desert-byte-cell desert-segment-color-1" title="first string bytes"><code>61</code></td><td class="desert-byte-cell desert-segment-color-1" title="first string bytes"><code>6D</code></td><td class="desert-byte-cell desert-segment-color-1" title="first string bytes"><code>65</code></td><td class="desert-byte-cell desert-segment-color-2" title="negative string id encoded as var_i32"><code>01</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>first length</strong><span>first occurrence uses normal string length</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>first UTF-8</strong><span>first string bytes</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>repeat id</strong><span>negative string id encoded as var_i32</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="codecs-1"><a class="header" href="#codecs-1">Codecs</a></h1>
-<p>A <code>BinaryCodec</code> is a type class that defines both the <em>serializer</em> and the <em>deserializer</em> for a given type:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span><span class="boring">extern crate desert_rust;
-</span><span class="boring">use desert_rust::{BinarySerializer, BinaryDeserializer};
-</span>
-trait BinaryCodec: BinarySerializer + BinaryDeserializer {}
-<span class="boring">}</span></code></pre>
-<h2 id="primitive-types"><a class="header" href="#primitive-types">Primitive types</a></h2>
-<p>The library defines implementations of <code>BinaryCodec</code> for the following primitive types:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span><span class="boring">use desert_rust::*;
-</span><span class="boring">fn main() {
-</span>let byte = serialize_to_byte_vec(&amp;100u8).unwrap();    
-<span class="boring">}</span></code></pre>
-<table class="binary">
-<tr>
-<td>100</td>
-</tr>
+<h1 id="binary-inputoutput"><a class="header" href="#binary-inputoutput">Binary input/output</a></h1>
+<p>The high-level helpers are enough for most use cases, but the core library is
+built around two low-level traits:</p>
+<ul>
+<li><code>BinaryOutput</code> writes bytes.</li>
+<li><code>BinaryInput</code> reads bytes and can skip regions.</li>
+</ul>
+<p>Serialization and deserialization contexts implement these traits and add shared
+state for features such as string deduplication, reference tracking, options,
+and ADT evolution.</p>
+<h2 id="high-level-output-helpers"><a class="header" href="#high-level-output-helpers">High-level output helpers</a></h2>
+<p>Use <code>serialize_to_byte_vec</code> when you want a <code>Vec&lt;u8&gt;</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{serialize_to_byte_vec, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec(&amp;42i32)?;
+    assert_eq!(bytes, vec![0, 0, 0, 42]);
+    Ok(())
+}</code></pre>
+<p>Use <code>serialize_to_bytes</code> when you want <code>bytes::Bytes</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{serialize_to_bytes, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_bytes(&amp;"hello".to_string())?;
+    assert_eq!(&amp;bytes[..], &amp;[10, b'h', b'e', b'l', b'l', b'o']);
+    Ok(())
+}</code></pre>
+<p>The string length byte is <code>10</code> because signed variable integers use zig-zag
+encoding internally. The logical string length is <code>5</code>.</p>
+<h2 id="writing-to-a-custom-output"><a class="header" href="#writing-to-a-custom-output">Writing to a custom output</a></h2>
+<p>The generic <code>serialize</code> function accepts any <code>BinaryOutput</code>. The built-in
+outputs are:</p>
+<ul>
+<li><code>Vec&lt;u8&gt;</code></li>
+<li><code>bytes::BytesMut</code></li>
+<li><code>SizeCalculator</code></li>
+</ul>
+<p><code>SizeCalculator</code> computes the number of bytes that would be written without
+storing them:</p>
+<pre><code class="language-rust ignore">use desert_rust::{serialize, Result, SizeCalculator};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let output = serialize(&amp;1234i32, SizeCalculator::new())?;
+    assert_eq!(output.size(), 4);
+    Ok(())
+}</code></pre>
+<p>To write to a new destination, implement <code>BinaryOutput</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryOutput, Result};
+
+struct CountingOutput {
+    count: usize,
+}
+
+impl BinaryOutput for CountingOutput {
+    fn write_u8(&amp;mut self, _value: u8) {
+        self.count += 1;
+    }
+
+    fn write_bytes(&amp;mut self, bytes: &amp;[u8]) {
+        self.count += bytes.len();
+    }
+}</code></pre>
+<p>The trait provides default implementations for fixed-width integers, floats,
+variable-length integers, and compressed byte blocks.</p>
+<h2 id="reading-input"><a class="header" href="#reading-input">Reading input</a></h2>
+<p>The public top-level <code>deserialize</code> helper reads from <code>&amp;[u8]</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let value: i32 = deserialize(&amp;[0, 0, 0, 42])?;
+    assert_eq!(value, 42);
+    Ok(())
+}</code></pre>
+<p>For low-level code, <code>SliceInput</code> borrows bytes and <code>OwnedInput</code> owns a <code>Vec&lt;u8&gt;</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryInput, Result, SliceInput};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let mut input = SliceInput::new(&amp;[0, 0, 0, 42]);
+    let value = input.read_i32()?;
+
+    assert_eq!(value, 42);
+    Ok(())
+}</code></pre>
+<p>Most custom deserializers should use <code>DeserializationContext</code> rather than
+<code>SliceInput</code> directly, because the context also carries options and shared
+state:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryDeserializer, DeserializationContext, Options, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let mut context = DeserializationContext::new(&amp;[0, 0, 0, 42], Options::default());
+    let value = i32::deserialize(&amp;mut context)?;
+
+    assert_eq!(value, 42);
+    Ok(())
+}</code></pre>
+<h2 id="variable-length-integers"><a class="header" href="#variable-length-integers">Variable-length integers</a></h2>
+<p><code>BinaryOutput::write_var_u32</code> writes a <code>u32</code> in 1 to 5 bytes. Smaller positive
+values use fewer bytes:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryOutput, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let mut bytes = Vec::new();
+    bytes.write_var_u32(1);
+    bytes.write_var_u32(4096);
+
+    assert_eq!(bytes, vec![1, 128, 32]);
+    Ok(())
+}</code></pre>
+<p><code>write_var_i32</code> uses zig-zag encoding before writing the value as <code>var_u32</code>.
+This keeps small negative values compact too:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryOutput;
+
+let mut bytes = Vec::new();
+bytes.write_var_i32(-1);
+assert_eq!(bytes, vec![1]);</code></pre>
+<p>The library uses variable-length integers for lengths, ids, and ADT evolution
+metadata. Fixed-width Rust integer codecs such as <code>i32</code> still use fixed-width
+big-endian bytes.</p>
+<h3 id="var_u32"><a class="header" href="#var_u32">var_u32</a></h3>
+<pre><code class="language-rust ignore">let mut bytes = Vec::new();
+bytes.write_var_u32(16_384);</code></pre>
+<pre><code class="language-text">[0x80, 0x80, 0x01]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="7-bit groups with continuation bits"><code>80</code></td><td class="desert-byte-cell desert-segment-color-0" title="7-bit groups with continuation bits"><code>80</code></td><td class="desert-byte-cell desert-segment-color-0" title="7-bit groups with continuation bits"><code>01</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="3"><strong>var_u32</strong><span>7-bit groups with continuation bits</span></td></tr>
+
+</tbody>
+
 </table>
 
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span><span class="boring">use desert_rust::*;
-</span><span class="boring">fn main() {
-</span>let short = serialize_to_byte_vec(&amp;100u16).unwrap();    
-<span class="boring">}</span></code></pre>
-<table class="binary">
-<tr>
-<td>0</td>
-<td>100</td>
-</tr>
+</div>
+
+<h3 id="var_i32"><a class="header" href="#var_i32">var_i32</a></h3>
+<pre><code class="language-rust ignore">let mut bytes = Vec::new();
+bytes.write_var_i32(-64);</code></pre>
+<pre><code class="language-text">[0x7F]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="signed value zig-zag encoded, then var_u32"><code>7F</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>zig-zag</strong><span>signed value zig-zag encoded, then var_u32</span></td></tr>
+
+</tbody>
+
 </table>
 
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span><span class="boring">use desert_rust::*;
-</span><span class="boring">fn main() {
-</span>let int = serialize_to_byte_vec(&amp;100u32).unwrap();    
-<span class="boring">}</span></code></pre>
-<table class="binary">
-<tr>
-<td>0</td>
-<td>0</td>
-<td>0</td>
-<td>100</td>
-</tr>
+</div>
+
+<h2 id="compression-helpers"><a class="header" href="#compression-helpers">Compression helpers</a></h2>
+<p><code>BinaryOutput::write_compressed</code> stores:</p>
+<ol>
+<li>the uncompressed length as <code>var_u32</code></li>
+<li>the compressed length as <code>var_u32</code></li>
+<li>the deflate-compressed bytes</li>
+</ol>
+<p><code>BinaryInput::read_compressed</code> reverses that representation:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryInput, BinaryOutput, OwnedInput, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let data = b"hello hello hello";
+    let mut bytes = Vec::new();
+
+    bytes.write_compressed(data, Default::default())?;
+
+    let mut input = OwnedInput::new(bytes);
+    let decoded = input.read_compressed()?;
+
+    assert_eq!(decoded, data);
+    Ok(())
+}</code></pre>
+<p>Compression is a low-level helper. The built-in type codecs do not compress
+their payloads automatically.</p>
+<h3 id="compressed-block"><a class="header" href="#compressed-block">compressed block</a></h3>
+<pre><code class="language-rust ignore">let data = b"hello hello hello";
+let mut bytes = Vec::new();
+bytes.write_compressed(data, flate2::Compression::fast())?;</code></pre>
+<pre><code class="language-text">[0x11, 0x09, 0xCB, 0x48, 0xCD, 0xC9, 0xC9, 0x57, 0x40, 0x22, 0x01]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="uncompressed byte count as var_u32"><code>11</code></td><td class="desert-byte-cell desert-segment-color-1" title="compressed byte count as var_u32"><code>09</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>CB</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>48</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>CD</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>C9</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>C9</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>57</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>40</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>22</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>01</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>plain len</strong><span>uncompressed byte count as var_u32</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>deflate len</strong><span>compressed byte count as var_u32</span></td><td class="desert-segment desert-segment-color-2" colspan="9"><strong>deflate</strong><span>deflate payload</span></td></tr>
+
+</tbody>
+
 </table>
 
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span><span class="boring">use desert_rust::*;
-</span><span class="boring">fn main() {
-</span>let long = serialize_to_byte_vec(&amp;100u64).unwrap();    
-<span class="boring">}</span></code></pre>
-<table class="binary">
-<tr>
-<td>0</td>
-<td>0</td>
-<td>0</td>
-<td>0</td>
-<td>0</td>
-<td>0</td>
-<td>0</td>
-<td>100</td>
-</tr>
+</div>
+
+<h2 id="byte-blocks-and-iterables"><a class="header" href="#byte-blocks-and-iterables">Byte blocks and iterables</a></h2>
+<p>Byte-oriented containers use a compact block format: a <code>var_u32</code> byte count
+followed by the bytes. Generic iterable containers use an item format that can
+also represent streams with no exact size hint.</p>
+<h3 id="vecu8-1"><a class="header" href="#vecu8-1">Vec&lt;u8&gt;</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;vec![1u8, 2, 3, 4])?;</code></pre>
+<pre><code class="language-text">[0x04, 0x01, 0x02, 0x03, 0x04]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="var_u32 byte count"><code>04</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>02</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>03</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>04</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>var_u32 byte count</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>bytes</strong><span>raw byte payload</span></td></tr>
+
+</tbody>
+
 </table>
 
-<pre class="playground"><code class="language-rust"><span class="boring">extern crate desert_rust;
-</span><span class="boring">use desert_rust::*;
-</span><span class="boring">fn main() {
-</span>let float = serialize_to_byte_vec(&amp;3.14f32).unwrap();    
-<span class="boring">}</span></code></pre>
-<table class="binary">
-<tr>
-<td>64</td>
-<td>72</td>
-<td>245</td>
-<td>195</td>
-</tr>
+</div>
+
+<h3 id="unknown-size-iterable"><a class="header" href="#unknown-size-iterable">unknown-size iterable</a></h3>
+<pre><code class="language-rust ignore">let mut iter = [1i32, 2].into_iter().filter(|value| *value &gt; 0);
+desert_rust::serialize_iterator(
+    &amp;mut iter,
+    &amp;mut desert_rust::SerializationContext::new(&amp;mut bytes, desert_rust::Options::default()),
+)?;</code></pre>
+<pre><code class="language-text">[0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="-1 count marker as var_i32"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="item-present marker"><code>01</code></td><td class="desert-byte-cell desert-segment-color-2" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="first i32"><code>01</code></td><td class="desert-byte-cell desert-segment-color-3" title="item-present marker"><code>01</code></td><td class="desert-byte-cell desert-segment-color-4" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="second i32"><code>02</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>unknown</strong><span>-1 count marker as var_i32</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>item</strong><span>item-present marker</span></td><td class="desert-segment desert-segment-color-2" colspan="4"><strong>value</strong><span>first i32</span></td><td class="desert-segment desert-segment-color-3" colspan="1"><strong>item</strong><span>item-present marker</span></td><td class="desert-segment desert-segment-color-4" colspan="4"><strong>value</strong><span>second i32</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-5" title="end marker"><code>00</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-5" colspan="1"><strong>end</strong><span>end marker</span></td></tr>
+
+</tbody>
+
 </table>
 
+</div>
+
+<h2 id="options"><a class="header" href="#options">Options</a></h2>
+<p><code>Options</code> currently controls Scala-compatible character encoding:</p>
+<pre><code class="language-rust ignore">use desert_rust::Options;
+
+let default_options = Options::default();
+let scala_options = Options::scala_compatible();
+
+assert!(!default_options.chars_as_u16);
+assert!(scala_options.chars_as_u16);</code></pre>
+<p>Pass options through <code>serialize_with_options</code>,
+<code>serialize_to_byte_vec_with_options</code>, <code>serialize_to_bytes_with_options</code>, or
+<code>deserialize_with_options</code>.</p>
+<h2 id="context-state"><a class="header" href="#context-state">Context state</a></h2>
+<p><code>SerializationContext</code> and <code>DeserializationContext</code> also hold per-stream state.
+Built-in uses include:</p>
+<ul>
+<li>string ids for <code>DeduplicatedString</code></li>
+<li>reference ids for custom reference-aware codecs</li>
+<li>nested buffer stacks used by ADT evolution encoding</li>
+</ul>
+<p>If you implement a custom codec and only need ordinary values, call the existing
+<code>BinarySerializer</code> and <code>BinaryDeserializer</code> implementations. Touching context
+state directly is an advanced use case.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="evolution-1"><a class="header" href="#evolution-1">Evolution</a></h1>
+<h1 id="data-model-evolution"><a class="header" href="#data-model-evolution">Data model evolution</a></h1>
+<p>One of desert’s main goals is allowing stored or transmitted data to survive
+controlled changes to Rust data types.</p>
+<p>Evolution support is generated by <code>#[derive(BinaryCodec)]</code> for structs and
+enums. The derive macro writes a compact version header and enough metadata for
+older and newer versions to skip, default, or reinterpret fields where that is
+safe.</p>
+<h2 id="compatibility-rules-in-short"><a class="header" href="#compatibility-rules-in-short">Compatibility rules in short</a></h2>
+<p>Compatible changes:</p>
+<ul>
+<li>Convert a multi-field tuple into a struct with the same field order.</li>
+<li>Wrap a value in a <code>#[desert(transparent)]</code> single-field struct.</li>
+<li>Replace one collection type with another collection type using the same item
+representation.</li>
+<li>Add a struct field with <code>FieldAdded</code>.</li>
+<li>Make a field optional with <code>FieldMadeOptional</code>.</li>
+<li>Remove a field with <code>FieldRemoved</code>, with the limits described below.</li>
+<li>Make a field transient with <code>FieldMadeTransient</code> plus <code>#[transient(default)]</code>.</li>
+<li>Add an enum variant at the end of the enum.</li>
+<li>Insert or remove <code>#[transient]</code> enum variants.</li>
+</ul>
+<p>Breaking or risky changes:</p>
+<ul>
+<li>Rename a field without preserving the serialized field name. The current Rust
+derive macro does not have a field rename attribute.</li>
+<li>Reorder enum variants without <code>#[desert(sorted_constructors)]</code>.</li>
+<li>Remove an enum variant that has already been serialized.</li>
+<li>Change a field’s type unless the old and new types intentionally share a
+binary representation.</li>
+<li>Use <code>DeduplicatedString</code> in evolvable fields unless all readers and writers
+agree on the exact stream shape.</li>
+</ul>
+<h2 id="tuples-and-structs"><a class="header" href="#tuples-and-structs">Tuples and structs</a></h2>
+<p>Version-0 structs are compatible with tuples of the same arity and field order:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, BinaryCodec, Result};
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec(&amp;(10, 20))?;
+    let point: Point = deserialize(&amp;bytes)?;
+
+    assert_eq!(point, Point { x: 10, y: 20 });
+    Ok(())
+}</code></pre>
+<p>This is useful for moving from positional values to named records.</p>
+<h2 id="transparent-wrappers-1"><a class="header" href="#transparent-wrappers-1">Transparent wrappers</a></h2>
+<p>Transparent single-field structs are encoded exactly like the inner field:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, BinaryCodec, Result};
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+#[desert(transparent)]
+struct UserId(u64);
+
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec(&amp;42u64)?;
+    let id: UserId = deserialize(&amp;bytes)?;
+
+    assert_eq!(id, UserId(42));
+    Ok(())
+}</code></pre>
+<p>This lets a model evolve from primitive values to domain newtypes without
+changing stored bytes.</p>
+<h2 id="collections-1"><a class="header" href="#collections-1">Collections</a></h2>
+<p>Generic collection codecs use a shared iterable format, so many collection
+changes are compatible:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, Result};
+use std::collections::LinkedList;
+
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec(&amp;vec![1i32, 2, 3])?;
+    let values: LinkedList&lt;i32&gt; = deserialize(&amp;bytes)?;
+
+    assert_eq!(values.into_iter().collect::&lt;Vec&lt;_&gt;&gt;(), vec![1, 2, 3]);
+    Ok(())
+}</code></pre>
+<p>Set and map compatibility depends on the target type’s <code>Eq</code>, <code>Hash</code>, or <code>Ord</code>
+requirements and on whether duplicate values make sense.</p>
+<h2 id="adding-a-field"><a class="header" href="#adding-a-field">Adding a field</a></h2>
+<p>When a struct receives a new field, record it with <code>FieldAdded</code> and provide the
+default expression used when reading old data:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+struct ProductV1 {
+    name: String,
+    price: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+#[desert(evolution(FieldAdded("in_stock", true)))]
+struct ProductV2 {
+    name: String,
+    in_stock: bool,
+    price: i32,
+}</code></pre>
+<p>With this change:</p>
+<ul>
+<li><code>ProductV2</code> can read <code>ProductV1</code> data and uses <code>true</code> for <code>in_stock</code>.</li>
+<li><code>ProductV1</code> can read <code>ProductV2</code> data by skipping the added field.</li>
+</ul>
+<p>The added field does not have to be the last field in the Rust struct. The
+evolution metadata records which generation introduced it.</p>
+<h2 id="making-a-field-optional"><a class="header" href="#making-a-field-optional">Making a field optional</a></h2>
+<p>A field can be changed from <code>T</code> to <code>Option&lt;T&gt;</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+#[desert(evolution(
+    FieldAdded("in_stock", true),
+    FieldMadeOptional("price")
+))]
+struct ProductV3 {
+    name: String,
+    in_stock: bool,
+    price: Option&lt;i32&gt;,
+}</code></pre>
+<p>With this change:</p>
+<ul>
+<li>New code reads old data as <code>Some(old_value)</code>.</li>
+<li>Old code can read new data if the option is <code>Some(value)</code>.</li>
+<li>Old code cannot read new data if the option is <code>None</code>, because it expected a
+non-optional field value.</li>
+</ul>
+<p>This can be used as an intermediate migration before removing a field.</p>
+<h2 id="removing-a-field"><a class="header" href="#removing-a-field">Removing a field</a></h2>
+<p>A removed field must be recorded:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+#[desert(evolution(
+    FieldAdded("in_stock", true),
+    FieldMadeOptional("price"),
+    FieldRemoved("price")
+))]
+struct ProductV4 {
+    name: String,
+    in_stock: bool,
+}</code></pre>
+<p>With this change:</p>
+<ul>
+<li>New code can read old data by skipping <code>price</code>.</li>
+<li>Old code can read new data only if the removed field had already become
+optional, in which case it is read as <code>None</code>.</li>
+<li>Old code that expects a non-optional removed field cannot read new data.</li>
+</ul>
+<h2 id="transient-fields"><a class="header" href="#transient-fields">Transient fields</a></h2>
+<p>Adding a new transient field does not change the binary representation:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+struct WithCache {
+    value: String,
+    #[transient(None::&lt;usize&gt;)]
+    cached_len: Option&lt;usize&gt;,
+}</code></pre>
+<p>If an existing serialized field becomes transient, record it with
+<code>FieldMadeTransient</code> and keep a transient default expression:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+#[desert(evolution(
+    FieldAdded("in_stock", true),
+    FieldMadeOptional("price"),
+    FieldRemoved("price"),
+    FieldMadeTransient("name")
+))]
+struct ProductV5 {
+    #[transient("unknown".to_string())]
+    name: String,
+    in_stock: bool,
+}</code></pre>
+<p><code>FieldMadeTransient</code> behaves like <code>FieldRemoved</code> for the wire format. New code
+can read old data and uses the transient default. Older code cannot read the new
+data if it requires the missing field.</p>
+<h2 id="evolving-enums"><a class="header" href="#evolving-enums">Evolving enums</a></h2>
+<p>Enums are encoded by constructor id. Constructor ids follow source order unless
+<code>#[desert(sorted_constructors)]</code> is used.</p>
+<p>Adding a new variant at the end is compatible for old values:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum EventV1 {
+    Started,
+    Message(String),
+}
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum EventV2 {
+    Started,
+    Message(String),
+    Stopped,
+}</code></pre>
+<p>With this change:</p>
+<ul>
+<li><code>EventV2</code> can read old <code>EventV1</code> values.</li>
+<li><code>EventV1</code> can read <code>EventV2</code> data only when the stored constructor id also
+existed in <code>EventV1</code>.</li>
+<li><code>EventV1</code> cannot read <code>EventV2::Stopped</code>.</li>
+</ul>
+<p>Enum variants with fields can have their own evolution steps:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum Event {
+    #[desert(evolution(FieldAdded("source", "api".to_string())))]
+    Message { text: String, source: String },
+}</code></pre>
+<p>Transient variants are not assigned constructor ids:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum RuntimeState {
+    Stored,
+    #[transient]
+    InMemoryOnly,
+}</code></pre>
+<p>Serializing <code>RuntimeState::InMemoryOnly</code> fails. The benefit is that such variants
+can be inserted or removed without shifting persistent constructor ids.</p>
+<h2 id="evolution-encoding"><a class="header" href="#evolution-encoding">Evolution encoding</a></h2>
+<p>For derived structs and non-transparent enum variant payloads, desert writes:</p>
+<ol>
+<li>a version byte</li>
+<li>for non-zero versions, compact evolution metadata describing chunks and
+removed or optional fields</li>
+<li>the field data split into generation chunks</li>
+</ol>
+<p>Version <code>0</code> data has no extra evolution metadata beyond the version byte. This
+keeps initial records compact and is why version-0 structs and tuples can share
+the same format.</p>
+<h3 id="pointv1"><a class="header" href="#pointv1">PointV1</a></h3>
+<pre><code class="language-rust ignore">#[derive(Debug, Clone, PartialEq, desert_rust::BinaryCodec)]
+#[desert(evolution())]
+struct PointV1 {
+    x: i32,
+    y: i32,
+}
+
+let bytes = desert_rust::serialize_to_byte_vec(&amp;PointV1 { x: 10, y: 20 })?;</code></pre>
+<pre><code class="language-text">[0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x14]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="version 0"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="first field"><code>0A</code></td><td class="desert-byte-cell desert-segment-color-2" title="second field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="second field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="second field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="second field"><code>14</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>version</strong><span>version 0</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>x</strong><span>first field</span></td><td class="desert-segment desert-segment-color-2" colspan="4"><strong>y</strong><span>second field</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>When a field is added, the new generation is written as a later chunk. Older
+readers can skip chunks they do not know about. Newer readers can detect missing
+chunks and use defaults from <code>FieldAdded</code>.</p>
+<h3 id="pointv2-adds-label"><a class="header" href="#pointv2-adds-label">PointV2 adds label</a></h3>
+<pre><code class="language-rust ignore">#[derive(Debug, Clone, PartialEq, desert_rust::BinaryCodec)]
+#[desert(evolution(FieldAdded("label", "origin".to_string())))]
+struct PointV2 {
+    x: i32,
+    label: String,
+    y: i32,
+}
+
+let value = PointV2 { x: 10, label: "origin".to_string(), y: 20 };
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x01, 0x10, 0x0E, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x14, 0x0C, 0x6F, 0x72, 0x69, 0x67, 0x69, 0x6E]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="version 1"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="byte length of original-field chunk"><code>10</code></td><td class="desert-byte-cell desert-segment-color-2" title="byte length of added-field chunk"><code>0E</code></td><td class="desert-byte-cell desert-segment-color-3" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="version-0 field"><code>0A</code></td><td class="desert-byte-cell desert-segment-color-4" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="version-0 field"><code>14</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>version</strong><span>version 1</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>v0 size</strong><span>byte length of original-field chunk</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>v1 size</strong><span>byte length of added-field chunk</span></td><td class="desert-segment desert-segment-color-3" colspan="4"><strong>x</strong><span>version-0 field</span></td><td class="desert-segment desert-segment-color-4" colspan="4"><strong>y</strong><span>version-0 field</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-5" title="added string length"><code>0C</code></td><td class="desert-byte-cell desert-segment-color-6" title="added field data"><code>6F</code></td><td class="desert-byte-cell desert-segment-color-6" title="added field data"><code>72</code></td><td class="desert-byte-cell desert-segment-color-6" title="added field data"><code>69</code></td><td class="desert-byte-cell desert-segment-color-6" title="added field data"><code>67</code></td><td class="desert-byte-cell desert-segment-color-6" title="added field data"><code>69</code></td><td class="desert-byte-cell desert-segment-color-6" title="added field data"><code>6E</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-5" colspan="1"><strong>label length</strong><span>added string length</span></td><td class="desert-segment desert-segment-color-6" colspan="6"><strong>label UTF-8</strong><span>added field data</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>If a later version makes the field optional, the metadata records the field
+position. Older readers can still read <code>Some(value)</code> as the original field type;
+<code>None</code> is only understood by readers that know the optional step.</p>
+<h3 id="pointv3-makes-label-optional"><a class="header" href="#pointv3-makes-label-optional">PointV3 makes label optional</a></h3>
+<pre><code class="language-rust ignore">#[derive(Debug, Clone, PartialEq, desert_rust::BinaryCodec)]
+#[desert(evolution(
+    FieldAdded("label", "origin".to_string()),
+    FieldMadeOptional("label")
+))]
+struct PointV3 {
+    x: i32,
+    label: Option&lt;String&gt;,
+    y: i32,
+}
+
+let value = PointV3 { x: 10, label: None, y: 20 };
+let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
+<pre><code class="language-text">[0x02, 0x10, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x14, 0x00]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="version 2"><code>02</code></td><td class="desert-byte-cell desert-segment-color-1" title="byte length of original-field chunk"><code>10</code></td><td class="desert-byte-cell desert-segment-color-2" title="byte length of optional-field chunk"><code>02</code></td><td class="desert-byte-cell desert-segment-color-3" title="FieldMadeOptional marker plus field position"><code>01</code></td><td class="desert-byte-cell desert-segment-color-3" title="FieldMadeOptional marker plus field position"><code>01</code></td><td class="desert-byte-cell desert-segment-color-4" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="version-0 field"><code>0A</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>version</strong><span>version 2</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>v0 size</strong><span>byte length of original-field chunk</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>v1 size</strong><span>byte length of optional-field chunk</span></td><td class="desert-segment desert-segment-color-3" colspan="2"><strong>optional</strong><span>FieldMadeOptional marker plus field position</span></td><td class="desert-segment desert-segment-color-4" colspan="4"><strong>x</strong><span>version-0 field</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-5" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-5" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-5" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-5" title="version-0 field"><code>14</code></td><td class="desert-byte-cell desert-segment-color-6" title="Option::None marker"><code>00</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-5" colspan="4"><strong>y</strong><span>version-0 field</span></td><td class="desert-segment desert-segment-color-6" colspan="1"><strong>label</strong><span>Option::None marker</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>When a field is removed, the metadata records the removed field name so readers
+that still know the field can either treat it as <code>None</code> if it is optional, or
+fail clearly if it is required.</p>
+<h3 id="pointv4-removes-label"><a class="header" href="#pointv4-removes-label">PointV4 removes label</a></h3>
+<pre><code class="language-rust ignore">#[derive(Debug, Clone, PartialEq, desert_rust::BinaryCodec)]
+#[desert(evolution(
+    FieldAdded("label", "origin".to_string()),
+    FieldMadeOptional("label"),
+    FieldRemoved("label")
+))]
+struct PointV4 {
+    x: i32,
+    y: i32,
+}
+
+let bytes = desert_rust::serialize_to_byte_vec(&amp;PointV4 { x: 10, y: 20 })?;</code></pre>
+<pre><code class="language-text">[0x03, 0x10, 0x00, 0x03, 0x0A, 0x6C, 0x61, 0x62, 0x65, 0x6C, 0x03, 0x01, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x14]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="version 3"><code>03</code></td><td class="desert-byte-cell desert-segment-color-1" title="byte length of original-field chunk"><code>10</code></td><td class="desert-byte-cell desert-segment-color-2" title="removed field leaves no data in the added chunk"><code>00</code></td><td class="desert-byte-cell desert-segment-color-3" title="FieldRemoved marker for optional step"><code>03</code></td><td class="desert-byte-cell desert-segment-color-4" title="removed field name length"><code>0A</code></td><td class="desert-byte-cell desert-segment-color-5" title="removed field name"><code>6C</code></td><td class="desert-byte-cell desert-segment-color-5" title="removed field name"><code>61</code></td><td class="desert-byte-cell desert-segment-color-5" title="removed field name"><code>62</code></td><td class="desert-byte-cell desert-segment-color-5" title="removed field name"><code>65</code></td><td class="desert-byte-cell desert-segment-color-5" title="removed field name"><code>6C</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>version</strong><span>version 3</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>v0 size</strong><span>byte length of original-field chunk</span></td><td class="desert-segment desert-segment-color-2" colspan="1"><strong>v1 size</strong><span>removed field leaves no data in the added chunk</span></td><td class="desert-segment desert-segment-color-3" colspan="1"><strong>removed</strong><span>FieldRemoved marker for optional step</span></td><td class="desert-segment desert-segment-color-4" colspan="1"><strong>name length</strong><span>removed field name length</span></td><td class="desert-segment desert-segment-color-5" colspan="5"><strong>name UTF-8</strong><span>removed field name</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-6" title="FieldRemoved marker"><code>03</code></td><td class="desert-byte-cell desert-segment-color-7" title="deduplicated reference to field name"><code>01</code></td><td class="desert-byte-cell desert-segment-color-0" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-0" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-0" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-0" title="version-0 field"><code>0A</code></td><td class="desert-byte-cell desert-segment-color-1" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="version-0 field"><code>00</code></td><td class="desert-byte-cell desert-segment-color-1" title="version-0 field"><code>14</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-6" colspan="1"><strong>removed</strong><span>FieldRemoved marker</span></td><td class="desert-segment desert-segment-color-7" colspan="1"><strong>name ref</strong><span>deduplicated reference to field name</span></td><td class="desert-segment desert-segment-color-0" colspan="4"><strong>x</strong><span>version-0 field</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>y</strong><span>version-0 field</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h2 id="keeping-evolution-safe"><a class="header" href="#keeping-evolution-safe">Keeping evolution safe</a></h2>
+<p>Use these practices for long-lived formats:</p>
+<ul>
+<li>Append evolution steps. Do not rewrite old evolution history.</li>
+<li>Keep field names stable.</li>
+<li>Prefer <code>Option&lt;T&gt;</code> as a compatibility bridge before removing a field.</li>
+<li>Keep enum constructor order stable, or opt into sorted constructors from the
+first released version.</li>
+<li>Add roundtrip and cross-version compatibility tests for every model that is
+persisted or sent across process boundaries.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="rust-and-scala-differences"><a class="header" href="#rust-and-scala-differences">Rust and Scala differences</a></h1>
+<p>The Rust library follows the same design goals as the original Scala <code>desert</code>
+library: compact binary data, ADT support, and schema evolution. The APIs are
+different because Rust and Scala expose different language tools.</p>
+<p>This page is a guide for readers who know the Scala documentation and want to
+understand what changed in <code>desert-rust</code>.</p>
+<h2 id="crate-layout"><a class="header" href="#crate-layout">Crate layout</a></h2>
+<p>Rust has three workspace crates:</p>
+<ul>
+<li><code>desert_rust</code>: public facade crate, re-exporting the core library and derive
+macro</li>
+<li><code>desert_core</code>: serialization, deserialization, state, codecs, and evolution
+logic</li>
+<li><code>desert_macro</code>: <code>#[derive(BinaryCodec)]</code></li>
+</ul>
+<p>Scala has separate modules for core codecs, derivation implementations, and
+ecosystem integrations such as Akka, Pekko, Cats, ZIO, and Shardcake. Those
+integration modules do not exist in the Rust project.</p>
+<h2 id="dependency-model"><a class="header" href="#dependency-model">Dependency model</a></h2>
+<p>Scala users choose between derivation modules such as Shapeless or ZIO Schema.
+Rust users depend on <code>desert_rust</code> and use one derive macro:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(BinaryCodec)]
+struct Point {
+    x: i32,
+    y: i32,
+}</code></pre>
+<p>Third-party Rust codecs are controlled by Cargo feature flags, for example
+<code>uuid</code>, <code>chrono</code>, and <code>serde-json</code>.</p>
+<h2 id="codec-discovery"><a class="header" href="#codec-discovery">Codec discovery</a></h2>
+<p>Scala uses implicit <code>BinaryCodec[T]</code> values. Rust uses trait implementations:</p>
+<ul>
+<li><code>BinarySerializer</code> writes a type.</li>
+<li><code>BinaryDeserializer</code> reads a type.</li>
+<li><code>BinaryCodec</code> is implemented automatically when both are present.</li>
+</ul>
+<p>There is no implicit search at runtime. If a generic function needs a codec, it
+uses Rust trait bounds:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinarySerializer, Result, serialize_to_byte_vec};
+
+fn encode&lt;T: BinarySerializer&gt;(value: &amp;T) -&gt; Result&lt;Vec&lt;u8&gt;&gt; {
+    serialize_to_byte_vec(value)
+}</code></pre>
+<h2 id="error-handling"><a class="header" href="#error-handling">Error handling</a></h2>
+<p>Scala APIs return an effect or an <code>Either</code>-like result depending on the module.
+Rust APIs return <code>desert_rust::Result&lt;T&gt;</code>, whose error type is
+<code>desert_rust::Error</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, Error};
+
+let result: Result&lt;i32, Error&gt; = deserialize(&amp;[0, 0, 0, 1]);</code></pre>
+<h2 id="derivation-attributes"><a class="header" href="#derivation-attributes">Derivation attributes</a></h2>
+<p>Scala evolution uses annotations such as <code>@evolutionSteps</code> and
+<code>@transientField</code>. Rust uses derive helper attributes:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(BinaryCodec)]
+#[desert(evolution(
+    FieldAdded("description", Some("new".to_string())),
+    FieldMadeOptional("description")
+))]
+struct Item {
+    name: String,
+    description: Option&lt;String&gt;,
+    #[transient(0usize)]
+    cached_hash: usize,
+}</code></pre>
+<p>The Rust derive macro currently supports:</p>
+<ul>
+<li><code>#[desert(evolution(...))]</code></li>
+<li><code>FieldAdded("field", default_expr)</code></li>
+<li><code>FieldMadeOptional("field")</code></li>
+<li><code>FieldRemoved("field")</code></li>
+<li><code>FieldMadeTransient("field")</code></li>
+<li><code>#[transient(default_expr)]</code> on fields</li>
+<li><code>#[transient]</code> on enum variants</li>
+<li><code>#[desert(transparent)]</code> on single-field structs and enum variants</li>
+<li><code>#[desert(sorted_constructors)]</code> on enums</li>
+</ul>
+<h2 id="character-encoding"><a class="header" href="#character-encoding">Character encoding</a></h2>
+<p>The Scala library encoded characters as 16-bit Unicode values. The Rust default
+encodes <code>char</code> as a Unicode scalar value using a variable-length unsigned
+integer.</p>
+<p>Use <code>Options::scala_compatible()</code> when Rust must read or write data compatible
+with Scala character encoding:</p>
+<pre><code class="language-rust ignore">use desert_rust::{Options, serialize_to_byte_vec_with_options};
+
+fn main() -&gt; desert_rust::Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec_with_options(&amp;'A', Options::scala_compatible())?;
+    assert_eq!(bytes, vec![0, 65]);
+    Ok(())
+}</code></pre>
+<p>In Scala-compatible mode, characters outside a single UTF-16 code unit cannot be
+serialized as <code>char</code>.</p>
+<h2 id="strings-and-byte-arrays"><a class="header" href="#strings-and-byte-arrays">Strings and byte arrays</a></h2>
+<p>Normal strings use the same basic shape: a compact byte length followed by
+UTF-8. <code>DeduplicatedString</code> also follows the same idea as Scala: first
+occurrences are written normally, repeated occurrences in the same context are
+written as negative ids.</p>
+<p>Raw byte blocks in Rust are represented by <code>Vec&lt;u8&gt;</code>, <code>[u8]</code>, <code>[u8; N]</code>,
+<code>bytes::Bytes</code>, and <code>NEVec&lt;u8&gt;</code>. These use a compact unsigned length plus raw
+bytes for compatibility with Scala byte chunks.</p>
+<h2 id="collections-2"><a class="header" href="#collections-2">Collections</a></h2>
+<p>Both implementations use a shared iterable representation so collection type
+changes can be compatible. Rust collection compatibility is constrained by Rust
+trait bounds: for example, deserializing into <code>HashSet&lt;T&gt;</code> requires <code>T: Eq + Hash</code>, while deserializing into <code>BTreeSet&lt;T&gt;</code> requires <code>T: Ord</code>.</p>
+<h2 id="type-registry"><a class="header" href="#type-registry">Type registry</a></h2>
+<p>The Scala library has a type registry for serializing values whose concrete type
+is not known statically.</p>
+<p>The Rust crate does not currently expose an equivalent type registry API. For
+now, model closed sets of runtime alternatives as enums, or define an
+application-level tag plus custom <code>BinarySerializer</code> and <code>BinaryDeserializer</code>
+implementations.</p>
+<h2 id="ecosystem-integrations"><a class="header" href="#ecosystem-integrations">Ecosystem integrations</a></h2>
+<p>Scala-specific modules described in the original documentation are not part of
+<code>desert-rust</code>:</p>
+<ul>
+<li>Akka and Pekko serializers</li>
+<li>Cats and Cats Effect codecs</li>
+<li>ZIO effect wrappers and codecs</li>
+<li>ZIO Prelude API</li>
+<li>Shardcake serializer</li>
+</ul>
+<p>Rust integration points are currently lower-level: implement the codec traits,
+use the byte helper functions, and integrate those bytes with your framework of
+choice.</p>
+<h2 id="compatibility-expectation"><a class="header" href="#compatibility-expectation">Compatibility expectation</a></h2>
+<p>The projects are similar, but not every Rust type has a Scala equivalent and not
+every Scala codec has a Rust equivalent. For cross-language data, prefer a small
+golden dataset and test it from both sides. Pay special attention to:</p>
+<ul>
+<li><code>char</code> encoding and <code>Options::scala_compatible()</code></li>
+<li>enabled Rust feature flags</li>
+<li>enum constructor order</li>
+<li>byte collection formats</li>
+<li>derived evolution history</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="type-registry-1"><a class="header" href="#type-registry-1">Type registry</a></h1>
+<p>The original Scala <code>desert</code> library includes a type registry for cases where the
+concrete type is not known at compile time. A serialized value carries a compact
+type id, and the registry maps that id back to a codec during deserialization.</p>
+<p><code>desert-rust</code> does not currently expose an equivalent public type registry API.
+The placeholder remains in the book because this is an important concept in the
+Scala documentation and a likely future Rust feature.</p>
+<h2 id="what-to-use-today"><a class="header" href="#what-to-use-today">What to use today</a></h2>
+<p>For closed sets of alternatives, use an enum:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryCodec;
+
+#[derive(Debug, Clone, PartialEq, BinaryCodec)]
+enum Message {
+    Ping,
+    Rename { id: u64, name: String },
+    Delete { id: u64 },
+}</code></pre>
+<p>This is the most idiomatic Rust option when all possible variants are known to
+the crate defining the protocol.</p>
+<p>For open sets, define an application-level tag and implement the codec traits
+manually:</p>
+<pre><code class="language-rust ignore">use desert_rust::{
+    BinaryDeserializer, BinaryOutput, BinarySerializer, DeserializationContext,
+    Error, Result, SerializationContext,
+};
+
+trait PluginMessage {}
+
+struct TextMessage(String);
+impl PluginMessage for TextMessage {}
+
+enum AnyMessage {
+    Text(TextMessage),
+}
+
+impl BinarySerializer for AnyMessage {
+    fn serialize&lt;Output: BinaryOutput&gt;(
+        &amp;self,
+        context: &amp;mut SerializationContext&lt;Output&gt;,
+    ) -&gt; Result&lt;()&gt; {
+        match self {
+            AnyMessage::Text(TextMessage(text)) =&gt; {
+                1u32.serialize(context)?;
+                text.serialize(context)
+            }
+        }
+    }
+}
+
+impl BinaryDeserializer for AnyMessage {
+    fn deserialize(context: &amp;mut DeserializationContext&lt;'_&gt;) -&gt; Result&lt;Self&gt; {
+        match u32::deserialize(context)? {
+            1 =&gt; Ok(AnyMessage::Text(TextMessage(String::deserialize(context)?))),
+            other =&gt; Err(Error::InvalidConstructorId {
+                constructor_id: other,
+                type_name: "AnyMessage".to_string(),
+            }),
+        }
+    }
+}</code></pre>
+<p>Keep ids stable once data has been written. If an id is retired, leave it
+reserved so newer variants do not take over old meanings.</p>
+<h2 id="difference-from-scala"><a class="header" href="#difference-from-scala">Difference from Scala</a></h2>
+<p>In Scala, the type registry is part of the public library API and is used by
+integrations such as actor serializers. In Rust, framework integration is
+currently expected to happen at the byte boundary: serialize a statically known
+type, or define your own dynamic envelope type as shown above.</p>
 
                     </main>
 

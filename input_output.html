@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Input/output - desert</title>
+        <title>Binary input/output - desert</title>
 
 
         <!-- Custom HTML head -->
@@ -28,7 +28,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="src/styles-5f396312.css">
+        <link rel="stylesheet" href="src/styles-ead747d8.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-98c34d6d.js";
+            window.path_to_searchindex_js = "searchindex-48cab41d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-fbb9c718.js"></script>
+        <script src="toc-bc47af81.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,17 +175,294 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="inputoutput"><a class="header" href="#inputoutput">Input/output</a></h1>
+                        <h1 id="binary-inputoutput"><a class="header" href="#binary-inputoutput">Binary input/output</a></h1>
+<p>The high-level helpers are enough for most use cases, but the core library is
+built around two low-level traits:</p>
+<ul>
+<li><code>BinaryOutput</code> writes bytes.</li>
+<li><code>BinaryInput</code> reads bytes and can skip regions.</li>
+</ul>
+<p>Serialization and deserialization contexts implement these traits and add shared
+state for features such as string deduplication, reference tracking, options,
+and ADT evolution.</p>
+<h2 id="high-level-output-helpers"><a class="header" href="#high-level-output-helpers">High-level output helpers</a></h2>
+<p>Use <code>serialize_to_byte_vec</code> when you want a <code>Vec&lt;u8&gt;</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{serialize_to_byte_vec, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_byte_vec(&amp;42i32)?;
+    assert_eq!(bytes, vec![0, 0, 0, 42]);
+    Ok(())
+}</code></pre>
+<p>Use <code>serialize_to_bytes</code> when you want <code>bytes::Bytes</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{serialize_to_bytes, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let bytes = serialize_to_bytes(&amp;"hello".to_string())?;
+    assert_eq!(&amp;bytes[..], &amp;[10, b'h', b'e', b'l', b'l', b'o']);
+    Ok(())
+}</code></pre>
+<p>The string length byte is <code>10</code> because signed variable integers use zig-zag
+encoding internally. The logical string length is <code>5</code>.</p>
+<h2 id="writing-to-a-custom-output"><a class="header" href="#writing-to-a-custom-output">Writing to a custom output</a></h2>
+<p>The generic <code>serialize</code> function accepts any <code>BinaryOutput</code>. The built-in
+outputs are:</p>
+<ul>
+<li><code>Vec&lt;u8&gt;</code></li>
+<li><code>bytes::BytesMut</code></li>
+<li><code>SizeCalculator</code></li>
+</ul>
+<p><code>SizeCalculator</code> computes the number of bytes that would be written without
+storing them:</p>
+<pre><code class="language-rust ignore">use desert_rust::{serialize, Result, SizeCalculator};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let output = serialize(&amp;1234i32, SizeCalculator::new())?;
+    assert_eq!(output.size(), 4);
+    Ok(())
+}</code></pre>
+<p>To write to a new destination, implement <code>BinaryOutput</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryOutput, Result};
+
+struct CountingOutput {
+    count: usize,
+}
+
+impl BinaryOutput for CountingOutput {
+    fn write_u8(&amp;mut self, _value: u8) {
+        self.count += 1;
+    }
+
+    fn write_bytes(&amp;mut self, bytes: &amp;[u8]) {
+        self.count += bytes.len();
+    }
+}</code></pre>
+<p>The trait provides default implementations for fixed-width integers, floats,
+variable-length integers, and compressed byte blocks.</p>
+<h2 id="reading-input"><a class="header" href="#reading-input">Reading input</a></h2>
+<p>The public top-level <code>deserialize</code> helper reads from <code>&amp;[u8]</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{deserialize, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let value: i32 = deserialize(&amp;[0, 0, 0, 42])?;
+    assert_eq!(value, 42);
+    Ok(())
+}</code></pre>
+<p>For low-level code, <code>SliceInput</code> borrows bytes and <code>OwnedInput</code> owns a <code>Vec&lt;u8&gt;</code>:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryInput, Result, SliceInput};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let mut input = SliceInput::new(&amp;[0, 0, 0, 42]);
+    let value = input.read_i32()?;
+
+    assert_eq!(value, 42);
+    Ok(())
+}</code></pre>
+<p>Most custom deserializers should use <code>DeserializationContext</code> rather than
+<code>SliceInput</code> directly, because the context also carries options and shared
+state:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryDeserializer, DeserializationContext, Options, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let mut context = DeserializationContext::new(&amp;[0, 0, 0, 42], Options::default());
+    let value = i32::deserialize(&amp;mut context)?;
+
+    assert_eq!(value, 42);
+    Ok(())
+}</code></pre>
+<h2 id="variable-length-integers"><a class="header" href="#variable-length-integers">Variable-length integers</a></h2>
+<p><code>BinaryOutput::write_var_u32</code> writes a <code>u32</code> in 1 to 5 bytes. Smaller positive
+values use fewer bytes:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryOutput, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let mut bytes = Vec::new();
+    bytes.write_var_u32(1);
+    bytes.write_var_u32(4096);
+
+    assert_eq!(bytes, vec![1, 128, 32]);
+    Ok(())
+}</code></pre>
+<p><code>write_var_i32</code> uses zig-zag encoding before writing the value as <code>var_u32</code>.
+This keeps small negative values compact too:</p>
+<pre><code class="language-rust ignore">use desert_rust::BinaryOutput;
+
+let mut bytes = Vec::new();
+bytes.write_var_i32(-1);
+assert_eq!(bytes, vec![1]);</code></pre>
+<p>The library uses variable-length integers for lengths, ids, and ADT evolution
+metadata. Fixed-width Rust integer codecs such as <code>i32</code> still use fixed-width
+big-endian bytes.</p>
+<h3 id="var_u32"><a class="header" href="#var_u32">var_u32</a></h3>
+<pre><code class="language-rust ignore">let mut bytes = Vec::new();
+bytes.write_var_u32(16_384);</code></pre>
+<pre><code class="language-text">[0x80, 0x80, 0x01]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="7-bit groups with continuation bits"><code>80</code></td><td class="desert-byte-cell desert-segment-color-0" title="7-bit groups with continuation bits"><code>80</code></td><td class="desert-byte-cell desert-segment-color-0" title="7-bit groups with continuation bits"><code>01</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="3"><strong>var_u32</strong><span>7-bit groups with continuation bits</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="var_i32"><a class="header" href="#var_i32">var_i32</a></h3>
+<pre><code class="language-rust ignore">let mut bytes = Vec::new();
+bytes.write_var_i32(-64);</code></pre>
+<pre><code class="language-text">[0x7F]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="signed value zig-zag encoded, then var_u32"><code>7F</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>zig-zag</strong><span>signed value zig-zag encoded, then var_u32</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h2 id="compression-helpers"><a class="header" href="#compression-helpers">Compression helpers</a></h2>
+<p><code>BinaryOutput::write_compressed</code> stores:</p>
+<ol>
+<li>the uncompressed length as <code>var_u32</code></li>
+<li>the compressed length as <code>var_u32</code></li>
+<li>the deflate-compressed bytes</li>
+</ol>
+<p><code>BinaryInput::read_compressed</code> reverses that representation:</p>
+<pre><code class="language-rust ignore">use desert_rust::{BinaryInput, BinaryOutput, OwnedInput, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let data = b"hello hello hello";
+    let mut bytes = Vec::new();
+
+    bytes.write_compressed(data, Default::default())?;
+
+    let mut input = OwnedInput::new(bytes);
+    let decoded = input.read_compressed()?;
+
+    assert_eq!(decoded, data);
+    Ok(())
+}</code></pre>
+<p>Compression is a low-level helper. The built-in type codecs do not compress
+their payloads automatically.</p>
+<h3 id="compressed-block"><a class="header" href="#compressed-block">compressed block</a></h3>
+<pre><code class="language-rust ignore">let data = b"hello hello hello";
+let mut bytes = Vec::new();
+bytes.write_compressed(data, flate2::Compression::fast())?;</code></pre>
+<pre><code class="language-text">[0x11, 0x09, 0xCB, 0x48, 0xCD, 0xC9, 0xC9, 0x57, 0x40, 0x22, 0x01]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="uncompressed byte count as var_u32"><code>11</code></td><td class="desert-byte-cell desert-segment-color-1" title="compressed byte count as var_u32"><code>09</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>CB</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>48</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>CD</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>C9</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>C9</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>57</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>40</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>22</code></td><td class="desert-byte-cell desert-segment-color-2" title="deflate payload"><code>01</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>plain len</strong><span>uncompressed byte count as var_u32</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>deflate len</strong><span>compressed byte count as var_u32</span></td><td class="desert-segment desert-segment-color-2" colspan="9"><strong>deflate</strong><span>deflate payload</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h2 id="byte-blocks-and-iterables"><a class="header" href="#byte-blocks-and-iterables">Byte blocks and iterables</a></h2>
+<p>Byte-oriented containers use a compact block format: a <code>var_u32</code> byte count
+followed by the bytes. Generic iterable containers use an item format that can
+also represent streams with no exact size hint.</p>
+<h3 id="vecu8"><a class="header" href="#vecu8">Vec&lt;u8&gt;</a></h3>
+<pre><code class="language-rust ignore">let bytes = desert_rust::serialize_to_byte_vec(&amp;vec![1u8, 2, 3, 4])?;</code></pre>
+<pre><code class="language-text">[0x04, 0x01, 0x02, 0x03, 0x04]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="var_u32 byte count"><code>04</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>02</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>03</code></td><td class="desert-byte-cell desert-segment-color-1" title="raw byte payload"><code>04</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>length</strong><span>var_u32 byte count</span></td><td class="desert-segment desert-segment-color-1" colspan="4"><strong>bytes</strong><span>raw byte payload</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h3 id="unknown-size-iterable"><a class="header" href="#unknown-size-iterable">unknown-size iterable</a></h3>
+<pre><code class="language-rust ignore">let mut iter = [1i32, 2].into_iter().filter(|value| *value &gt; 0);
+desert_rust::serialize_iterator(
+    &amp;mut iter,
+    &amp;mut desert_rust::SerializationContext::new(&amp;mut bytes, desert_rust::Options::default()),
+)?;</code></pre>
+<pre><code class="language-text">[0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00]
+</code></pre>
+<div class="desert-bytes">
+<table>
+<tbody>
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-0" title="-1 count marker as var_i32"><code>01</code></td><td class="desert-byte-cell desert-segment-color-1" title="item-present marker"><code>01</code></td><td class="desert-byte-cell desert-segment-color-2" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="first i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-2" title="first i32"><code>01</code></td><td class="desert-byte-cell desert-segment-color-3" title="item-present marker"><code>01</code></td><td class="desert-byte-cell desert-segment-color-4" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="second i32"><code>00</code></td><td class="desert-byte-cell desert-segment-color-4" title="second i32"><code>02</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-0" colspan="1"><strong>unknown</strong><span>-1 count marker as var_i32</span></td><td class="desert-segment desert-segment-color-1" colspan="1"><strong>item</strong><span>item-present marker</span></td><td class="desert-segment desert-segment-color-2" colspan="4"><strong>value</strong><span>first i32</span></td><td class="desert-segment desert-segment-color-3" colspan="1"><strong>item</strong><span>item-present marker</span></td><td class="desert-segment desert-segment-color-4" colspan="4"><strong>value</strong><span>second i32</span></td></tr>
+
+<tr class="desert-byte-row">
+<td class="desert-byte-cell desert-segment-color-5" title="end marker"><code>00</code></td></tr>
+
+<tr class="desert-segment-row">
+<td class="desert-segment desert-segment-color-5" colspan="1"><strong>end</strong><span>end marker</span></td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h2 id="options"><a class="header" href="#options">Options</a></h2>
+<p><code>Options</code> currently controls Scala-compatible character encoding:</p>
+<pre><code class="language-rust ignore">use desert_rust::Options;
+
+let default_options = Options::default();
+let scala_options = Options::scala_compatible();
+
+assert!(!default_options.chars_as_u16);
+assert!(scala_options.chars_as_u16);</code></pre>
+<p>Pass options through <code>serialize_with_options</code>,
+<code>serialize_to_byte_vec_with_options</code>, <code>serialize_to_bytes_with_options</code>, or
+<code>deserialize_with_options</code>.</p>
+<h2 id="context-state"><a class="header" href="#context-state">Context state</a></h2>
+<p><code>SerializationContext</code> and <code>DeserializationContext</code> also hold per-stream state.
+Built-in uses include:</p>
+<ul>
+<li>string ids for <code>DeduplicatedString</code></li>
+<li>reference ids for custom reference-aware codecs</li>
+<li>nested buffer stacks used by ADT evolution encoding</li>
+</ul>
+<p>If you implement a custom codec and only need ordinary values, call the existing
+<code>BinarySerializer</code> and <code>BinaryDeserializer</code> implementations. Touching context
+state directly is an advanced use case.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="getting_started.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="codecs.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="codecs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="evolution.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -195,11 +472,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="getting_started.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="codecs.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="codecs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="evolution.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
