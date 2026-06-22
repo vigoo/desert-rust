@@ -1,6 +1,6 @@
 use crate::deserializer::DeserializationContext;
 use crate::serializer::SerializationContext;
-use crate::{BinaryDeserializer, BinaryOutput, BinarySerializer, Error, Result};
+use crate::{BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, Error, Result};
 use bigdecimal::num_bigint::BigInt;
 use bigdecimal::num_traits::ToBytes;
 use bigdecimal::BigDecimal;
@@ -16,7 +16,16 @@ impl BinarySerializer for BigDecimal {
 
 impl BinaryDeserializer for BigDecimal {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        let string = String::deserialize(context)?;
+        let length = context.read_var_i32()?;
+        if length < 0 {
+            return Err(Error::DeserializationFailure(
+                "Failed to deserialize BigDecimal: negative string length".to_string(),
+            ));
+        }
+        let bytes = context.read_bytes(length as usize)?;
+        let string = std::str::from_utf8(bytes).map_err(|err| {
+            Error::FailedToDecodeString(format!("Failed to decode BigDecimal string: {err}"))
+        })?;
         string.parse().map_err(|err| {
             Error::DeserializationFailure(format!("Failed to deserialize BigDecimal: {err}"))
         })

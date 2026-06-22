@@ -1,5 +1,5 @@
 use crate::{
-    BinaryDeserializer, BinaryOutput, BinarySerializer, DeserializationContext,
+    BinaryDeserializer, BinaryInput, BinaryOutput, BinarySerializer, DeserializationContext,
     SerializationContext,
 };
 use serde_json::Value;
@@ -17,8 +17,9 @@ impl BinarySerializer for Value {
 
 impl BinaryDeserializer for Value {
     fn deserialize(context: &mut DeserializationContext<'_>) -> crate::Result<Self> {
-        let bytes = Vec::<u8>::deserialize(context)?;
-        let value: Value = serde_json::from_slice(&bytes)
+        let length = context.read_var_u32()?;
+        let bytes = context.read_bytes(length as usize)?;
+        let value: Value = serde_json::from_slice(bytes)
             .map_err(|err| crate::Error::DeserializationFailure(err.to_string()))?;
         Ok(value)
     }
