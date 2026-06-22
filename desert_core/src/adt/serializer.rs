@@ -38,9 +38,7 @@ impl<'a, 'b, Output: BinaryOutput, const V: usize> AdtSerializer<'a, 'b, Output,
         Self {
             metadata,
             context,
-            buffers: Some(array::from_fn(|_| {
-                Some(Vec::with_capacity(DEFAULT_CAPACITY))
-            })),
+            buffers: Some(array::from_fn(|_| None)),
             last_index_per_chunk: if contains_field_made_optional {
                 Some([-1; V])
             } else {
@@ -62,8 +60,10 @@ impl<'a, 'b, Output: BinaryOutput, const V: usize> AdtSerializer<'a, 'b, Output,
             .unwrap_or(&0);
         let mut requires_buffer = false;
         if let Some(buffers) = self.buffers.as_mut() {
-            self.context
-                .push_buffer(buffers[chunk as usize].take().unwrap());
+            let buffer = buffers[chunk as usize]
+                .take()
+                .unwrap_or_else(|| Vec::with_capacity(DEFAULT_CAPACITY));
+            self.context.push_buffer(buffer);
             requires_buffer = true;
         }
         value.serialize(self.context)?;
@@ -117,11 +117,13 @@ impl<'a, 'b, Output: BinaryOutput, const V: usize> AdtSerializer<'a, 'b, Output,
         for (v, evolution) in evolution_steps.iter().enumerate() {
             let step = match evolution {
                 Evolution::InitialVersion => {
-                    let size = buffers[v].as_ref().unwrap().len().try_into()?;
+                    let size = buffers[v].as_ref().map(Vec::len).unwrap_or_default();
+                    let size = size.try_into()?;
                     Ok(SerializedEvolutionStep::FieldAddedToNewChunk { size })
                 }
                 Evolution::FieldAdded { .. } => {
-                    let size = buffers[v].as_ref().unwrap().len().try_into()?;
+                    let size = buffers[v].as_ref().map(Vec::len).unwrap_or_default();
+                    let size = size.try_into()?;
                     Ok(SerializedEvolutionStep::FieldAddedToNewChunk { size })
                 }
                 Evolution::FieldMadeOptional { name } => {
@@ -155,8 +157,8 @@ impl<'a, 'b, Output: BinaryOutput, const V: usize> AdtSerializer<'a, 'b, Output,
     }
 
     fn write_ordered_chunks(&mut self, buffers: [Option<Vec<u8>>; V]) -> Result<()> {
-        for buffer in buffers {
-            self.context.write_bytes(&buffer.unwrap());
+        for buffer in buffers.into_iter().flatten() {
+            self.context.write_bytes(&buffer);
         }
         Ok(())
     }

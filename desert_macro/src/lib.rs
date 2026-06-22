@@ -629,19 +629,35 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                             }
                         };
 
-                        direct_deser_cases.push(
-                            quote! {
-                                #effective_case_idx => {
-                                    let stored_version = context.read_u8()?;
-                                    if stored_version == 0 {
-                                        Ok(#direct_construct_case)
-                                    } else {
-                                        let mut deserializer = desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?;
+                        if version == 0 {
+                            direct_deser_cases.push(
+                                quote! {
+                                    #effective_case_idx => {
+                                        let stored_version = context.read_u8()?;
+                                        if stored_version == 0 {
+                                            Ok(#direct_construct_case)
+                                        } else {
+                                            let mut deserializer = desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?;
+                                            Ok(#construct_case)
+                                        }
+                                    },
+                                }
+                            );
+                        } else {
+                            direct_deser_cases.push(
+                                quote! {
+                                    #effective_case_idx => {
+                                        let stored_version = context.read_u8()?;
+                                        let mut deserializer = if stored_version == 0 {
+                                            desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#case_metadata_name, context)?
+                                        } else {
+                                            desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?
+                                        };
                                         Ok(#construct_case)
-                                    }
-                                },
-                            }
-                        );
+                                    },
+                                }
+                            );
+                        }
                     }
 
                     effective_case_idx += 1;

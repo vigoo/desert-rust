@@ -480,7 +480,12 @@ impl<T: BinaryDeserializer + 'static> BinaryDeserializer for VecDeque<T> {
 
 impl<T: BinaryDeserializer + Eq + Hash> BinaryDeserializer for HashSet<T> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        deserialize_iterator(context).0.collect()
+        let (iter, maybe_size) = deserialize_iterator(context);
+        let mut set = HashSet::with_capacity(maybe_size.unwrap_or_default());
+        for item in iter {
+            set.insert(item?);
+        }
+        Ok(set)
     }
 }
 
@@ -494,7 +499,13 @@ impl<K: BinaryDeserializer + Eq + Hash, V: BinaryDeserializer> BinaryDeserialize
     for HashMap<K, V>
 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        deserialize_iterator(context).0.collect()
+        let (iter, maybe_size) = deserialize_iterator(context);
+        let mut map = HashMap::with_capacity(maybe_size.unwrap_or_default());
+        for item in iter {
+            let (key, value) = item?;
+            map.insert(key, value);
+        }
+        Ok(map)
     }
 }
 
