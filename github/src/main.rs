@@ -39,21 +39,32 @@ fn main() {
                 .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v6"))
                 .add_step(toolchain.clone())
                 .add_step(Step::install_action().add_tool("cargo-deny"))
+                .add_step(Step::setup_mdbook())
+                .add_step(Cargo::new("build").args("-p desert_book"))
+                .add_step(
+                    Step::new("Add Cargo binaries to PATH")
+                        .run(r#"echo "$GITHUB_WORKSPACE/target/debug" >> "$GITHUB_PATH""#),
+                )
                 .add_step(Cargo::new("clippy").args("--no-deps --all-targets -- -Dwarnings"))
                 .add_step(Cargo::new("fmt").args("--all -- --check"))
-                .add_step(Cargo::new("deny").args("check")),
+                .add_step(Cargo::new("deny").args("check"))
+                .add_step(Step::new("Build book").run("mdbook build book"))
+                .add_step(Step::new("Test book").run("mdbook test book")),
         )
         .add_job(
             "deploy-book",
             Job::new("Deploy book")
                 .runs_on_("ubuntu-latest")
                 .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v6"))
+                .add_step(toolchain.clone())
                 .add_step(Step::setup_mdbook())
+                .add_step(Cargo::new("build").args("-p desert_book"))
                 .add_step(
-                    Step::new("Build MDbook")
-                        .run("mdbook build")
-                        .working_directory("book"),
+                    Step::new("Add Cargo binaries to PATH")
+                        .run(r#"echo "$GITHUB_WORKSPACE/target/debug" >> "$GITHUB_PATH""#),
                 )
+                .add_step(Step::new("Build MDbook").run("mdbook build book"))
+                .add_step(Step::new("Test MDbook").run("mdbook test book"))
                 .add_step(
                     Step::ghpages()
                         .if_condition(Expression::new("${{ github.ref == 'refs/heads/master' }}"))

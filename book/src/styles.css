@@ -1,6 +1,6 @@
 .binary table {
     border-collapse: initial;
-    border: 0px;
+    border: 0;
 }
 
 .binary td {
@@ -9,8 +9,107 @@
     text-align: center;
     color: black;
     background-color: rgb(154, 231, 147);
-    margin: 0px;
+    margin: 0;
     border-spacing: 1px;
     font-family: monospace;
     font-weight: normal;
+}
+
+.desert-bytes {
+    margin: 1rem 0 1.5rem;
+    overflow-x: auto;
+}
+
+.desert-bytes table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 2px;
+    border: 0;
+}
+
+.desert-bytes td {
+    border: 0;
+}
+
+.desert-byte-cell {
+    min-width: 2.8rem;
+    padding: 0.35rem 0.45rem;
+    text-align: center;
+    background: var(--desert-segment-bg, var(--table-header-bg, rgba(127, 127, 127, 0.16)));
+    border: 1px solid var(--desert-segment-border, var(--table-border-color, rgba(127, 127, 127, 0.35))) !important;
+    border-radius: 4px;
+}
+
+.desert-byte-cell code {
+    white-space: nowrap;
+}
+
+.desert-segment {
+    padding: 0.35rem 0.45rem;
+    vertical-align: top;
+    background: var(--desert-segment-bg, var(--quote-bg, rgba(127, 127, 127, 0.08)));
+    border: 1px solid var(--desert-segment-border, var(--table-border-color, rgba(127, 127, 127, 0.25))) !important;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    line-height: 1.25;
+}
+
+.desert-segment-color-0 {
+    --desert-segment-bg: rgba(67, 126, 183, 0.16);
+    --desert-segment-border: rgba(67, 126, 183, 0.38);
+}
+
+.desert-segment-color-1 {
+    --desert-segment-bg: rgba(65, 148, 119, 0.16);
+    --desert-segment-border: rgba(65, 148, 119, 0.38);
+}
+
+.desert-segment-color-2 {
+    --desert-segment-bg: rgba(166, 132, 52, 0.17);
+    --desert-segment-border: rgba(166, 132, 52, 0.4);
+}
+
+.desert-segment-color-3 {
+    --desert-segment-bg: rgba(171, 95, 117, 0.16);
+    --desert-segment-border: rgba(171, 95, 117, 0.38);
+}
+
+.desert-segment-color-4 {
+    --desert-segment-bg: rgba(113, 111, 178, 0.16);
+    --desert-segment-border: rgba(113, 111, 178, 0.38);
+}
+
+.desert-segment-color-5 {
+    --desert-segment-bg: rgba(64, 145, 156, 0.16);
+    --desert-segment-border: rgba(64, 145, 156, 0.38);
+}
+
+.desert-segment-color-6 {
+    --desert-segment-bg: rgba(143, 116, 72, 0.17);
+    --desert-segment-border: rgba(143, 116, 72, 0.4);
+}
+
+.desert-segment-color-7 {
+    --desert-segment-bg: rgba(135, 130, 141, 0.16);
+    --desert-segment-border: rgba(135, 130, 141, 0.38);
+}
+
+.desert-segment strong,
+.desert-segment span {
+    display: block;
+}
+
+.desert-segment span {
+    opacity: 0.78;
+}
+
+@media (max-width: 700px) {
+    .desert-byte-cell {
+        min-width: 2.4rem;
+        padding: 0.3rem;
+    }
+
+    .desert-segment {
+        font-size: 0.75rem;
+    }
 }

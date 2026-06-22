@@ -52,25 +52,44 @@ jobs:
       uses: taiki-e/install-action@v2
       with:
         tool: cargo-deny
+    - name: Setup MDBook
+      uses: peaceiris/actions-mdbook@v2
+      with:
+        mdbook-version: latest
+    - name: Cargo build
+      run: cargo build -p desert_book
+    - name: Add Cargo binaries to PATH
+      run: echo "$GITHUB_WORKSPACE/target/debug" >> "$GITHUB_PATH"
     - name: Cargo clippy
       run: cargo clippy --no-deps --all-targets -- -Dwarnings
     - name: Cargo fmt
       run: cargo fmt --all -- --check
     - name: Cargo deny
       run: cargo deny check
+    - name: Build book
+      run: mdbook build book
+    - name: Test book
+      run: mdbook test book
   deploy-book:
     name: Deploy book
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Code
       uses: actions/checkout@v6
+    - name: Setup Rust Toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
     - name: Setup MDBook
       uses: peaceiris/actions-mdbook@v2
       with:
         mdbook-version: latest
+    - name: Cargo build
+      run: cargo build -p desert_book
+    - name: Add Cargo binaries to PATH
+      run: echo "$GITHUB_WORKSPACE/target/debug" >> "$GITHUB_PATH"
     - name: Build MDbook
-      run: mdbook build
-      working-directory: book
+      run: mdbook build book
+    - name: Test MDbook
+      run: mdbook test book
     - name: GitHub pages
       if: ${{ github.ref == 'refs/heads/master' }}
       uses: peaceiris/actions-gh-pages@v4

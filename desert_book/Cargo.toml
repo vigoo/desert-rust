@@ -1,0 +1,33 @@
+[package]
+name = "desert_book"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[[bin]]
+name = "mdbook-desert"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+bigdecimal = "0.4"
+bit-vec = "0.6"
+bytes = "1.10"
+chrono = "0.4"
+desert_rust = { path = "../desert", features = [
+    "bigdecimal",
+    "bit-vec",
+    "chrono",
+    "mac_address",
+    "nonempty-collections",
+    "serde-json",
+    "url",
+    "uuid",
+] }
+flate2 = "1.1"
+mac_address = "1.1"
+nonempty-collections = "1.2.1"
+serde_json = "1"
+url = "2.5"
+uuid = "1.18"

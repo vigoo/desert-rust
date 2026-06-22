@@ -1,56 +1,150 @@
+# Getting started with desert-rust
 
-# Getting started with desert
+`desert-rust` is a binary serialization library for Rust. It focuses on compact
+binary data while still allowing compatible changes to structs and enums over
+time.
 
-Desert is a _binary serialization library_ for Rust (and Scala), focusing on creating small binaries
-while still enabling binary compatible evolution of the data model.
+The Rust crate is the counterpart of the original Scala `desert` library. The
+wire format is intentionally similar, but the API is shaped around Rust traits,
+derive macros, feature flags, and explicit error handling.
 
-It is suitable for any kind of short or long term storage.
+## Installation
 
-First add `desert` as a dependency:
+Add the public crate to `Cargo.toml`:
 
 ```toml
-desert_rust = "0.1.0"
+[dependencies]
+desert_rust = "0.1.8"
 ```
 
-The most simple use case is to serialize a known type to an array of bytes and read it back:
+Additional codecs are controlled with crate features:
 
-```rust
-# extern crate desert_rust;
-use desert_rust::serialize_to_byte_vec;
-
-# fn main() {
-let data_or_failure = serialize_to_byte_vec(&"Hello world".to_string());
-# }
+```toml
+[dependencies]
+desert_rust = { version = "0.1.8", features = ["uuid", "chrono", "url"] }
 ```
 
-```rust
-# extern crate desert_rust;
-# use desert_rust::serialize_to_byte_vec;
-# use desert_rust::deserialize;
+Feature flags exposed by the public crate are:
 
-# fn main() {
-#  let data_or_failure = serialize_to_byte_vec(&"Hello world".to_string());
-let y = data_or_failure.and_then(|data| deserialize::<String>(&data));
-# }
+- `bigdecimal`
+- `bit-vec`
+- `chrono`
+- `mac_address`
+- `nonempty-collections`
+- `serde-json`
+- `url`
+- `uuid`
+
+The current `desert_core` default features already enable `bigdecimal`,
+`chrono`, `uuid`, `nonempty-collections`, and `serde-json`. Features such as
+`url`, `mac_address`, and `bit-vec` must be enabled explicitly.
+
+## Serialize and deserialize a known type
+
+The most direct API works with a `Vec<u8>` or `bytes::Bytes`:
+
+```rust,ignore
+use desert_rust::{deserialize, serialize_to_byte_vec, Result};
+
+fn main() -> Result<()> {
+    let bytes = serialize_to_byte_vec(&"Hello world".to_string())?;
+    let value: String = deserialize(&bytes)?;
+
+    assert_eq!(value, "Hello world");
+    Ok(())
+}
 ```
 
-### Codecs
+This works because `String` implements both `BinarySerializer` and
+`BinaryDeserializer`. Their combination is named `BinaryCodec`.
 
-This works because the `BinaryCodec` (a combination of `BinarySerializer` and `BinaryDeserializer`) trait is implemented for `String`. Read
-the [codecs page](./codecs.md) to learn about the available codecs and how to define custom ones.
+## Derive codecs for your data
 
-### Low level input/output
+For structs and enums, derive `BinaryCodec`:
 
-The above example shows the convenient functions to work with `Vec<u8>` and `&[u8]` directly, but they have a more generic
-version working on the low level `BinaryInput` and `BinaryOutput` interfaces. These are described on
-the [input/output page](./input_output.md).
+```rust,ignore
+use desert_rust::{deserialize, serialize_to_byte_vec, BinaryCodec, Result};
 
-### Evolution
+#[derive(Debug, PartialEq, BinaryCodec)]
+struct Point {
+    x: i32,
+    y: i32,
+}
 
-One of the primary features of the library is the support for _evolving the data model_. The possibilities
-are described on a [separate page](./evolution.md).
+#[derive(Debug, PartialEq, BinaryCodec)]
+enum Command {
+    Move { to: Point },
+    Label(String),
+    Stop,
+}
 
-### Type registry
+fn main() -> Result<()> {
+    let command = Command::Move {
+        to: Point { x: 10, y: -5 },
+    };
 
-For cases when the exact type to be deserialized is not known at compile type, the possibilities
-can be registered to a [type registry](./type_registry.md).
+    let bytes = serialize_to_byte_vec(&command)?;
+    let decoded: Command = deserialize(&bytes)?;
+
+    assert_eq!(decoded, command);
+    Ok(())
+}
+```
+
+The derive macro generates trait implementations and metadata needed for schema
+evolution. There is no runtime reflection or registration step for statically
+known types.
+
+## Top-level helper functions
+
+The main helper functions are:
+
+- `serialize(value, output)` writes to any `BinaryOutput`.
+- `serialize_with_options(value, output, options)` does the same with explicit
+  options.
+- `serialize_to_byte_vec(value)` returns `Vec<u8>`.
+- `serialize_to_bytes(value)` returns `bytes::Bytes`.
+- `deserialize::<T>(input)` reads `T` from a byte slice.
+- `deserialize_with_options::<T>(input, options)` reads with explicit options.
+
+## Scala compatibility option
+
+Rust `char` normally serializes as a variable-length Unicode scalar value.
+The Scala library encoded characters as 16-bit Unicode units. Use
+`Options::scala_compatible()` when reading or writing data that must match the
+Scala character encoding:
+
+```rust,ignore
+use desert_rust::{
+    deserialize_with_options, serialize_to_byte_vec_with_options, Options, Result,
+};
+
+fn main() -> Result<()> {
+    let options = Options::scala_compatible();
+    let bytes = serialize_to_byte_vec_with_options(&'x', options.clone())?;
+    let decoded: char = deserialize_with_options(&bytes, options)?;
+
+    assert_eq!(decoded, 'x');
+    Ok(())
+}
+```
+
+If a character cannot be represented as a single 16-bit unit in this mode,
+serialization fails with `Error::UnsupportedCharacter`.
+
+## Building this book locally
+
+The byte-layout examples in this book are generated by the `mdbook-desert`
+preprocessor. Build it first, then put Cargo's debug binary directory on
+`PATH` while running mdBook:
+
+```sh
+cargo build -p desert_book
+PATH="$PWD/target/debug:$PATH" mdbook build book
+```
+
+## Where to go next
+
+Read [Codecs and derivation](./codecs.md) for built-in types and custom codec
+implementations. Read [Data model evolution](./evolution.md) before persisting
+data long term or sending it between independently deployed versions.

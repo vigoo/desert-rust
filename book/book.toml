@@ -6,3 +6,6 @@ title = "desert"
 
 [output.html]
 additional-css = ["src/styles.css"]
+
+[preprocessor.desert]
+command = "mdbook-desert"

@@ -662,6 +662,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "desert_book"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bigdecimal 0.4.10",
+ "bit-vec 0.6.3",
+ "bytes",
+ "chrono",
+ "desert_rust 0.1.8",
+ "flate2",
+ "mac_address",
+ "nonempty-collections 1.3.0",
+ "serde_json",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "desert_core"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
