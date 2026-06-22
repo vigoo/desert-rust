@@ -11,8 +11,8 @@ use std::sync::Arc;
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use desert_rust::{
-    deserialize, serialize_to_byte_vec, BinaryCodec, BinaryDeserializer, BinaryInput, BinaryOutput,
-    BinarySerializer, DeserializationContext, Error, SerializationContext,
+    deserialize, serialize, serialize_to_byte_vec, BinaryCodec, BinaryDeserializer, BinaryInput,
+    BinaryOutput, BinarySerializer, DeserializationContext, Error, SerializationContext,
 };
 use uuid::Uuid;
 
@@ -21,13 +21,12 @@ use crate::golem_schema::{
 };
 
 pub const SERIALIZATION_VERSION_V3: u8 = 3;
+const DEFAULT_SERIALIZATION_CAPACITY: usize = 128;
 
 pub fn serialize_with_version<T: BinarySerializer>(value: &T) -> desert_rust::Result<Vec<u8>> {
-    let bytes = serialize_to_byte_vec(value)?;
-    let mut result = Vec::with_capacity(bytes.len() + 1);
+    let mut result = Vec::with_capacity(DEFAULT_SERIALIZATION_CAPACITY + 1);
     result.push(SERIALIZATION_VERSION_V3);
-    result.extend(bytes);
-    Ok(result)
+    serialize(value, result)
 }
 
 pub fn deserialize_with_version<T: BinaryDeserializer>(bytes: &[u8]) -> desert_rust::Result<T> {
@@ -38,6 +37,27 @@ pub fn deserialize_with_version<T: BinaryDeserializer>(bytes: &[u8]) -> desert_r
         )));
     }
     deserialize(payload)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn versioned_serialization_prefixes_version_and_roundtrips() {
+        let value = 42u32;
+        let bytes = serialize_with_version(&value).unwrap();
+
+        assert_eq!(bytes.first().copied(), Some(SERIALIZATION_VERSION_V3));
+        assert_eq!(deserialize_with_version::<u32>(&bytes).unwrap(), value);
+    }
+
+    #[test]
+    fn versioned_deserialization_rejects_unknown_version() {
+        let bytes = [SERIALIZATION_VERSION_V3 + 1, 0];
+
+        assert!(deserialize_with_version::<u32>(&bytes).is_err());
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, BinaryCodec)]

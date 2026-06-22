@@ -2,7 +2,10 @@ use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use desert_benchmarks::golem_oplog::*;
-use desert_rust::{deserialize, serialize_to_byte_vec};
+use desert_rust::{
+    deserialize, serialize_into_byte_vec, serialize_to_byte_vec,
+    serialize_to_byte_vec_with_capacity,
+};
 
 fn bench_single_entries(c: &mut Criterion) {
     let cases = golem_oplog_entry_cases();
@@ -65,10 +68,25 @@ fn bench_versioned_wrapper(c: &mut Criterion) {
 fn bench_batch_paths(c: &mut Criterion) {
     let batch = golem_oplog_batch(1024);
     let batch_bytes = serialize_to_byte_vec(&batch).unwrap();
+    let batch_capacity = batch_bytes.len();
 
     let mut group = c.benchmark_group("golem oplog batch");
     group.bench_function("serialize_vec_entries_1024", |b| {
         b.iter(|| black_box(serialize_to_byte_vec(black_box(&batch)).unwrap()));
+    });
+    group.bench_function("serialize_vec_entries_1024_with_capacity", |b| {
+        b.iter(|| {
+            black_box(
+                serialize_to_byte_vec_with_capacity(black_box(&batch), batch_capacity).unwrap(),
+            )
+        });
+    });
+    group.bench_function("serialize_vec_entries_1024_reuse_buffer", |b| {
+        let mut output = Vec::with_capacity(batch_capacity);
+        b.iter(|| {
+            serialize_into_byte_vec(black_box(&batch), &mut output).unwrap();
+            black_box(output.len())
+        });
     });
     group.bench_function("deserialize_vec_entries_1024", |b| {
         b.iter(|| black_box(deserialize::<Vec<GolemOplogEntry>>(black_box(&batch_bytes)).unwrap()));

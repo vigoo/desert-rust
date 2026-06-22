@@ -105,6 +105,16 @@ pub trait BinaryOutput {
     }
 }
 
+impl<Output: BinaryOutput + ?Sized> BinaryOutput for &mut Output {
+    fn write_u8(&mut self, value: u8) {
+        (**self).write_u8(value);
+    }
+
+    fn write_bytes(&mut self, bytes: &[u8]) {
+        (**self).write_bytes(bytes);
+    }
+}
+
 impl BinaryOutput for BytesMut {
     fn write_u8(&mut self, value: u8) {
         self.put_u8(value);

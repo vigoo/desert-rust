@@ -57,25 +57,80 @@ pub fn deserialize_with_options<T: BinaryDeserializer>(
 }
 
 pub fn serialize_to_bytes<T: BinarySerializer>(value: &T) -> Result<Bytes> {
-    Ok(serialize(value, BytesMut::with_capacity(DEFAULT_CAPACITY))?.freeze())
+    serialize_to_bytes_with_capacity(value, DEFAULT_CAPACITY)
 }
 
 pub fn serialize_to_bytes_with_options<T: BinarySerializer>(
     value: &T,
     options: Options,
 ) -> Result<Bytes> {
-    Ok(serialize_with_options(value, BytesMut::with_capacity(DEFAULT_CAPACITY), options)?.freeze())
+    serialize_to_bytes_with_options_and_capacity(value, options, DEFAULT_CAPACITY)
+}
+
+pub fn serialize_to_bytes_with_capacity<T: BinarySerializer>(
+    value: &T,
+    capacity: usize,
+) -> Result<Bytes> {
+    serialize_to_bytes_with_options_and_capacity(value, Options::default(), capacity)
+}
+
+pub fn serialize_to_bytes_with_options_and_capacity<T: BinarySerializer>(
+    value: &T,
+    options: Options,
+    capacity: usize,
+) -> Result<Bytes> {
+    Ok(serialize_with_options(value, BytesMut::with_capacity(capacity), options)?.freeze())
 }
 
 pub fn serialize_to_byte_vec<T: BinarySerializer>(value: &T) -> Result<Vec<u8>> {
-    serialize(value, Vec::with_capacity(DEFAULT_CAPACITY))
+    serialize_to_byte_vec_with_capacity(value, DEFAULT_CAPACITY)
 }
 
 pub fn serialize_to_byte_vec_with_options<T: BinarySerializer>(
     value: &T,
     options: Options,
 ) -> Result<Vec<u8>> {
-    serialize_with_options(value, Vec::with_capacity(DEFAULT_CAPACITY), options)
+    serialize_to_byte_vec_with_options_and_capacity(value, options, DEFAULT_CAPACITY)
+}
+
+pub fn serialize_to_byte_vec_with_capacity<T: BinarySerializer>(
+    value: &T,
+    capacity: usize,
+) -> Result<Vec<u8>> {
+    serialize_to_byte_vec_with_options_and_capacity(value, Options::default(), capacity)
+}
+
+pub fn serialize_to_byte_vec_with_options_and_capacity<T: BinarySerializer>(
+    value: &T,
+    options: Options,
+    capacity: usize,
+) -> Result<Vec<u8>> {
+    serialize_with_options(value, Vec::with_capacity(capacity), options)
+}
+
+pub fn serialize_into_byte_vec<T: BinarySerializer>(value: &T, output: &mut Vec<u8>) -> Result<()> {
+    serialize_into_byte_vec_with_options(value, output, Options::default())
+}
+
+pub fn serialize_into_byte_vec_with_options<T: BinarySerializer>(
+    value: &T,
+    output: &mut Vec<u8>,
+    options: Options,
+) -> Result<()> {
+    output.clear();
+    let mut context = SerializationContext::new(output, options);
+    value.serialize(&mut context)
+}
+
+pub fn serialized_size<T: BinarySerializer>(value: &T) -> Result<usize> {
+    serialized_size_with_options(value, Options::default())
+}
+
+pub fn serialized_size_with_options<T: BinarySerializer>(
+    value: &T,
+    options: Options,
+) -> Result<usize> {
+    Ok(serialize_with_options(value, SizeCalculator::new(), options)?.size())
 }
 
 /// Wrapper for strings, enabling desert's string deduplication mode.

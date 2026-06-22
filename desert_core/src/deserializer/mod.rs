@@ -450,12 +450,12 @@ impl<T: BinaryDeserializer + 'static, const L: usize> BinaryDeserializer for [T;
 
 impl<T: BinaryDeserializer + 'static> BinaryDeserializer for Vec<T> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        use std::any::TypeId;
-
         if TypeId::of::<T>() == TypeId::of::<u8>() {
             let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.read_bytes(length as usize)?;
             unsafe { Ok(std::mem::transmute::<Vec<u8>, Vec<T>>(bytes.to_vec())) }
+        } else if let Some(vec) = try_deserialize_fixed_width_vec(context)? {
+            Ok(vec)
         } else {
             let (iter, maybe_size) = deserialize_iterator(context);
             let mut vec = Vec::with_capacity(maybe_size.unwrap_or_default());
@@ -464,6 +464,62 @@ impl<T: BinaryDeserializer + 'static> BinaryDeserializer for Vec<T> {
             }
             Ok(vec)
         }
+    }
+}
+
+fn try_deserialize_fixed_width_vec<T: BinaryDeserializer + 'static>(
+    context: &mut DeserializationContext<'_>,
+) -> Result<Option<Vec<T>>> {
+    macro_rules! fast_path {
+        ($ty:ty, $width:expr, $decode:expr) => {
+            if TypeId::of::<T>() == TypeId::of::<$ty>() {
+                let vec = deserialize_fixed_width_vec::<$ty, $width>(context, $decode)?;
+                return Ok(Some(unsafe {
+                    std::mem::transmute::<Vec<$ty>, Vec<T>>(vec)
+                }));
+            }
+        };
+    }
+
+    fast_path!(i8, 1, i8::from_be_bytes);
+    fast_path!(u16, 2, u16::from_be_bytes);
+    fast_path!(i16, 2, i16::from_be_bytes);
+    fast_path!(u32, 4, u32::from_be_bytes);
+    fast_path!(i32, 4, i32::from_be_bytes);
+    fast_path!(u64, 8, u64::from_be_bytes);
+    fast_path!(i64, 8, i64::from_be_bytes);
+    fast_path!(u128, 16, u128::from_be_bytes);
+    fast_path!(i128, 16, i128::from_be_bytes);
+    fast_path!(f32, 4, f32::from_be_bytes);
+    fast_path!(f64, 8, f64::from_be_bytes);
+    fast_path!(usize, 8, |bytes| u64::from_be_bytes(bytes) as usize);
+    fast_path!(isize, 8, |bytes| i64::from_be_bytes(bytes) as isize);
+
+    Ok(None)
+}
+
+fn deserialize_fixed_width_vec<T: BinaryDeserializer, const WIDTH: usize>(
+    context: &mut DeserializationContext<'_>,
+    decode: impl Fn([u8; WIDTH]) -> T,
+) -> Result<Vec<T>> {
+    let length = context.read_var_i32()?;
+    if length == -1 {
+        let mut vec = Vec::new();
+        while let Some(item) = Option::<T>::deserialize(context)? {
+            vec.push(item);
+        }
+        Ok(vec)
+    } else {
+        let len: usize = length.try_into()?;
+        let byte_len = len.checked_mul(WIDTH).ok_or_else(|| {
+            Error::DeserializationFailure("Vector byte length overflow".to_string())
+        })?;
+        let bytes = context.read_bytes(byte_len)?;
+        let mut vec = Vec::with_capacity(len);
+        for chunk in bytes.chunks_exact(WIDTH) {
+            vec.push(decode(chunk.try_into().unwrap()));
+        }
+        Ok(vec)
     }
 }
 
