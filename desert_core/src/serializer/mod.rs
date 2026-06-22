@@ -98,6 +98,13 @@ impl<Output: BinaryOutput> SerializationContext<Output> {
             }
         }
     }
+
+    fn can_bulk_write_bytes(&self) -> bool {
+        match &self.buffer_stack {
+            BufferStack::Direct => self.output.supports_efficient_bulk_bytes(),
+            BufferStack::Stacked { .. } => true,
+        }
+    }
 }
 
 impl<Output: BinaryOutput> BinaryOutput for SerializationContext<Output> {
@@ -124,6 +131,10 @@ impl<Output: BinaryOutput> BinaryOutput for SerializationContext<Output> {
                 };
             }
         }
+    }
+
+    fn supports_efficient_bulk_bytes(&self) -> bool {
+        self.can_bulk_write_bytes()
     }
 }
 
@@ -568,6 +579,7 @@ impl<T: BinarySerializer + 'static> BinarySerializer for [T] {
         if let Ok(byte_slice) = cast!(self, &[u8]) {
             context.write_var_u32(self.len().try_into()?); // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             context.write_bytes(byte_slice);
+        } else if try_serialize_fixed_width_slice(self, context)? {
         } else {
             context.write_var_i32(self.len().try_into()?);
             for elem in self {
@@ -605,10 +617,69 @@ impl<T: BinarySerializer> BinarySerializer for Vec<T> {
             context.write_var_u32(byte_vec.len().try_into()?); // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             context.write_bytes(byte_vec);
             Ok(())
+        } else if try_serialize_fixed_width_slice(self.as_slice(), context)? {
+            Ok(())
         } else {
             serialize_iterator(&mut self.iter(), context)
         }
     }
+}
+
+const FIXED_WIDTH_VEC_SERIALIZATION_THRESHOLD: usize = 128;
+
+fn try_serialize_fixed_width_slice<T: BinarySerializer, Output: BinaryOutput>(
+    slice: &[T],
+    context: &mut SerializationContext<Output>,
+) -> Result<bool> {
+    if !context.can_bulk_write_bytes() {
+        return Ok(false);
+    }
+
+    macro_rules! fast_path {
+        ($ty:ty, $width:expr, $encode:expr) => {
+            if let Ok(values) = cast!(slice, &[$ty]) {
+                return serialize_fixed_width_slice::<_, $width, _>(values, context, $encode);
+            }
+        };
+    }
+
+    fast_path!(i8, 1, |value: i8| [value as u8]);
+    fast_path!(u16, 2, u16::to_be_bytes);
+    fast_path!(i16, 2, i16::to_be_bytes);
+    fast_path!(u32, 4, u32::to_be_bytes);
+    fast_path!(i32, 4, i32::to_be_bytes);
+    fast_path!(u64, 8, u64::to_be_bytes);
+    fast_path!(i64, 8, i64::to_be_bytes);
+    fast_path!(u128, 16, u128::to_be_bytes);
+    fast_path!(i128, 16, i128::to_be_bytes);
+    fast_path!(f32, 4, f32::to_be_bytes);
+    fast_path!(f64, 8, f64::to_be_bytes);
+    fast_path!(usize, 8, |value: usize| (value as u64).to_be_bytes());
+    fast_path!(isize, 8, |value: isize| (value as i64).to_be_bytes());
+
+    Ok(false)
+}
+
+fn serialize_fixed_width_slice<T: Copy, const WIDTH: usize, Output: BinaryOutput>(
+    values: &[T],
+    context: &mut SerializationContext<Output>,
+    encode: impl Fn(T) -> [u8; WIDTH],
+) -> Result<bool> {
+    let byte_len = values
+        .len()
+        .checked_mul(WIDTH)
+        .ok_or(Error::LengthTooLarge)?;
+    if byte_len < FIXED_WIDTH_VEC_SERIALIZATION_THRESHOLD {
+        return Ok(false);
+    }
+
+    context.write_var_i32(values.len().try_into()?);
+    let mut bytes = Vec::with_capacity(byte_len);
+    for &value in values {
+        bytes.extend_from_slice(&encode(value));
+    }
+    context.write_bytes(&bytes);
+    Ok(true)
 }
 
 impl<T: BinarySerializer> BinarySerializer for VecDeque<T> {

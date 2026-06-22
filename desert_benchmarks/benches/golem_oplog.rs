@@ -3,7 +3,7 @@ use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use desert_benchmarks::golem_oplog::*;
 use desert_rust::{
-    deserialize, serialize_into_byte_vec, serialize_to_byte_vec,
+    deserialize, serialize_into_byte_vec, serialize_to_byte_vec, serialize_to_byte_vec_exact,
     serialize_to_byte_vec_with_capacity,
 };
 
@@ -80,6 +80,9 @@ fn bench_batch_paths(c: &mut Criterion) {
                 serialize_to_byte_vec_with_capacity(black_box(&batch), batch_capacity).unwrap(),
             )
         });
+    });
+    group.bench_function("serialize_vec_entries_1024_exact", |b| {
+        b.iter(|| black_box(serialize_to_byte_vec_exact(black_box(&batch)).unwrap()));
     });
     group.bench_function("serialize_vec_entries_1024_reuse_buffer", |b| {
         let mut output = Vec::with_capacity(batch_capacity);

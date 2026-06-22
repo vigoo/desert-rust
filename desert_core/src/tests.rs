@@ -1,10 +1,10 @@
 use crate::{
     deserialize, deserialize_with_options, serialize_into_byte_vec,
-    serialize_into_byte_vec_with_options, serialize_to_byte_vec,
+    serialize_into_byte_vec_with_options, serialize_to_byte_vec, serialize_to_byte_vec_exact,
     serialize_to_byte_vec_with_capacity, serialize_to_byte_vec_with_options,
-    serialize_to_byte_vec_with_options_and_capacity, serialize_to_bytes, serialized_size,
-    serialized_size_with_options, BinaryDeserializer, BinaryOutput, BinarySerializer,
-    DeserializationContext, Options, SerializationContext,
+    serialize_to_byte_vec_with_options_and_capacity, serialize_to_byte_vec_with_options_exact,
+    serialize_to_bytes, serialized_size, serialized_size_with_options, BinaryDeserializer,
+    BinaryOutput, BinarySerializer, DeserializationContext, Options, SerializationContext,
 };
 use proptest::prelude::*;
 use std::cell::RefCell;
@@ -53,6 +53,43 @@ fn serialize_to_byte_vec_with_options_and_capacity_matches_default() {
         serialize_to_byte_vec_with_options(&value, options.clone()).unwrap(),
         serialize_to_byte_vec_with_options_and_capacity(&value, options, 16).unwrap()
     );
+}
+
+#[test]
+fn serialize_to_byte_vec_exact_matches_default_and_size() {
+    let value = (0..1024).collect::<Vec<u32>>();
+    let exact = serialize_to_byte_vec_exact(&value).unwrap();
+
+    assert_eq!(serialize_to_byte_vec(&value).unwrap(), exact);
+    assert_eq!(serialized_size(&value).unwrap(), exact.len());
+}
+
+#[test]
+fn serialize_to_byte_vec_with_options_exact_matches_default_and_size() {
+    let value = 'a';
+    let options = Options::scala_compatible();
+    let exact = serialize_to_byte_vec_with_options_exact(&value, options.clone()).unwrap();
+
+    assert_eq!(
+        serialize_to_byte_vec_with_options(&value, options.clone()).unwrap(),
+        exact
+    );
+    assert_eq!(
+        serialized_size_with_options(&value, options).unwrap(),
+        exact.len()
+    );
+}
+
+#[test]
+fn fixed_width_numeric_vec_serialization_keeps_iterable_format() {
+    let value = (0..32).collect::<Vec<u32>>();
+    let mut expected = Vec::new();
+    expected.write_var_i32(value.len().try_into().unwrap());
+    for item in &value {
+        expected.write_u32(*item);
+    }
+
+    assert_eq!(serialize_to_byte_vec(&value).unwrap(), expected);
 }
 
 #[test]

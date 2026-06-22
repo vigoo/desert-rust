@@ -108,6 +108,35 @@ pub fn serialize_to_byte_vec_with_options_and_capacity<T: BinarySerializer>(
     serialize_with_options(value, Vec::with_capacity(capacity), options)
 }
 
+/// Serializes a value into a `Vec<u8>` whose initial capacity is the exact
+/// serialized size.
+///
+/// This performs two serialization passes: first into `SizeCalculator` to
+/// compute the exact byte length, then into a `Vec<u8>` allocated with that
+/// capacity. It is useful for large values when the caller does not already
+/// know a good capacity. For small values, `serialize_to_byte_vec` is usually
+/// faster because it serializes only once and its default 128-byte capacity is
+/// often enough. If the caller already knows a capacity or can reuse a buffer,
+/// prefer `serialize_to_byte_vec_with_capacity` or `serialize_into_byte_vec`.
+pub fn serialize_to_byte_vec_exact<T: BinarySerializer>(value: &T) -> Result<Vec<u8>> {
+    serialize_to_byte_vec_with_options_exact(value, Options::default())
+}
+
+/// Serializes a value into a `Vec<u8>` whose initial capacity is the exact
+/// serialized size, using custom serialization options.
+///
+/// This has the same two-pass tradeoff as `serialize_to_byte_vec_exact`: it
+/// avoids `Vec` growth for large values, but it pays for an extra size-counting
+/// pass. Prefer the normal helper for small values, and prefer the capacity or
+/// reusable-buffer helpers when the caller can provide that information.
+pub fn serialize_to_byte_vec_with_options_exact<T: BinarySerializer>(
+    value: &T,
+    options: Options,
+) -> Result<Vec<u8>> {
+    let capacity = serialized_size_with_options(value, options.clone())?;
+    serialize_to_byte_vec_with_options_and_capacity(value, options, capacity)
+}
+
 pub fn serialize_into_byte_vec<T: BinarySerializer>(value: &T, output: &mut Vec<u8>) -> Result<()> {
     serialize_into_byte_vec_with_options(value, output, Options::default())
 }

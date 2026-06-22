@@ -10,6 +10,10 @@ pub trait BinaryOutput {
     fn write_u8(&mut self, value: u8);
     fn write_bytes(&mut self, bytes: &[u8]);
 
+    fn supports_efficient_bulk_bytes(&self) -> bool {
+        false
+    }
+
     fn write_i8(&mut self, value: i8) {
         self.write_u8(value as u8);
     }
@@ -113,6 +117,10 @@ impl<Output: BinaryOutput + ?Sized> BinaryOutput for &mut Output {
     fn write_bytes(&mut self, bytes: &[u8]) {
         (**self).write_bytes(bytes);
     }
+
+    fn supports_efficient_bulk_bytes(&self) -> bool {
+        (**self).supports_efficient_bulk_bytes()
+    }
 }
 
 impl BinaryOutput for BytesMut {
@@ -122,6 +130,10 @@ impl BinaryOutput for BytesMut {
 
     fn write_bytes(&mut self, bytes: &[u8]) {
         self.put_slice(bytes);
+    }
+
+    fn supports_efficient_bulk_bytes(&self) -> bool {
+        true
     }
 }
 
@@ -134,6 +146,10 @@ impl BinaryOutput for Vec<u8> {
     #[inline(always)]
     fn write_bytes(&mut self, bytes: &[u8]) {
         self.extend_from_slice(bytes);
+    }
+
+    fn supports_efficient_bulk_bytes(&self) -> bool {
+        true
     }
 }
 
