@@ -2,7 +2,9 @@ use bigdecimal::BigDecimal;
 use bit_vec::BitVec;
 use chrono::{NaiveDate, TimeZone, Utc};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use desert_rust::{deserialize, serialize_to_byte_vec, BinaryCodec};
+use desert_rust::{
+    deserialize_with_options, serialize_to_byte_vec_with_options, BinaryCodec, Options,
+};
 use mac_address::MacAddress;
 use nonempty_collections::NEVec;
 use serde_json::json;
@@ -10,22 +12,36 @@ use std::hint::black_box;
 use url::Url;
 
 fn bench_feature_roundtrip<T: BinaryCodec>(name: &str, value: T, c: &mut Criterion) {
+    bench_feature_roundtrip_with_options(name, value, Options::default(), c)
+}
+
+fn bench_feature_roundtrip_with_options<T: BinaryCodec>(
+    name: &str,
+    value: T,
+    options: Options,
+    c: &mut Criterion,
+) {
     let mut group = c.benchmark_group("feature codec roundtrip");
     group.bench_with_input(BenchmarkId::from_parameter(name), &value, |b, value| {
+        let options = options.clone();
         b.iter(|| {
-            let bytes = serialize_to_byte_vec(black_box(value)).unwrap();
-            black_box(deserialize::<T>(black_box(&bytes)).unwrap())
+            let bytes =
+                serialize_to_byte_vec_with_options(black_box(value), options.clone()).unwrap();
+            black_box(deserialize_with_options::<T>(black_box(&bytes), options.clone()).unwrap())
         });
     });
     group.finish();
 }
 
 fn bench_bigdecimal(c: &mut Criterion) {
-    bench_feature_roundtrip(
-        "bigdecimal",
-        "123456789012345678901234567890.123456789"
-            .parse::<BigDecimal>()
-            .unwrap(),
+    let value = "123456789012345678901234567890.123456789"
+        .parse::<BigDecimal>()
+        .unwrap();
+    bench_feature_roundtrip("bigdecimal_text", value.clone(), c);
+    bench_feature_roundtrip_with_options(
+        "bigdecimal_binary",
+        value,
+        Options::default().with_binary_bigdecimal(),
         c,
     );
 }
@@ -69,16 +85,19 @@ fn bench_nonempty_collections(c: &mut Criterion) {
 }
 
 fn bench_serde_json(c: &mut Criterion) {
-    bench_feature_roundtrip(
-        "serde_json_value",
-        json!({
-            "agent": "bench-agent",
-            "items": (0..128).collect::<Vec<_>>(),
-            "nested": {
-                "flag": true,
-                "label": "schema-value"
-            }
-        }),
+    let value = json!({
+        "agent": "bench-agent",
+        "items": (0..128).collect::<Vec<_>>(),
+        "nested": {
+            "flag": true,
+            "label": "schema-value"
+        }
+    });
+    bench_feature_roundtrip("serde_json_value_text", value.clone(), c);
+    bench_feature_roundtrip_with_options(
+        "serde_json_value_binary",
+        value,
+        Options::default().with_binary_json(),
         c,
     );
 }

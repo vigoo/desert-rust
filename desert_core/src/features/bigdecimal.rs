@@ -10,25 +10,37 @@ impl BinarySerializer for BigDecimal {
         &self,
         context: &mut SerializationContext<Output>,
     ) -> Result<()> {
-        self.to_string().serialize(context)
+        if context.options().bigdecimal_binary {
+            let (bigint, scale) = self.as_bigint_and_exponent();
+            scale.serialize(context)?;
+            bigint.serialize(context)
+        } else {
+            self.to_string().serialize(context)
+        }
     }
 }
 
 impl BinaryDeserializer for BigDecimal {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        let length = context.read_var_i32()?;
-        if length < 0 {
-            return Err(Error::DeserializationFailure(
-                "Failed to deserialize BigDecimal: negative string length".to_string(),
-            ));
+        if context.options().bigdecimal_binary {
+            let scale = i64::deserialize(context)?;
+            let bigint = BigInt::deserialize(context)?;
+            Ok(BigDecimal::new(bigint, scale))
+        } else {
+            let length = context.read_var_i32()?;
+            if length < 0 {
+                return Err(Error::DeserializationFailure(
+                    "Failed to deserialize BigDecimal: negative string length".to_string(),
+                ));
+            }
+            let bytes = context.read_bytes(length as usize)?;
+            let string = std::str::from_utf8(bytes).map_err(|err| {
+                Error::FailedToDecodeString(format!("Failed to decode BigDecimal string: {err}"))
+            })?;
+            string.parse().map_err(|err| {
+                Error::DeserializationFailure(format!("Failed to deserialize BigDecimal: {err}"))
+            })
         }
-        let bytes = context.read_bytes(length as usize)?;
-        let string = std::str::from_utf8(bytes).map_err(|err| {
-            Error::FailedToDecodeString(format!("Failed to decode BigDecimal string: {err}"))
-        })?;
-        string.parse().map_err(|err| {
-            Error::DeserializationFailure(format!("Failed to deserialize BigDecimal: {err}"))
-        })
     }
 }
 
@@ -50,7 +62,11 @@ impl BinaryDeserializer for BigInt {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::roundtrip;
+    use crate::tests::{roundtrip, roundtrip_with_options};
+    use crate::{
+        deserialize_with_options, serialize_to_byte_vec, serialize_to_byte_vec_with_options,
+        Options,
+    };
     use bigdecimal::num_bigint::BigInt;
     use bigdecimal::{BigDecimal, Num};
     use proptest::collection::vec;
@@ -84,8 +100,37 @@ mod tests {
         }
 
         #[test]
+        fn roundtrip_bigdecimal_binary(value in bigdecimal_strategy()) {
+            roundtrip_with_options(value, Options::default().with_binary_bigdecimal());
+        }
+
+        #[test]
         fn roundtrip_bigint(value in bigint_strategy()) {
             roundtrip(value);
         }
+    }
+
+    #[test]
+    fn binary_bigdecimal_roundtrip() {
+        let value = "123456789012345678901234567890.123456789"
+            .parse::<BigDecimal>()
+            .unwrap();
+        let options = Options::default().with_binary_bigdecimal();
+        let bytes = serialize_to_byte_vec_with_options(&value, options.clone()).unwrap();
+        let result: BigDecimal = deserialize_with_options(&bytes, options).unwrap();
+
+        assert_eq!(result, value);
+    }
+
+    #[test]
+    fn default_bigdecimal_format_is_unchanged() {
+        let value = "123456789012345678901234567890.123456789"
+            .parse::<BigDecimal>()
+            .unwrap();
+
+        assert_eq!(
+            serialize_to_byte_vec(&value).unwrap(),
+            serialize_to_byte_vec_with_options(&value, Options::default()).unwrap()
+        );
     }
 }

@@ -183,12 +183,30 @@ pub struct Options {
     /// flag makes desert-rust compatible with that encoding, but serialization will fail on characters
     /// not fitting into this encoding.
     pub chars_as_u16: bool,
+    /// Encode `BigDecimal` values as binary `(scale, BigInt)` pairs instead of decimal strings.
+    pub bigdecimal_binary: bool,
+    /// Encode `serde_json::Value` values as typed binary trees instead of JSON text bytes.
+    pub json_binary: bool,
 }
 
 impl Options {
     /// Settings for binary compatibility with the Scala version of desert
     pub fn scala_compatible() -> Self {
-        Self { chars_as_u16: true }
+        Self {
+            chars_as_u16: true,
+            bigdecimal_binary: false,
+            json_binary: false,
+        }
+    }
+
+    pub fn with_binary_bigdecimal(mut self) -> Self {
+        self.bigdecimal_binary = true;
+        self
+    }
+
+    pub fn with_binary_json(mut self) -> Self {
+        self.json_binary = true;
+        self
     }
 }
 

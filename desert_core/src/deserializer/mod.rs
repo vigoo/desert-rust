@@ -58,6 +58,10 @@ impl<'a> DeserializationContext<'a> {
         &mut self.state
     }
 
+    pub fn options(&self) -> &Options {
+        &self.options
+    }
+
     pub fn try_read_ref(&mut self) -> Result<Option<&dyn Any>> {
         let id = self.read_var_u32()?;
         if id == 0 {
