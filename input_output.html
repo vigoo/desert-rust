@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-48cab41d.js";
+            window.path_to_searchindex_js = "searchindex-2b3ccf61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-bc47af81.js"></script>
@@ -204,6 +204,37 @@ fn main() -&gt; Result&lt;()&gt; {
 }</code></pre>
 <p>The string length byte is <code>10</code> because signed variable integers use zig-zag
 encoding internally. The logical string length is <code>5</code>.</p>
+<h3 id="choosing-a-vecu8-helper"><a class="header" href="#choosing-a-vecu8-helper">Choosing a <code>Vec&lt;u8&gt;</code> helper</a></h3>
+<p><code>serialize_to_byte_vec</code> starts with a small default capacity and serializes the
+value once. This is usually the right choice for small payloads, such as single
+commands, individual events, request/response fragments, or anything likely to
+fit within the default 128-byte buffer.</p>
+<p>For larger values, repeated <code>Vec</code> growth can become visible. There are three
+ways to avoid that:</p>
+<ul>
+<li>Use <code>serialize_to_byte_vec_with_capacity</code> when you already know a good
+capacity estimate.</li>
+<li>Use <code>serialize_into_byte_vec</code> when serializing repeatedly and you can reuse an
+existing buffer.</li>
+<li>Use <code>serialize_to_byte_vec_exact</code> when the value is probably large but the
+caller does not know its serialized size.</li>
+</ul>
+<p><code>serialize_to_byte_vec_exact</code> first computes the exact serialized length with
+<code>serialized_size</code>, then serializes into a <code>Vec&lt;u8&gt;</code> allocated with that capacity:</p>
+<pre><code class="language-rust ignore">use desert_rust::{serialize_to_byte_vec_exact, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let batch = (0..10_000).collect::&lt;Vec&lt;u32&gt;&gt;();
+    let bytes = serialize_to_byte_vec_exact(&amp;batch)?;
+
+    assert!(!bytes.is_empty());
+    Ok(())
+}</code></pre>
+<p>This is a two-pass tradeoff. It avoids growth for large, one-off values, but it
+does more work for small values. If the value fits in the default buffer,
+<code>serialize_to_byte_vec</code> is normally faster. If you already know the size or can
+reuse a buffer, the capacity or reusable-buffer helpers are usually faster than
+the exact helper.</p>
 <h2 id="writing-to-a-custom-output"><a class="header" href="#writing-to-a-custom-output">Writing to a custom output</a></h2>
 <p>The generic <code>serialize</code> function accepts any <code>BinaryOutput</code>. The built-in
 outputs are:</p>
