@@ -27,7 +27,7 @@ fn generate_cases() -> Vec<Case> {
 
 fn bench_serialize(c: &mut Criterion) {
     let cases = generate_cases();
-    let mut group = c.benchmark_group("serialize oplog");
+    let mut group = c.benchmark_group("legacy serialize oplog");
     for case in cases {
         group.bench_with_input(
             BenchmarkId::from_parameter(case.payload_size),
@@ -60,7 +60,7 @@ fn bench_deserialize(c: &mut Criterion) {
             (entries, case.payload_size)
         })
         .collect::<Vec<_>>();
-    let mut group = c.benchmark_group("deserialize oplog");
+    let mut group = c.benchmark_group("legacy deserialize oplog");
     for (serialized_entries, payload_size) in serialized_cases {
         group.bench_with_input(
             BenchmarkId::from_parameter(payload_size),
@@ -82,7 +82,7 @@ fn bench_deserialize(c: &mut Criterion) {
 
 fn bench_serialize_bincode(c: &mut Criterion) {
     let cases = generate_cases();
-    let mut group = c.benchmark_group("bincode serialize oplog");
+    let mut group = c.benchmark_group("legacy bincode serialize oplog");
     for case in cases {
         group.bench_with_input(
             BenchmarkId::from_parameter(case.payload_size),
@@ -112,12 +112,12 @@ fn bench_deserialize_bincode(c: &mut Criterion) {
         .map(|case| {
             let mut entries = Vec::new();
             for entry in &case.entries {
-                entries.push(serialize_to_byte_vec(&entry).unwrap());
+                entries.push(bincode::encode_to_vec(entry, bincode::config::standard()).unwrap());
             }
             (entries, case.payload_size)
         })
         .collect::<Vec<_>>();
-    let mut group = c.benchmark_group("bincode deserialize oplog");
+    let mut group = c.benchmark_group("legacy bincode deserialize oplog");
     for (serialized_entries, payload_size) in serialized_cases {
         group.bench_with_input(
             BenchmarkId::from_parameter(payload_size),

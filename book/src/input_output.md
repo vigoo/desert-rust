@@ -39,6 +39,44 @@ fn main() -> Result<()> {
 The string length byte is `10` because signed variable integers use zig-zag
 encoding internally. The logical string length is `5`.
 
+### Choosing a `Vec<u8>` helper
+
+`serialize_to_byte_vec` starts with a small default capacity and serializes the
+value once. This is usually the right choice for small payloads, such as single
+commands, individual events, request/response fragments, or anything likely to
+fit within the default 128-byte buffer.
+
+For larger values, repeated `Vec` growth can become visible. There are three
+ways to avoid that:
+
+- Use `serialize_to_byte_vec_with_capacity` when you already know a good
+  capacity estimate.
+- Use `serialize_into_byte_vec` when serializing repeatedly and you can reuse an
+  existing buffer.
+- Use `serialize_to_byte_vec_exact` when the value is probably large but the
+  caller does not know its serialized size.
+
+`serialize_to_byte_vec_exact` first computes the exact serialized length with
+`serialized_size`, then serializes into a `Vec<u8>` allocated with that capacity:
+
+```rust,ignore
+use desert_rust::{serialize_to_byte_vec_exact, Result};
+
+fn main() -> Result<()> {
+    let batch = (0..10_000).collect::<Vec<u32>>();
+    let bytes = serialize_to_byte_vec_exact(&batch)?;
+
+    assert!(!bytes.is_empty());
+    Ok(())
+}
+```
+
+This is a two-pass tradeoff. It avoids growth for large, one-off values, but it
+does more work for small values. If the value fits in the default buffer,
+`serialize_to_byte_vec` is normally faster. If you already know the size or can
+reuse a buffer, the capacity or reusable-buffer helpers are usually faster than
+the exact helper.
+
 ## Writing to a custom output
 
 The generic `serialize` function accepts any `BinaryOutput`. The built-in
