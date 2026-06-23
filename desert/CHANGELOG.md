@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.8...desert_rust-v0.1.9) - 2026-06-23
+
+### Other
+
+- Revert "First attempt on a faster evolved serialization"
+- First attempt on a faster evolved serialization
+- Performance improvements
+- Binary BigDecimal and JSON serializer
+- BigDecimal and JSON perf improvements
+- Optimizations
+- Further optimizations
+- v0 ADT perf improvement
+
 ## [0.1.8](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.7...desert_rust-v0.1.8) - 2026-06-15
 
 ### Other
