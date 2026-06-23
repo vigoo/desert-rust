@@ -3,12 +3,35 @@ use bytes::{BufMut, BytesMut};
 use flate2::read::DeflateEncoder;
 use flate2::Compression;
 use std::io::Read;
+use std::ops::Range;
 
 use crate::error::Result;
 
 pub trait BinaryOutput {
     fn write_u8(&mut self, value: u8);
     fn write_bytes(&mut self, bytes: &[u8]);
+
+    fn contiguous_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn insert_bytes(&mut self, _position: usize, _bytes: &[u8]) -> Result<()> {
+        Err(Error::SerializationFailure(
+            "output does not support contiguous byte insertion".to_string(),
+        ))
+    }
+
+    fn reorder_ranges(
+        &mut self,
+        _start: usize,
+        _len: usize,
+        _ranges: &[Range<usize>],
+        _order: &[usize],
+    ) -> Result<()> {
+        Err(Error::SerializationFailure(
+            "output does not support contiguous byte reordering".to_string(),
+        ))
+    }
 
     fn supports_efficient_bulk_bytes(&self) -> bool {
         false
@@ -121,6 +144,24 @@ impl<Output: BinaryOutput + ?Sized> BinaryOutput for &mut Output {
     fn supports_efficient_bulk_bytes(&self) -> bool {
         (**self).supports_efficient_bulk_bytes()
     }
+
+    fn contiguous_len(&self) -> Option<usize> {
+        (**self).contiguous_len()
+    }
+
+    fn insert_bytes(&mut self, position: usize, bytes: &[u8]) -> Result<()> {
+        (**self).insert_bytes(position, bytes)
+    }
+
+    fn reorder_ranges(
+        &mut self,
+        start: usize,
+        len: usize,
+        ranges: &[Range<usize>],
+        order: &[usize],
+    ) -> Result<()> {
+        (**self).reorder_ranges(start, len, ranges, order)
+    }
 }
 
 impl BinaryOutput for BytesMut {
@@ -134,6 +175,24 @@ impl BinaryOutput for BytesMut {
 
     fn supports_efficient_bulk_bytes(&self) -> bool {
         true
+    }
+
+    fn contiguous_len(&self) -> Option<usize> {
+        Some(self.len())
+    }
+
+    fn insert_bytes(&mut self, position: usize, bytes: &[u8]) -> Result<()> {
+        insert_into_slice_backed_output(self, position, bytes)
+    }
+
+    fn reorder_ranges(
+        &mut self,
+        start: usize,
+        len: usize,
+        ranges: &[Range<usize>],
+        order: &[usize],
+    ) -> Result<()> {
+        reorder_slice_backed_output(self, start, len, ranges, order)
     }
 }
 
@@ -151,6 +210,87 @@ impl BinaryOutput for Vec<u8> {
     fn supports_efficient_bulk_bytes(&self) -> bool {
         true
     }
+
+    fn contiguous_len(&self) -> Option<usize> {
+        Some(self.len())
+    }
+
+    fn insert_bytes(&mut self, position: usize, bytes: &[u8]) -> Result<()> {
+        insert_into_slice_backed_output(self, position, bytes)
+    }
+
+    fn reorder_ranges(
+        &mut self,
+        start: usize,
+        len: usize,
+        ranges: &[Range<usize>],
+        order: &[usize],
+    ) -> Result<()> {
+        reorder_slice_backed_output(self, start, len, ranges, order)
+    }
+}
+
+fn insert_into_slice_backed_output<Output>(
+    output: &mut Output,
+    position: usize,
+    bytes: &[u8],
+) -> Result<()>
+where
+    Output: AsMut<[u8]> + Extend<u8>,
+{
+    let current_len = output.as_mut().len();
+    if position > current_len {
+        return Err(Error::SerializationFailure(
+            "insert position is past the end of the output".to_string(),
+        ));
+    }
+    output.extend(std::iter::repeat_n(0, bytes.len()));
+    let new_len = current_len + bytes.len();
+    let slice = output.as_mut();
+    slice.copy_within(position..current_len, position + bytes.len());
+    slice[position..position + bytes.len()].copy_from_slice(bytes);
+    debug_assert_eq!(slice.len(), new_len);
+    Ok(())
+}
+
+fn reorder_slice_backed_output<Output>(
+    output: &mut Output,
+    start: usize,
+    len: usize,
+    ranges: &[Range<usize>],
+    order: &[usize],
+) -> Result<()>
+where
+    Output: AsMut<[u8]> + AsRef<[u8]>,
+{
+    let slice = output.as_ref();
+    if start.checked_add(len).is_none_or(|end| end > slice.len()) {
+        return Err(Error::SerializationFailure(
+            "reordered range is past the end of the output".to_string(),
+        ));
+    }
+
+    let mut scratch = Vec::with_capacity(len);
+    for idx in order {
+        let range = ranges.get(*idx).ok_or_else(|| {
+            Error::SerializationFailure("field range order is out of bounds".to_string())
+        })?;
+        if range.end > slice.len() || range.start > range.end {
+            return Err(Error::SerializationFailure(
+                "field range is outside the output".to_string(),
+            ));
+        }
+        scratch.extend_from_slice(&slice[range.clone()]);
+    }
+
+    if scratch.len() != len {
+        return Err(Error::SerializationFailure(
+            "reordered ranges do not cover the serialized fields".to_string(),
+        ));
+    }
+
+    output.as_mut()[start..start + len].copy_from_slice(&scratch);
+    Ok(())
 }
 
 pub struct SizeCalculator {

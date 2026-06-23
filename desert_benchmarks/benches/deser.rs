@@ -97,6 +97,17 @@ fn bench_deserialize_hashmap(c: &mut Criterion) {
     bench_deserialize("hashmap (100 elements)", data, c);
 }
 
+fn bench_deserialize_hashmap_u32(c: &mut Criterion) {
+    let data: std::collections::HashMap<u32, u32> = (0..100).map(|i| (i, i)).collect();
+    bench_deserialize("hashmap u32/u32 (100 elements)", data, c);
+}
+
+fn bench_deserialize_hashmap_string_u32(c: &mut Criterion) {
+    let data: std::collections::HashMap<String, u32> =
+        (0..100).map(|i| (format!("key{}", i), i)).collect();
+    bench_deserialize("hashmap string/u32 (100 elements)", data, c);
+}
+
 fn bench_deserialize_hashset(c: &mut Criterion) {
     let data: std::collections::HashSet<u32> = (0..100).collect();
     bench_deserialize("hashset (100 elements)", data, c);
@@ -148,6 +159,8 @@ criterion_group!(
     bench_deserialize_tuple,
     bench_deserialize_vec_string,
     bench_deserialize_hashmap,
+    bench_deserialize_hashmap_u32,
+    bench_deserialize_hashmap_string_u32,
     bench_deserialize_hashset,
     bench_deserialize_result_ok,
     bench_deserialize_result_err,

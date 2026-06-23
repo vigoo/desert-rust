@@ -1,8 +1,11 @@
 mod tuples;
 
+use crate::adt::{EvolvedAdtStaticEvolutionStep, FieldPosition};
+use crate::evolution::SerializedEvolutionStep;
 use bytes::Bytes;
 use castaway::cast;
 use std::any::Any;
+use std::array;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::marker::PhantomData;
 use std::net::IpAddr;
@@ -104,6 +107,164 @@ impl<Output: BinaryOutput> SerializationContext<Output> {
             BufferStack::Direct => self.output.supports_efficient_bulk_bytes(),
             BufferStack::Stacked { .. } => true,
         }
+    }
+
+    fn active_contiguous_len(&self) -> Option<usize> {
+        match &self.buffer_stack {
+            BufferStack::Direct => self.output.contiguous_len(),
+            BufferStack::Stacked { buffer_stack } => buffer_stack.last().map(Vec::len),
+        }
+    }
+
+    fn active_insert_bytes(&mut self, position: usize, bytes: &[u8]) -> Result<()> {
+        match &mut self.buffer_stack {
+            BufferStack::Direct => self.output.insert_bytes(position, bytes),
+            BufferStack::Stacked { buffer_stack } => {
+                let buffer = unsafe { buffer_stack.last_mut().unwrap_unchecked() };
+                buffer.insert_bytes(position, bytes)
+            }
+        }
+    }
+
+    fn active_reorder_ranges(
+        &mut self,
+        start: usize,
+        len: usize,
+        ranges: &[Range<usize>],
+        order: &[usize],
+    ) -> Result<()> {
+        match &mut self.buffer_stack {
+            BufferStack::Direct => self.output.reorder_ranges(start, len, ranges, order),
+            BufferStack::Stacked { buffer_stack } => {
+                let buffer = unsafe { buffer_stack.last_mut().unwrap_unchecked() };
+                buffer.reorder_ranges(start, len, ranges, order)
+            }
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn try_serialize_evolved_adt_fast<const V: usize, const F: usize>(
+        &mut self,
+        evolution_steps: &[EvolvedAdtStaticEvolutionStep<'_>],
+        field_chunks: [u8; F],
+        serialize_fields: impl FnOnce(&mut Self, &mut EvolvedAdtFieldRecorder<F>) -> Result<()>,
+    ) -> Result<bool> {
+        if evolution_steps.len() != V {
+            return Err(Error::SerializationFailure(
+                "static evolution header step count does not match ADT version".to_string(),
+            ));
+        }
+        if self.active_contiguous_len().is_none() {
+            return Ok(false);
+        }
+
+        self.write_u8((V - 1) as u8);
+        let header_start = self.active_contiguous_len().unwrap();
+        let mut recorder = EvolvedAdtFieldRecorder {
+            ranges: array::from_fn(|_| header_start..header_start),
+            written: [false; F],
+        };
+
+        serialize_fields(self, &mut recorder)?;
+
+        if recorder.written.iter().any(|written| !written) {
+            return Err(Error::SerializationFailure(
+                "not all evolved ADT fields were serialized".to_string(),
+            ));
+        }
+
+        let mut chunk_sizes = [0usize; V];
+        for (idx, range) in recorder.ranges.iter().enumerate() {
+            let chunk = field_chunks[idx] as usize;
+            if chunk >= V {
+                return Err(Error::SerializationFailure(
+                    "field chunk is outside the ADT version range".to_string(),
+                ));
+            }
+            chunk_sizes[chunk] += range.len();
+        }
+
+        self.push_buffer(Vec::with_capacity(crate::DEFAULT_CAPACITY));
+        for evolution_step in evolution_steps {
+            let serialized_step = match evolution_step {
+                EvolvedAdtStaticEvolutionStep::FieldAddedToNewChunk { chunk } => {
+                    let size = chunk_sizes[*chunk as usize].try_into()?;
+                    SerializedEvolutionStep::FieldAddedToNewChunk { size }
+                }
+                EvolvedAdtStaticEvolutionStep::FieldMadeOptional { chunk, position } => {
+                    SerializedEvolutionStep::FieldMadeOptional {
+                        position: FieldPosition::new(*chunk, *position),
+                    }
+                }
+                EvolvedAdtStaticEvolutionStep::FieldMadeOptionalUnknown { field_name } => {
+                    self.pop_buffer();
+                    return Err(Error::UnknownFieldReferenceInEvolutionStep(
+                        (*field_name).to_string(),
+                    ));
+                }
+                EvolvedAdtStaticEvolutionStep::FieldRemoved { field_name } => {
+                    SerializedEvolutionStep::FieldRemoved {
+                        field_name: (*field_name).to_string(),
+                    }
+                }
+            };
+            serialized_step.serialize(self)?;
+        }
+        let header = self.pop_buffer();
+        let header_len = header.len();
+
+        self.active_insert_bytes(header_start, &header)?;
+
+        let shifted_ranges: [Range<usize>; F] = array::from_fn(|idx| {
+            recorder.ranges[idx].start + header_len..recorder.ranges[idx].end + header_len
+        });
+        let chunks_are_in_source_order =
+            field_chunks.windows(2).all(|chunks| chunks[0] <= chunks[1]);
+        if !chunks_are_in_source_order {
+            let fields_start = header_start + header_len;
+            let fields_len = shifted_ranges.iter().map(Range::len).sum();
+            let mut ordered_fields = (0..F).collect::<Vec<_>>();
+            ordered_fields.sort_by_key(|idx| (field_chunks[*idx], *idx));
+            self.active_reorder_ranges(fields_start, fields_len, &shifted_ranges, &ordered_fields)?;
+        }
+
+        Ok(true)
+    }
+}
+
+#[doc(hidden)]
+pub struct EvolvedAdtFieldRecorder<const F: usize> {
+    ranges: [Range<usize>; F],
+    written: [bool; F],
+}
+
+impl<const F: usize> EvolvedAdtFieldRecorder<F> {
+    pub fn write_field<Output: BinaryOutput, T: BinarySerializer>(
+        &mut self,
+        context: &mut SerializationContext<Output>,
+        field_idx: usize,
+        value: &T,
+    ) -> Result<()> {
+        if field_idx >= F {
+            return Err(Error::SerializationFailure(
+                "evolved ADT field index is out of bounds".to_string(),
+            ));
+        }
+        if self.written[field_idx] {
+            return Err(Error::SerializationFailure(
+                "evolved ADT field was serialized more than once".to_string(),
+            ));
+        }
+        let start = context.active_contiguous_len().ok_or_else(|| {
+            Error::SerializationFailure("active output is not contiguous".to_string())
+        })?;
+        value.serialize(context)?;
+        let end = context.active_contiguous_len().ok_or_else(|| {
+            Error::SerializationFailure("active output is not contiguous".to_string())
+        })?;
+        self.ranges[field_idx] = start..end;
+        self.written[field_idx] = true;
+        Ok(())
     }
 }
 
