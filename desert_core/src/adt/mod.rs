@@ -12,14 +12,6 @@ mod serializer;
 pub use deserializer::AdtDeserializer;
 pub use serializer::AdtSerializer;
 
-#[doc(hidden)]
-pub enum EvolvedAdtStaticEvolutionStep<'a> {
-    FieldAddedToNewChunk { chunk: u8 },
-    FieldMadeOptional { chunk: u8, position: u8 },
-    FieldMadeOptionalUnknown { field_name: &'a str },
-    FieldRemoved { field_name: &'a str },
-}
-
 lazy_static! {
     pub static ref EMPTY_ADT_METADATA: AdtMetadata =
         AdtMetadata::new(vec![Evolution::InitialVersion]);

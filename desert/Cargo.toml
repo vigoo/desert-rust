@@ -38,10 +38,6 @@ name = "evolution"
 harness = false
 
 [[test]]
-name = "evolved_fast_serialization"
-harness = false
-
-[[test]]
 name = "golden"
 harness = false
 

@@ -1,9 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use desert_rust::{
-    serialize, serialize_to_byte_vec, BinaryCodec, BinaryDeserializer, BinaryOutput,
-    BinarySerializer, DeduplicatedString, DeserializationContext, Result as DesertResult,
-    SerializationContext,
-};
+use desert_rust::{serialize_to_byte_vec, BinaryCodec};
 use std::hint::black_box;
 
 fn bench_serialize<T: BinaryCodec>(name: &str, data: T, c: &mut Criterion) {
@@ -25,66 +21,6 @@ struct WrappedU64 {
 #[desert(evolution(FieldAdded("value", 0)))]
 struct EvolvedU64 {
     value: u64,
-}
-
-#[derive(Default)]
-struct NonEditableOutput(Vec<u8>);
-
-impl BinaryOutput for NonEditableOutput {
-    fn write_u8(&mut self, value: u8) {
-        self.0.push(value);
-    }
-
-    fn write_bytes(&mut self, bytes: &[u8]) {
-        self.0.extend_from_slice(bytes);
-    }
-}
-
-#[derive(BinaryCodec)]
-#[desert(evolution(FieldAdded("metadata", String::new()), FieldAdded("enabled", true)))]
-struct EvolvedMultiChunk {
-    id: u64,
-    metadata: String,
-    count: u32,
-    enabled: bool,
-}
-
-#[derive(BinaryCodec)]
-enum EvolvedVariant {
-    #[desert(evolution(
-        FieldAdded("trace_id", "trace-default".to_string()),
-        FieldMadeOptional("payload")
-    ))]
-    Running {
-        id: u64,
-        trace_id: String,
-        payload: Option<String>,
-    },
-}
-
-#[derive(Clone)]
-struct DedupField(String);
-
-impl BinarySerializer for DedupField {
-    fn serialize<Output: BinaryOutput>(
-        &self,
-        context: &mut SerializationContext<Output>,
-    ) -> DesertResult<()> {
-        DeduplicatedString(self.0.clone()).serialize(context)
-    }
-}
-
-impl BinaryDeserializer for DedupField {
-    fn deserialize(context: &mut DeserializationContext<'_>) -> DesertResult<Self> {
-        Ok(Self(DeduplicatedString::deserialize(context)?.0))
-    }
-}
-
-#[derive(BinaryCodec)]
-#[desert(evolution(FieldRemoved("gone")))]
-struct EvolvedDedupStrings {
-    first: DedupField,
-    second: DedupField,
 }
 
 #[derive(BinaryCodec)]
@@ -193,52 +129,6 @@ fn bench_serialize_enum(c: &mut Criterion) {
     );
 }
 
-fn bench_evolved_generated_fast_paths(c: &mut Criterion) {
-    let tiny = EvolvedU64 { value: u64::MAX };
-    let multi = EvolvedMultiChunk {
-        id: 42,
-        metadata: "metadata in an added chunk".to_string(),
-        count: 7,
-        enabled: true,
-    };
-    let variant = EvolvedVariant::Running {
-        id: 100,
-        trace_id: "trace-100".to_string(),
-        payload: Some("payload".to_string()),
-    };
-    let strings = EvolvedDedupStrings {
-        first: DedupField("gone".to_string()),
-        second: DedupField("gone".to_string()),
-    };
-
-    let mut group = c.benchmark_group("serialize/evolved generated adt");
-    group.bench_function("tiny fast vec", |b| {
-        b.iter(|| black_box(serialize_to_byte_vec(black_box(&tiny)).unwrap()));
-    });
-    group.bench_function("tiny fallback custom output", |b| {
-        b.iter(|| black_box(serialize(black_box(&tiny), NonEditableOutput::default()).unwrap()));
-    });
-    group.bench_function("multi chunk fast vec", |b| {
-        b.iter(|| black_box(serialize_to_byte_vec(black_box(&multi)).unwrap()));
-    });
-    group.bench_function("multi chunk fallback custom output", |b| {
-        b.iter(|| black_box(serialize(black_box(&multi), NonEditableOutput::default()).unwrap()));
-    });
-    group.bench_function("enum variant fast vec", |b| {
-        b.iter(|| black_box(serialize_to_byte_vec(black_box(&variant)).unwrap()));
-    });
-    group.bench_function("enum variant fallback custom output", |b| {
-        b.iter(|| black_box(serialize(black_box(&variant), NonEditableOutput::default()).unwrap()));
-    });
-    group.bench_function("stateful strings fast vec", |b| {
-        b.iter(|| black_box(serialize_to_byte_vec(black_box(&strings)).unwrap()));
-    });
-    group.bench_function("stateful strings fallback custom output", |b| {
-        b.iter(|| black_box(serialize(black_box(&strings), NonEditableOutput::default()).unwrap()));
-    });
-    group.finish();
-}
-
 criterion_group!(
     benches,
     bench_serialize_u64,
@@ -261,7 +151,6 @@ criterion_group!(
     bench_serialize_result_err,
     bench_serialize_linked_list,
     bench_serialize_array,
-    bench_serialize_enum,
-    bench_evolved_generated_fast_paths
+    bench_serialize_enum
 );
 criterion_main!(benches);

@@ -1,24 +1,15 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::{quote, ToTokens};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::{Attribute, Data, DeriveInput, Expr, Fields, Lit, LitStr, Meta, Token, Type};
-
-#[derive(Clone)]
-enum ParsedEvolutionStep {
-    Added { name: String },
-    MadeOptional { name: String },
-    Removed { name: String },
-    MadeTransient { name: String },
-}
 
 struct DesertAttributes {
     transparent: bool,
     sorted_constructors: bool,
     custom: Option<Type>,
     evolution_steps: Vec<proc_macro2::TokenStream>,
-    parsed_evolution_steps: Vec<ParsedEvolutionStep>,
     field_defaults: HashMap<String, Expr>,
 }
 
@@ -27,7 +18,6 @@ fn parse_desert_attributes(attrs: &[Attribute]) -> DesertAttributes {
     let mut sorted_constructors = false;
     let mut custom: Option<Type> = None;
     let mut evolution_steps = Vec::new();
-    let mut parsed_evolution_steps = Vec::new();
     let mut field_defaults = HashMap::new();
 
     for attr in attrs {
@@ -81,11 +71,6 @@ fn parse_desert_attributes(attrs: &[Attribute]) -> DesertAttributes {
 
                                             field_defaults
                                                 .insert(field_name.clone(), field_default.clone());
-                                            parsed_evolution_steps.push(
-                                                ParsedEvolutionStep::Added {
-                                                    name: field_name.clone(),
-                                                },
-                                            );
                                             evolution_steps.push(quote! {
                                                 desert_rust::Evolution::FieldAdded {
                                                     name: #field_name.to_string(),
@@ -97,11 +82,6 @@ fn parse_desert_attributes(attrs: &[Attribute]) -> DesertAttributes {
                                                 .expect("FieldMadeOptional argument");
                                             let field_name = field_name_lit.value();
 
-                                            parsed_evolution_steps.push(
-                                                ParsedEvolutionStep::MadeOptional {
-                                                    name: field_name.clone(),
-                                                },
-                                            );
                                             evolution_steps.push(quote! {
                                                 desert_rust::Evolution::FieldMadeOptional {
                                                     name: #field_name.to_string(),
@@ -113,11 +93,6 @@ fn parse_desert_attributes(attrs: &[Attribute]) -> DesertAttributes {
                                                 .expect("FieldMadeOptional argument");
                                             let field_name = field_name_lit.value();
 
-                                            parsed_evolution_steps.push(
-                                                ParsedEvolutionStep::Removed {
-                                                    name: field_name.clone(),
-                                                },
-                                            );
                                             evolution_steps.push(quote! {
                                                 desert_rust::Evolution::FieldRemoved {
                                                     name: #field_name.to_string(),
@@ -129,11 +104,6 @@ fn parse_desert_attributes(attrs: &[Attribute]) -> DesertAttributes {
                                                 .expect("FieldMadeOptional argument");
                                             let field_name = field_name_lit.value();
 
-                                            parsed_evolution_steps.push(
-                                                ParsedEvolutionStep::MadeTransient {
-                                                    name: field_name.clone(),
-                                                },
-                                            );
                                             evolution_steps.push(quote! {
                                                 desert_rust::Evolution::FieldMadeTransient {
                                                     name: #field_name.to_string(),
@@ -179,7 +149,6 @@ fn parse_desert_attributes(attrs: &[Attribute]) -> DesertAttributes {
         sorted_constructors,
         custom,
         evolution_steps,
-        parsed_evolution_steps,
         field_defaults,
     }
 }
@@ -234,7 +203,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let transparent = attrs.transparent;
     let use_sorted_constructors = attrs.sorted_constructors;
     let evolution_steps = &attrs.evolution_steps;
-    let parsed_evolution_steps = &attrs.parsed_evolution_steps;
     let field_defaults = attrs.field_defaults;
     let version = evolution_steps.len();
     let vplus1 = version + 1;
@@ -273,7 +241,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let mut deserialization_commands = Vec::new();
     let mut direct_serialization_commands = Vec::new();
     let mut direct_deserialization_commands = Vec::new();
-    let mut fast_evolved_adt_serialization = None;
     let is_record;
 
     match ast.data {
@@ -341,15 +308,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                 &mut direct_deserialization_commands,
                 &struct_data.fields,
             );
-            let mut fast_serialization =
-                derive_fast_evolved_adt_serialization(parsed_evolution_steps, &struct_data.fields);
-            fast_serialization.serialization_commands.insert(
-                0,
-                quote! {
-                   let #name { #(#field_patterns),* } = self;
-                },
-            );
-            fast_evolved_adt_serialization = Some(fast_serialization);
         }
         Data::Enum(enum_data) => {
             if transparent {
@@ -588,62 +546,21 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                             &mut direct_case_deserialization_commands,
                             &variant.fields,
                         );
-                        let fast_case_serialization = derive_fast_evolved_adt_serialization(
-                            &variant_attrs.parsed_evolution_steps,
-                            &variant.fields,
-                        );
-                        let fast_case_field_count = fast_case_serialization.field_count;
-                        let fast_case_field_chunks = fast_case_serialization.field_chunks;
-                        let fast_case_evolution_steps = fast_case_serialization.evolution_steps;
-                        let fast_case_serialization_commands =
-                            fast_case_serialization.serialization_commands;
 
-                        if version == 0 {
-                            ser_cases.push(
-                                quote! {
-                                #pattern => {
-                                    serializer.write_constructor(
-                                        #effective_case_idx,
-                                        |desert_inner_serialization_context| {
-                                            let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#case_metadata_name, desert_inner_serialization_context);
-                                            #(#case_serialization_commands)*
-                                            serializer.finish()
-                                        }
-                                    )?;
-                                }
+                        ser_cases.push(
+                            quote! {
+                            #pattern => {
+                                serializer.write_constructor(
+                                    #effective_case_idx,
+                                    |desert_inner_serialization_context| {
+                                        let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#case_metadata_name, desert_inner_serialization_context);
+                                        #(#case_serialization_commands)*
+                                        serializer.finish()
+                                    }
+                                )?;
                             }
-                            );
-                        } else {
-                            ser_cases.push(
-                                quote! {
-                                #pattern => {
-                                    serializer.write_constructor(
-                                        #effective_case_idx,
-                                        |desert_inner_serialization_context| {
-                                            if desert_inner_serialization_context.try_serialize_evolved_adt_fast::<#vplus1, #fast_case_field_count>(
-                                                &[
-                                                    #(#fast_case_evolution_steps),*
-                                                ],
-                                                [
-                                                    #(#fast_case_field_chunks),*
-                                                ],
-                                                |context, desert_field_recorder| {
-                                                    #(#fast_case_serialization_commands)*
-                                                    Ok(())
-                                                },
-                                            )? {
-                                                Ok(())
-                                            } else {
-                                                let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#case_metadata_name, desert_inner_serialization_context);
-                                                #(#case_serialization_commands)*
-                                                serializer.finish()
-                                            }
-                                        }
-                                    )?;
-                                }
-                            }
-                            );
                         }
+                        );
 
                         if version == 0 {
                             direct_ser_cases.push(
@@ -656,35 +573,13 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                                 }
                             );
                         } else {
-                            let fast_case_serialization = derive_fast_evolved_adt_serialization(
-                                &variant_attrs.parsed_evolution_steps,
-                                &variant.fields,
-                            );
-                            let fast_case_field_count = fast_case_serialization.field_count;
-                            let fast_case_field_chunks = fast_case_serialization.field_chunks;
-                            let fast_case_evolution_steps = fast_case_serialization.evolution_steps;
-                            let fast_case_serialization_commands =
-                                fast_case_serialization.serialization_commands;
                             direct_ser_cases.push(
                                 quote! {
                                     #pattern => {
                                         desert_rust::BinaryOutput::write_var_u32(context, #effective_case_idx);
-                                        if !context.try_serialize_evolved_adt_fast::<#vplus1, #fast_case_field_count>(
-                                            &[
-                                                #(#fast_case_evolution_steps),*
-                                            ],
-                                            [
-                                                #(#fast_case_field_chunks),*
-                                            ],
-                                            |context, desert_field_recorder| {
-                                                #(#fast_case_serialization_commands)*
-                                                Ok(())
-                                            },
-                                        )? {
-                                            let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#case_metadata_name, context);
-                                            #(#case_serialization_commands)*
-                                            serializer.finish()?;
-                                        }
+                                        let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#case_metadata_name, context);
+                                        #(#case_serialization_commands)*
+                                        serializer.finish()?;
                                     }
                                 }
                             );
@@ -871,40 +766,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             #(#direct_deserialization_commands)*
         }
     };
-    let evolved_serialization = if is_record {
-        let fast = fast_evolved_adt_serialization
-            .as_ref()
-            .expect("record fast evolved ADT serialization");
-        let fast_field_count = fast.field_count;
-        let fast_field_chunks = &fast.field_chunks;
-        let fast_evolution_steps = &fast.evolution_steps;
-        let fast_serialization_commands = &fast.serialization_commands;
-        quote! {
-            if !context.try_serialize_evolved_adt_fast::<#vplus1, #fast_field_count>(
-                &[
-                    #(#fast_evolution_steps),*
-                ],
-                [
-                    #(#fast_field_chunks),*
-                ],
-                |context, desert_field_recorder| {
-                    #(#fast_serialization_commands)*
-                    Ok(())
-                },
-            )? {
-                let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#metadata_name, context);
-                #(#serialization_commands)*
-                serializer.finish()?;
-            }
-            Ok(())
-        }
-    } else {
-        quote! {
-            let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#metadata_name, context);
-            #(#serialization_commands)*
-            serializer.finish()
-        }
-    };
 
     let gen = if version == 0 {
         quote! {
@@ -941,7 +802,9 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             impl #impl_generics desert_rust::BinarySerializer for #name #ty_generics #where_clause {
                 #[allow(unused_assignments, unused_variables)]
                 fn serialize<Output: desert_rust::BinaryOutput>(&self, context: &mut desert_rust::SerializationContext<Output>) -> desert_rust::Result<()> {
-                    #evolved_serialization
+                    let mut serializer = desert_rust::adt::AdtSerializer::<_, #vplus1>::#new_v(&#metadata_name, context);
+                    #(#serialization_commands)*
+                    serializer.finish()
                 }
             }
 
@@ -965,124 +828,6 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-struct FastEvolvedAdtSerialization {
-    field_count: usize,
-    field_chunks: Vec<proc_macro2::TokenStream>,
-    evolution_steps: Vec<proc_macro2::TokenStream>,
-    serialization_commands: Vec<proc_macro2::TokenStream>,
-}
-
-fn derive_fast_evolved_adt_serialization(
-    parsed_evolution_steps: &[ParsedEvolutionStep],
-    fields: &Fields,
-) -> FastEvolvedAdtSerialization {
-    let mut field_generations = HashMap::new();
-    let mut removed_fields = HashSet::new();
-    for (idx, evolution_step) in parsed_evolution_steps.iter().enumerate() {
-        match evolution_step {
-            ParsedEvolutionStep::Added { name } => {
-                field_generations.insert(name.clone(), idx as u8 + 1);
-            }
-            ParsedEvolutionStep::Removed { name } => {
-                removed_fields.insert(name.clone());
-            }
-            ParsedEvolutionStep::MadeOptional { .. }
-            | ParsedEvolutionStep::MadeTransient { .. } => {}
-        }
-    }
-
-    let mut field_chunks = Vec::new();
-    let mut field_positions = HashMap::new();
-    let mut last_position_per_chunk = vec![0u8; parsed_evolution_steps.len() + 1];
-    let mut serialization_commands = Vec::new();
-
-    for (n, field) in fields.iter().enumerate() {
-        if field_transient_default(field).is_some() {
-            continue;
-        }
-
-        let n_ident = Ident::new(&format!("field{n}"), Span::call_site());
-        let field_ident = field.ident.as_ref().unwrap_or(&n_ident);
-        let field_name = field_ident.to_string();
-        let chunk = *field_generations.get(&field_name).unwrap_or(&0);
-        let position = last_position_per_chunk[chunk as usize];
-        last_position_per_chunk[chunk as usize] = position + 1;
-        field_positions.insert(field_name, (chunk, position));
-
-        let field_idx = field_chunks.len();
-        field_chunks.push(quote! { #chunk });
-        serialization_commands.push(quote! {
-            desert_field_recorder.write_field(context, #field_idx, #field_ident)?;
-        });
-    }
-
-    let mut evolution_steps = Vec::with_capacity(parsed_evolution_steps.len() + 1);
-    evolution_steps.push(quote! {
-        desert_rust::adt::EvolvedAdtStaticEvolutionStep::FieldAddedToNewChunk { chunk: 0 }
-    });
-    for (idx, evolution_step) in parsed_evolution_steps.iter().enumerate() {
-        match evolution_step {
-            ParsedEvolutionStep::Added { .. } => {
-                let chunk = idx as u8 + 1;
-                evolution_steps.push(quote! {
-                    desert_rust::adt::EvolvedAdtStaticEvolutionStep::FieldAddedToNewChunk { chunk: #chunk }
-                });
-            }
-            ParsedEvolutionStep::MadeOptional { name } => {
-                if let Some((chunk, position)) = field_positions.get(name) {
-                    evolution_steps.push(quote! {
-                        desert_rust::adt::EvolvedAdtStaticEvolutionStep::FieldMadeOptional {
-                            chunk: #chunk,
-                            position: #position,
-                        }
-                    });
-                } else if removed_fields.contains(name) {
-                    evolution_steps.push(quote! {
-                        desert_rust::adt::EvolvedAdtStaticEvolutionStep::FieldRemoved {
-                            field_name: #name,
-                        }
-                    });
-                } else {
-                    evolution_steps.push(quote! {
-                        desert_rust::adt::EvolvedAdtStaticEvolutionStep::FieldMadeOptionalUnknown {
-                            field_name: #name,
-                        }
-                    });
-                }
-            }
-            ParsedEvolutionStep::Removed { name } | ParsedEvolutionStep::MadeTransient { name } => {
-                evolution_steps.push(quote! {
-                    desert_rust::adt::EvolvedAdtStaticEvolutionStep::FieldRemoved {
-                        field_name: #name,
-                    }
-                });
-            }
-        }
-    }
-
-    FastEvolvedAdtSerialization {
-        field_count: field_chunks.len(),
-        field_chunks,
-        evolution_steps,
-        serialization_commands,
-    }
-}
-
-fn field_transient_default(field: &syn::Field) -> Option<Expr> {
-    for attr in &field.attrs {
-        if attr.path().is_ident("transient") {
-            let args = attr
-                .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
-                .unwrap_or_default();
-            if args.len() != 1 {
-                panic!("#[transient(default)] on fields needs a default value");
-            }
-            return Some(args[0].clone());
-        }
-    }
-    None
-}
-
 fn derive_field_serialization(
     field_defaults: HashMap<String, Expr>,
     serialization_commands: &mut Vec<proc_macro2::TokenStream>,
@@ -1094,7 +839,19 @@ fn derive_field_serialization(
         let field_ident = field.ident.as_ref().unwrap_or(&n_ident);
         let field_name = field_ident.to_string();
 
-        let transient = field_transient_default(field);
+        let mut transient = None;
+        for attr in &field.attrs {
+            if attr.path().is_ident("transient") {
+                let args = attr
+                    .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
+                    .unwrap_or_default();
+                if args.len() != 1 {
+                    panic!("#[transient(default)] on fields needs a default value");
+                }
+                let field_default = args[0].clone();
+                transient = Some(field_default);
+            }
+        }
 
         match transient {
             None => {
@@ -1178,7 +935,18 @@ fn derive_direct_field_serialization(
         let n_ident = Ident::new(&format!("field{n}"), Span::call_site());
         let field_ident = field.ident.as_ref().unwrap_or(&n_ident);
 
-        let transient = field_transient_default(field);
+        let mut transient = None;
+        for attr in &field.attrs {
+            if attr.path().is_ident("transient") {
+                let args = attr
+                    .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
+                    .unwrap_or_default();
+                if args.len() != 1 {
+                    panic!("#[transient(default)] on fields needs a default value");
+                }
+                transient = Some(args[0].clone());
+            }
+        }
 
         match transient {
             None => {
