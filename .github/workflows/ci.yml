@@ -49,7 +49,7 @@ jobs:
     - name: Setup Rust Toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
     - name: Install tools
-      uses: taiki-e/install-action@v2
+      uses: taiki-e/install-action@v2.85.5
       with:
         tool: cargo-deny
     - name: Setup MDBook
