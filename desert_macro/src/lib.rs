@@ -193,6 +193,44 @@ fn get_case_metadata_ident(name: &Ident, case_name: &Ident) -> Ident {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn push_deserialization_case(
+    declarations: &mut Vec<proc_macro2::TokenStream>,
+    helpers: &mut Vec<proc_macro2::TokenStream>,
+    cases: &mut Vec<proc_macro2::TokenStream>,
+    isolated_cases: &mut Vec<proc_macro2::TokenStream>,
+    helpers_trait_name: &Ident,
+    helper_name: &Ident,
+    case_idx: u32,
+    body: proc_macro2::TokenStream,
+) {
+    let helper_body = body.clone();
+    declarations.push(quote! {
+        fn #helper_name(
+            context: &mut desert_rust::DeserializationContext<'_>,
+        ) -> desert_rust::Result<Self>;
+    });
+    helpers.push(quote! {
+        #[allow(unused_assignments, unused_variables)]
+        #[inline(never)]
+        fn #helper_name(
+            context: &mut desert_rust::DeserializationContext<'_>,
+        ) -> desert_rust::Result<Self> {
+            use desert_rust::BinaryInput;
+
+            #helper_body
+        }
+    });
+    cases.push(quote! {
+        #case_idx => {
+            #body
+        },
+    });
+    isolated_cases.push(quote! {
+        #case_idx => <Self as #helpers_trait_name>::#helper_name(context),
+    });
+}
+
 // TODO: attribute to force/disable option field detection for a field (because it's based on names only)
 // TODO: attribute to use different field names (for Scala compatibility)
 #[proc_macro_derive(BinaryCodec, attributes(desert, transient))]
@@ -216,6 +254,16 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
 
     let name = &ast.ident;
     let metadata_name = get_metadata_ident(name);
+    let (base_name, _) = check_raw(name);
+    let mut helpers_trait_name = format!("__DesertDeserializationHelpersFor{base_name}");
+    while ast.generics.params.iter().any(|parameter| match parameter {
+        syn::GenericParam::Lifetime(parameter) => parameter.lifetime.ident == helpers_trait_name,
+        syn::GenericParam::Type(parameter) => parameter.ident == helpers_trait_name,
+        syn::GenericParam::Const(parameter) => parameter.ident == helpers_trait_name,
+    }) {
+        helpers_trait_name.push('_');
+    }
+    let helpers_trait_name = Ident::new(&helpers_trait_name, Span::mixed_site());
 
     // Process generics for the impl blocks
     let mut generics_for_impl = ast.generics.clone();
@@ -241,6 +289,10 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
     let mut deserialization_commands = Vec::new();
     let mut direct_serialization_commands = Vec::new();
     let mut direct_deserialization_commands = Vec::new();
+    let mut isolated_deserialization_commands = Vec::new();
+    let mut isolated_direct_deserialization_commands = Vec::new();
+    let mut deserialization_helper_declarations = Vec::new();
+    let mut deserialization_helpers = Vec::new();
     let is_record;
 
     match ast.data {
@@ -319,6 +371,8 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             let mut deser_cases = Vec::new();
             let mut direct_ser_cases = Vec::new();
             let mut direct_deser_cases = Vec::new();
+            let mut isolated_deser_cases = Vec::new();
+            let mut isolated_direct_deser_cases = Vec::new();
 
             let mut variants = enum_data.variants.iter().cloned().collect::<Vec<_>>();
             if use_sorted_constructors {
@@ -332,6 +386,14 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     .iter()
                     .any(|attr| attr.path().is_ident("transient"));
                 let case_name = &variant.ident;
+                let deserialization_helper_name = Ident::new(
+                    &format!("desert_deserialize_variant_{effective_case_idx}"),
+                    Span::call_site(),
+                );
+                let direct_deserialization_helper_name = Ident::new(
+                    &format!("desert_deserialize_direct_variant_{effective_case_idx}"),
+                    Span::call_site(),
+                );
 
                 let pattern = match &variant.fields {
                     Fields::Unit => {
@@ -382,21 +444,31 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                                     )?;
                                 }
                             });
-                            deser_cases.push(quote! {
-                                #effective_case_idx => {
-                                    Ok(#name::#case_name)
-                                },
-                            });
+                            push_deserialization_case(
+                                &mut deserialization_helper_declarations,
+                                &mut deserialization_helpers,
+                                &mut deser_cases,
+                                &mut isolated_deser_cases,
+                                &helpers_trait_name,
+                                &deserialization_helper_name,
+                                effective_case_idx,
+                                quote! { Ok(#name::#case_name) },
+                            );
                             direct_ser_cases.push(quote! {
                                 #pattern => {
                                     desert_rust::BinaryOutput::write_var_u32(context, #effective_case_idx);
                                 }
                             });
-                            direct_deser_cases.push(quote! {
-                                #effective_case_idx => {
-                                    Ok(#name::#case_name)
-                                },
-                            });
+                            push_deserialization_case(
+                                &mut deserialization_helper_declarations,
+                                &mut deserialization_helpers,
+                                &mut direct_deser_cases,
+                                &mut isolated_direct_deser_cases,
+                                &helpers_trait_name,
+                                &direct_deserialization_helper_name,
+                                effective_case_idx,
+                                quote! { Ok(#name::#case_name) },
+                            );
                         } else {
                             let single_field = match &variant.fields {
                                 Fields::Named(named_fields) => {
@@ -487,16 +559,26 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                                 }
                             };
 
-                            deser_cases.push(quote! {
-                                #effective_case_idx => {
-                                    Ok(#construct_case)
-                                },
-                            });
-                            direct_deser_cases.push(quote! {
-                                #effective_case_idx => {
-                                    Ok(#construct_case)
-                                },
-                            });
+                            push_deserialization_case(
+                                &mut deserialization_helper_declarations,
+                                &mut deserialization_helpers,
+                                &mut deser_cases,
+                                &mut isolated_deser_cases,
+                                &helpers_trait_name,
+                                &deserialization_helper_name,
+                                effective_case_idx,
+                                quote! { Ok(#construct_case) },
+                            );
+                            push_deserialization_case(
+                                &mut deserialization_helper_declarations,
+                                &mut deserialization_helpers,
+                                &mut direct_deser_cases,
+                                &mut isolated_direct_deser_cases,
+                                &helpers_trait_name,
+                                &direct_deserialization_helper_name,
+                                effective_case_idx,
+                                quote! { Ok(#construct_case) },
+                            );
                         }
                     } else {
                         let version = case_evolution_steps.len();
@@ -600,18 +682,23 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                             }
                         };
 
-                        deser_cases.push(
+                        push_deserialization_case(
+                            &mut deserialization_helper_declarations,
+                            &mut deserialization_helpers,
+                            &mut deser_cases,
+                            &mut isolated_deser_cases,
+                            &helpers_trait_name,
+                            &deserialization_helper_name,
+                            effective_case_idx,
                             quote! {
-                                #effective_case_idx => {
-                                    let stored_version = context.read_u8()?;
-                                    let mut deserializer = if stored_version == 0 {
-                                        desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#case_metadata_name, context)?
-                                    } else {
-                                        desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?
-                                    };
-                                    Ok(#construct_case)
-                                },
-                            }
+                                let stored_version = context.read_u8()?;
+                                let mut deserializer = if stored_version == 0 {
+                                    desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#case_metadata_name, context)?
+                                } else {
+                                    desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?
+                                };
+                                Ok(#construct_case)
+                            },
                         );
 
                         let direct_construct_case = match &variant.fields {
@@ -630,32 +717,42 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                         };
 
                         if version == 0 {
-                            direct_deser_cases.push(
+                            push_deserialization_case(
+                                &mut deserialization_helper_declarations,
+                                &mut deserialization_helpers,
+                                &mut direct_deser_cases,
+                                &mut isolated_direct_deser_cases,
+                                &helpers_trait_name,
+                                &direct_deserialization_helper_name,
+                                effective_case_idx,
                                 quote! {
-                                    #effective_case_idx => {
-                                        let stored_version = context.read_u8()?;
-                                        if stored_version == 0 {
-                                            Ok(#direct_construct_case)
-                                        } else {
-                                            let mut deserializer = desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?;
-                                            Ok(#construct_case)
-                                        }
-                                    },
-                                }
+                                    let stored_version = context.read_u8()?;
+                                    if stored_version == 0 {
+                                        Ok(#direct_construct_case)
+                                    } else {
+                                        let mut deserializer = desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?;
+                                        Ok(#construct_case)
+                                    }
+                                },
                             );
                         } else {
-                            direct_deser_cases.push(
+                            push_deserialization_case(
+                                &mut deserialization_helper_declarations,
+                                &mut deserialization_helpers,
+                                &mut direct_deser_cases,
+                                &mut isolated_direct_deser_cases,
+                                &helpers_trait_name,
+                                &direct_deserialization_helper_name,
+                                effective_case_idx,
                                 quote! {
-                                    #effective_case_idx => {
-                                        let stored_version = context.read_u8()?;
-                                        let mut deserializer = if stored_version == 0 {
-                                            desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#case_metadata_name, context)?
-                                        } else {
-                                            desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?
-                                        };
-                                        Ok(#construct_case)
-                                    },
-                                }
+                                    let stored_version = context.read_u8()?;
+                                    let mut deserializer = if stored_version == 0 {
+                                        desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#case_metadata_name, context)?
+                                    } else {
+                                        desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#case_metadata_name, context, stored_version)?
+                                    };
+                                    Ok(#construct_case)
+                                },
                             );
                         }
                     }
@@ -701,6 +798,18 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                     }
                  }
             });
+            isolated_deserialization_commands.push(quote! {
+                 let desert_constructor_idx = deserializer.read_constructor_idx()?;
+                 match desert_constructor_idx {
+                     #(#isolated_deser_cases)*
+                    other => {
+                        Err(desert_rust::Error::InvalidConstructorId {
+                            type_name: stringify!(#name).to_string(),
+                            constructor_id: other,
+                        })
+                    }
+                 }
+            });
             direct_serialization_commands.push(quote! {
                 match self {
                     #(#direct_ser_cases),*
@@ -710,6 +819,18 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
                  let desert_constructor_idx = context.read_var_u32()?;
                  match desert_constructor_idx {
                      #(#direct_deser_cases)*
+                    other => {
+                        Err(desert_rust::Error::InvalidConstructorId {
+                            type_name: stringify!(#name).to_string(),
+                            constructor_id: other,
+                        })
+                    }
+                 }
+            });
+            isolated_direct_deserialization_commands.push(quote! {
+                 let desert_constructor_idx = context.read_var_u32()?;
+                 match desert_constructor_idx {
+                     #(#isolated_direct_deser_cases)*
                     other => {
                         Err(desert_rust::Error::InvalidConstructorId {
                             type_name: stringify!(#name).to_string(),
@@ -766,6 +887,110 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             #(#direct_deserialization_commands)*
         }
     };
+    let isolated_deserialization = quote! {
+        #(#isolated_deserialization_commands)*
+    };
+    let isolated_deserialization_direct = quote! {
+        #(#isolated_direct_deserialization_commands)*
+    };
+
+    let deserializer_body = if version == 0 {
+        if is_record {
+            quote! {
+                use desert_rust::BinaryInput;
+
+                let stored_version = context.read_u8()?;
+                if stored_version == 0 {
+                    #deserialization_direct
+                } else {
+                    let mut deserializer = desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?;
+                    #deserialization
+                }
+            }
+        } else {
+            quote! {
+                #[cfg(debug_assertions)]
+                {
+                    trait #helpers_trait_name: Sized {
+                        #(#deserialization_helper_declarations)*
+                    }
+
+                    impl #impl_generics #helpers_trait_name for #name #ty_generics #where_clause {
+                        #(#deserialization_helpers)*
+                    }
+
+                    use desert_rust::BinaryInput;
+
+                    let stored_version = context.read_u8()?;
+                    if stored_version == 0 {
+                        #isolated_deserialization_direct
+                    } else {
+                        let mut deserializer = desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?;
+                        #isolated_deserialization
+                    }
+                }
+                #[cfg(not(debug_assertions))]
+                {
+                    use desert_rust::BinaryInput;
+
+                    let stored_version = context.read_u8()?;
+                    if stored_version == 0 {
+                        #deserialization_direct
+                    } else {
+                        let mut deserializer = desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?;
+                        #deserialization
+                    }
+                }
+            }
+        }
+    } else if is_record {
+        quote! {
+            use desert_rust::BinaryInput;
+
+            let stored_version = context.read_u8()?;
+            let mut deserializer = if stored_version == 0 {
+                desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#metadata_name, context)?
+            } else {
+                desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?
+            };
+            #deserialization
+        }
+    } else {
+        quote! {
+            #[cfg(debug_assertions)]
+            {
+                trait #helpers_trait_name: Sized {
+                    #(#deserialization_helper_declarations)*
+                }
+
+                impl #impl_generics #helpers_trait_name for #name #ty_generics #where_clause {
+                    #(#deserialization_helpers)*
+                }
+
+                use desert_rust::BinaryInput;
+
+                let stored_version = context.read_u8()?;
+                let mut deserializer = if stored_version == 0 {
+                    desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#metadata_name, context)?
+                } else {
+                    desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?
+                };
+                #isolated_deserialization
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                use desert_rust::BinaryInput;
+
+                let stored_version = context.read_u8()?;
+                let mut deserializer = if stored_version == 0 {
+                    desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#metadata_name, context)?
+                } else {
+                    desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?
+                };
+                #deserialization
+            }
+        }
+    };
 
     let gen = if version == 0 {
         quote! {
@@ -783,15 +1008,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
                 #[allow(unused_assignments, unused_variables)]
                 fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
-                    use desert_rust::BinaryInput;
-
-                    let stored_version = context.read_u8()?;
-                    if stored_version == 0 {
-                        #deserialization_direct
-                    } else {
-                        let mut deserializer = desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?;
-                        #deserialization
-                    }
+                    #deserializer_body
                 }
             }
         }
@@ -811,15 +1028,7 @@ pub fn derive_binary_codec(input: TokenStream) -> TokenStream {
             impl #impl_generics desert_rust::BinaryDeserializer for #name #ty_generics #where_clause {
                 #[allow(unused_assignments, unused_variables)]
                 fn deserialize<'a, 'b>(context: &'a mut desert_rust::DeserializationContext<'b>) -> desert_rust::Result<Self> {
-                    use desert_rust::BinaryInput;
-
-                    let stored_version = context.read_u8()?;
-                    let mut deserializer = if stored_version == 0 {
-                        desert_rust::adt::AdtDeserializer::<#vplus1>::new_v0(&#metadata_name, context)?
-                    } else {
-                        desert_rust::adt::AdtDeserializer::<#vplus1>::new(&#metadata_name, context, stored_version)?
-                    };
-                    #deserialization
+                    #deserializer_body
                 }
             }
         }

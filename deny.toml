@@ -31,9 +31,7 @@ external-default-features = "allow"
 allow = []
 deny = []
 
-skip = [
-    { name = "wit-bindgen", version = "0.51.0" },
-]
+skip = []
 skip-tree = []
 
 [sources]
