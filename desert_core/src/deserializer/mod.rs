@@ -520,8 +520,8 @@ fn deserialize_fixed_width_vec<T: BinaryDeserializer, const WIDTH: usize>(
         })?;
         let bytes = context.read_bytes(byte_len)?;
         let mut vec = Vec::with_capacity(len);
-        for chunk in bytes.chunks_exact(WIDTH) {
-            vec.push(decode(chunk.try_into().unwrap()));
+        for chunk in bytes.as_chunks::<WIDTH>().0 {
+            vec.push(decode(*chunk));
         }
         Ok(vec)
     }
