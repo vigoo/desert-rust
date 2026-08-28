@@ -53,6 +53,19 @@ enum GenericEnum<T> {
 }
 
 #[derive(Debug, PartialEq, BinaryCodec)]
+enum GenericHelperNameCollision<DesertDeserializationHelpers> {
+    Value(DesertDeserializationHelpers),
+}
+
+#[test]
+fn generic_parameter_may_use_internal_helper_name() {
+    let value = GenericHelperNameCollision::Value(42_u32);
+    let bytes = serialize_to_bytes(&value).unwrap();
+    let decoded: GenericHelperNameCollision<u32> = deserialize(&bytes).unwrap();
+    assert_eq!(decoded, value);
+}
+
+#[derive(Debug, PartialEq, BinaryCodec)]
 #[allow(dead_code)]
 struct r#RawIdent {
     pub r#raw_field: u32,
@@ -96,6 +109,57 @@ enum EnumWithTransparent {
     D {
         value: String,
     },
+}
+
+#[derive(Debug, PartialEq, BinaryCodec)]
+enum EnumWithSelfDefault {
+    #[desert(evolution(FieldAdded("value", Self::default_value())))]
+    A { value: u32 },
+}
+
+impl EnumWithSelfDefault {
+    fn default_value() -> u32 {
+        42
+    }
+}
+
+macro_rules! large_enum {
+    ($($variant:ident),* $(,)?) => {
+        #[allow(dead_code)]
+        #[derive(Debug, PartialEq, BinaryCodec)]
+        enum LargeEnum {
+            #[desert(evolution(FieldAdded("value", String::new())))]
+            Custom { value: String },
+            $($variant),*
+        }
+    };
+}
+
+large_enum!(
+    V000, V001, V002, V003, V004, V005, V006, V007, V008, V009, V010, V011, V012, V013, V014, V015,
+    V016, V017, V018, V019, V020, V021, V022, V023, V024, V025, V026, V027, V028, V029, V030, V031,
+    V032, V033, V034, V035, V036, V037, V038, V039, V040, V041, V042, V043, V044, V045, V046, V047,
+    V048, V049, V050, V051, V052, V053, V054, V055, V056, V057, V058, V059, V060, V061, V062, V063,
+    V064, V065, V066, V067, V068, V069, V070, V071, V072, V073, V074, V075, V076, V077, V078, V079,
+    V080, V081, V082, V083, V084, V085, V086, V087, V088, V089, V090, V091, V092, V093, V094, V095,
+    V096, V097, V098, V099, V100, V101, V102, V103, V104, V105, V106, V107, V108, V109, V110, V111,
+    V112, V113, V114, V115, V116, V117, V118, V119, V120, V121, V122, V123, V124, V125, V126, V127,
+    V128, V129, V130, V131, V132, V133, V134, V135, V136, V137, V138, V139, V140, V141, V142, V143,
+    V144, V145, V146, V147, V148, V149, V150, V151, V152, V153, V154, V155, V156, V157, V158, V159,
+    V160, V161, V162, V163, V164, V165, V166, V167, V168, V169, V170, V171, V172,
+);
+
+fn assert_large_enum_roundtrip_on_small_stack(value: LargeEnum) {
+    let bytes = serialize_to_bytes(&value).unwrap();
+    std::thread::Builder::new()
+        .stack_size(384 * 1024)
+        .spawn(move || {
+            let decoded: LargeEnum = deserialize(&bytes).unwrap();
+            assert_eq!(decoded, value);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
 }
 
 #[test]
@@ -208,4 +272,20 @@ fn debug() {
     let bytes_transparent_d = serialize_to_bytes(&transparent_d).unwrap();
     let transparent_d2: EnumWithTransparent = deserialize(&bytes_transparent_d).unwrap();
     check!(transparent_d == transparent_d2);
+}
+
+#[test]
+fn large_enum_deserialization_fits_on_small_stack() {
+    assert_large_enum_roundtrip_on_small_stack(LargeEnum::V172);
+    assert_large_enum_roundtrip_on_small_stack(LargeEnum::Custom {
+        value: "test".to_string(),
+    });
+}
+
+#[test]
+fn enum_evolution_default_can_reference_self() {
+    let value = EnumWithSelfDefault::A { value: 7 };
+    let bytes = serialize_to_bytes(&value).unwrap();
+    let decoded: EnumWithSelfDefault = deserialize(&bytes).unwrap();
+    assert_eq!(decoded, value);
 }
