@@ -315,9 +315,9 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chacha20"
-version = "0.10.0"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f8d983286843e49675a4b7a2d174efe136dc93a18d69130dd18198a6c167601"
+checksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -1739,9 +1739,9 @@ checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quick-xml"
-version = "0.38.4"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b66c2058c55a409d601666cffe35f04333cf1013010882cec174a7467cd4e21c"
+checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
 dependencies = [
  "memchr",
 ]
@@ -2197,9 +2197,9 @@ dependencies = [
 
 [[package]]
 name = "test-r"
-version = "3.0.10"
+version = "3.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54f55a46ee6142eaef8e458cea84684ee2de40508fd41c27a547b845e3a74e78"
+checksum = "1dfad2a3c321239151d31a82d84e9ba64ce954c1248e3e945cec27f580b54040"
 dependencies = [
  "ctor",
  "test-r-core",
@@ -2209,9 +2209,9 @@ dependencies = [
 
 [[package]]
 name = "test-r-core"
-version = "10.0.0"
+version = "11.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d08af1f9ada11675cdd8b69bddca2717aa419d7b5a76289803145aaee2dde4a8"
+checksum = "b178477fa5ca92289c2241984b0c1f806204c0ae8513ee7530389d3e500888fb"
 dependencies = [
  "anstream",
  "anstyle",
@@ -2237,9 +2237,9 @@ dependencies = [
 
 [[package]]
 name = "test-r-macro"
-version = "1.4.10"
+version = "1.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80deea1873f22a09ef943c254ea709f4e863f2c50ffa19d1a0e2b9676899cc17"
+checksum = "de99e4f567d527d1f953f9e7d3c521545f65e4dd1f6db1081abf1d23b7ac7866"
 dependencies = [
  "darling",
  "humantime",
