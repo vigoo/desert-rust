@@ -31,7 +31,10 @@ external-default-features = "allow"
 allow = []
 deny = []
 
-skip = []
+skip = [
+    # The proc-macro ecosystem is transitioning from syn 2 to syn 3.
+    { name = "syn", version = "3.0.4" },
+]
 skip-tree = []
 
 [sources]
