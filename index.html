@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-2a81e936.js";
+            window.path_to_searchindex_js = "searchindex-7ad4f950.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-bc47af81.js"></script>
@@ -196,6 +196,7 @@ desert_rust = { version = "0.1.8", features = ["uuid", "chrono", "url"] }
 <li><code>bigdecimal</code></li>
 <li><code>bit-vec</code></li>
 <li><code>chrono</code></li>
+<li><code>im</code></li>
 <li><code>mac_address</code></li>
 <li><code>nonempty-collections</code></li>
 <li><code>serde-json</code></li>
@@ -204,7 +205,7 @@ desert_rust = { version = "0.1.8", features = ["uuid", "chrono", "url"] }
 </ul>
 <p>The current <code>desert_core</code> default features already enable <code>bigdecimal</code>,
 <code>chrono</code>, <code>uuid</code>, <code>nonempty-collections</code>, and <code>serde-json</code>. Features such as
-<code>url</code>, <code>mac_address</code>, and <code>bit-vec</code> must be enabled explicitly.</p>
+<code>url</code>, <code>mac_address</code>, <code>bit-vec</code>, and <code>im</code> must be enabled explicitly.</p>
 <h2 id="serialize-and-deserialize-a-known-type"><a class="header" href="#serialize-and-deserialize-a-known-type">Serialize and deserialize a known type</a></h2>
 <p>The most direct API works with a <code>Vec&lt;u8&gt;</code> or <code>bytes::Bytes</code>:</p>
 <pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, Result};
