@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="$HOME/.cargo/bin:$PATH"
+
+step() {
+    local description="$1"
+    shift
+    echo "==> ${description}"
+    local start=$SECONDS
+    "$@"
+    echo "<== ${description} completed in $((SECONDS - start))s"
+}
+
+missing_packages=()
+for package in build-essential ca-certificates curl; do
+    if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'ok installed'; then
+        missing_packages+=("$package")
+    fi
+done
+
+if ((${#missing_packages[@]} > 0)); then
+    if ((EUID == 0)); then
+        apt=(apt-get)
+    else
+        apt=(sudo apt-get)
+    fi
+    step "Updating apt package metadata" "${apt[@]}" update
+    step "Installing system packages" "${apt[@]}" install -y "${missing_packages[@]}"
+fi
+
+if ! command -v rustup >/dev/null 2>&1; then
+    echo "==> Installing the stable Rust toolchain"
+    installer="$(mktemp)"
+    trap 'rm -f "$installer"' EXIT
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$installer"
+    sh "$installer" -y --profile minimal --default-toolchain stable
+    rm -f "$installer"
+    trap - EXIT
+fi
+
+step "Installing Rust formatting and linting components" \
+    rustup component add rustfmt clippy
+
+if ! command -v cargo-deny >/dev/null 2>&1; then
+    step "Installing cargo-deny" cargo install --locked cargo-deny
+fi
+
+if ! command -v mdbook >/dev/null 2>&1; then
+    step "Installing mdbook" cargo install --locked mdbook
+fi
+
+step "Fetching locked workspace dependencies" cargo fetch --locked
