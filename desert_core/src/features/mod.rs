@@ -7,6 +7,9 @@ mod bit_vec;
 #[cfg(feature = "chrono")]
 mod chrono;
 
+#[cfg(feature = "im")]
+mod im;
+
 #[cfg(feature = "mac_address")]
 mod mac_address;
 
