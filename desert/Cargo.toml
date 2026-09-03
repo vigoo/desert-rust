@@ -14,6 +14,7 @@ path = "src/lib.rs"
 [dependencies]
 desert_core = { path = "../desert_core", version = "0.2.1" }
 desert_macro = { path = "../desert_macro", version = "0.1.10" }
+im = { version = "15.1", optional = true }
 
 [dev-dependencies]
 arbitrary = { version = "1.4.2", features = ["derive"] }
@@ -42,6 +43,11 @@ name = "golden"
 harness = false
 
 [[test]]
+name = "im"
+harness = false
+required-features = ["im"]
+
+[[test]]
 name = "string_deduplication"
 harness = false
 
@@ -50,6 +56,7 @@ default = []
 bigdecimal = ["desert_core/bigdecimal"]
 bit-vec = ["desert_core/bit-vec"]
 chrono = ["desert_core/chrono"]
+im = ["dep:im", "desert_core/im"]
 mac_address = ["desert_core/mac_address"]
 nonempty-collections = ["desert_core/nonempty-collections"]
 serde-json = ["desert_core/serde-json"]

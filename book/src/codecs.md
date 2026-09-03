@@ -38,6 +38,7 @@ Feature flags control codecs for third-party types:
 | `bigdecimal` | `bigdecimal::BigDecimal`, `bigdecimal::num_bigint::BigInt` |
 | `bit-vec` | `bit_vec::BitVec` |
 | `chrono` | `chrono` dates, times, offsets, `chrono_tz::Tz` |
+| `im` | `im::Vector<T>`, `im::OrdMap<K, V>` |
 | `mac_address` | `mac_address::MacAddress` |
 | `nonempty-collections` | `nonempty_collections::NEVec<T>` |
 | `serde-json` | `serde_json::Value` |
@@ -46,8 +47,8 @@ Feature flags control codecs for third-party types:
 
 The facade currently pulls in the `desert_core` default feature set, so
 `bigdecimal`, `chrono`, `uuid`, `nonempty-collections`, and `serde-json` are
-enabled by default. Enable `bit-vec`, `mac_address`, or `url` explicitly when
-you need those codecs.
+enabled by default. Enable `bit-vec`, `im`, `mac_address`, or `url` explicitly
+when you need those codecs.
 
 The same generator is used for optional third-party codecs:
 

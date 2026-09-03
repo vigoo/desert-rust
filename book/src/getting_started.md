@@ -29,6 +29,7 @@ Feature flags exposed by the public crate are:
 - `bigdecimal`
 - `bit-vec`
 - `chrono`
+- `im`
 - `mac_address`
 - `nonempty-collections`
 - `serde-json`
@@ -37,7 +38,7 @@ Feature flags exposed by the public crate are:
 
 The current `desert_core` default features already enable `bigdecimal`,
 `chrono`, `uuid`, `nonempty-collections`, and `serde-json`. Features such as
-`url`, `mac_address`, and `bit-vec` must be enabled explicitly.
+`url`, `mac_address`, `bit-vec`, and `im` must be enabled explicitly.
 
 ## Serialize and deserialize a known type
 

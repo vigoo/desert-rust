@@ -253,6 +253,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
 
 [[package]]
+name = "bitmaps"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "031043d04099746d8db04daf1fa424b2bc8bd69d92b25962dcde24da39ab64a2"
+dependencies = [
+ "typenum",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -717,6 +726,7 @@ dependencies = [
  "chrono-tz",
  "flate2",
  "hashbrown 0.16.1",
+ "im",
  "lazy_static",
  "mac_address",
  "nonempty-collections",
@@ -788,6 +798,7 @@ dependencies = [
  "bytes",
  "desert_core 0.2.1",
  "desert_macro 0.1.10",
+ "im",
  "lazy_static",
  "proptest",
  "proptest-arbitrary-interop",
@@ -1298,6 +1309,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "im"
+version = "15.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0acd33ff0285af998aaf9b57342af478078f53492322fafc47450e09397e0e9"
+dependencies = [
+ "bitmaps",
+ "rand_core 0.6.4",
+ "rand_xoshiro",
+ "sized-chunks",
+ "typenum",
+ "version_check",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1802,6 +1827,12 @@ dependencies = [
 
 [[package]]
 name = "rand_core"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+
+[[package]]
+name = "rand_core"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76afc826de14238e6e8c374ddcc1fa19e374fd8dd986b0d2af0d02377261d83c"
@@ -1822,6 +1853,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "513962919efc330f829edb2535844d1b912b0fbe2ca165d613e4e8788bb05a5a"
 dependencies = [
  "rand_core 0.9.5",
+]
+
+[[package]]
+name = "rand_xoshiro"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
+dependencies = [
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -2095,6 +2135,16 @@ name = "siphasher"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
+
+[[package]]
+name = "sized-chunks"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16d69225bde7a69b235da73377861095455d298f2b970996eec25ddbb42b3d1e"
+dependencies = [
+ "bitmaps",
+ "typenum",
+]
 
 [[package]]
 name = "slab"
