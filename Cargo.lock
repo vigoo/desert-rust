@@ -699,7 +699,7 @@ dependencies = [
  "bytes",
  "chrono",
  "criterion",
- "desert_rust 0.1.12",
+ "desert_rust 0.1.13",
  "dlhn",
  "iso8601-timestamp",
  "lazy_static",
@@ -725,7 +725,7 @@ dependencies = [
  "bit-vec",
  "bytes",
  "chrono",
- "desert_rust 0.1.12",
+ "desert_rust 0.1.13",
  "flate2",
  "mac_address",
  "nonempty-collections",
@@ -736,9 +736,9 @@ dependencies = [
 
 [[package]]
 name = "desert_core"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac6b6856f399753c591dcdb7b57fd651eee3e07787672392cf551b8ba1725bdd"
+checksum = "4cd9af24d33cc546c81be62bd6549de9b98295ea066954c8560927e11345747f"
 dependencies = [
  "bigdecimal 0.4.11",
  "bytes",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "desert_core"
-version = "0.2.3"
+version = "0.3.0"
 dependencies = [
  "arbitrary",
  "bigdecimal 0.4.11",
@@ -789,12 +789,12 @@ dependencies = [
 
 [[package]]
 name = "desert_macro"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4573798d7c0123902a9fc19f43c1c0dd2daf587c121119fd5ebcdab46f4e984a"
+checksum = "06d4629c9d914d70a15a82fd22075582ba917fbebda163db343eaa80f93a7fc5"
 dependencies = [
  "bytes",
- "desert_core 0.2.2",
+ "desert_core 0.2.3",
  "lazy_static",
  "proc-macro2",
  "quote",
@@ -803,7 +803,7 @@ dependencies = [
 
 [[package]]
 name = "desert_macro"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "arbitrary",
  "assert2",
@@ -819,23 +819,23 @@ dependencies = [
 
 [[package]]
 name = "desert_rust"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88084a4ce8019c315bcc0142f2fa97c1d7b389a96cfadea6f07a5607126667a0"
+checksum = "f9a59095c898d8fd28ff31ec0a64f76a9a4db93b317100473deb82941a61984c"
 dependencies = [
- "desert_core 0.2.2",
- "desert_macro 0.1.11",
+ "desert_core 0.2.3",
+ "desert_macro 0.1.12",
 ]
 
 [[package]]
 name = "desert_rust"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "arbitrary",
  "assert2",
  "bytes",
- "desert_core 0.2.3",
- "desert_macro 0.1.12",
+ "desert_core 0.3.0",
+ "desert_macro 0.1.13",
  "im",
  "lazy_static",
  "proptest",
@@ -2274,7 +2274,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ctrf-rs",
- "desert_rust 0.1.11",
+ "desert_rust 0.1.12",
  "escape8259",
  "futures",
  "interprocess",

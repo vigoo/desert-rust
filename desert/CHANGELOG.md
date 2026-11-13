@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.13](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.12...desert_rust-v0.1.13) - 2026-11-13
+
+### Other
+
+- Merge latest master release into dependency upgrade
+- Upgrade dependencies to latest usable stable releases
+- Merge pull request #47 from vigoo/chore/upgrade-dependencies
+- Merge pull request #44 from vigoo/fix-ref-tracking-uaf
+- Return errors instead of panicking on malformed lengths
+- Own deserialized values in reference tracking state
+- Remove unused desert_core dependency from macro crate
+
 ## [0.1.12](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.11...desert_rust-v0.1.12) - 2026-11-13
 
 ### Other
