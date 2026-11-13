@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.12](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.11...desert_rust-v0.1.12) - 2026-11-13
+
+### Other
+
+- Keep proptest below 1.12 for proptest-arbitrary-interop
+- Fix unsound fixed-size array deserialization
+
 ## [0.1.11](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.10...desert_rust-v0.1.11) - 2026-09-03
 
 ### Other
