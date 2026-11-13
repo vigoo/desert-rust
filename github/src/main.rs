@@ -2,14 +2,18 @@ mod internal;
 
 use crate::internal::{matrix, JobExt, Matrix, MatrixDimension, StepExt};
 use gh_workflow::generate::Generate;
-use gh_workflow::toolchain::Toolchain;
 use gh_workflow::{
     Cargo, Concurrency, Event, Expression, Job, Level, Permissions, PullRequest, Push, Step,
     Workflow,
 };
 
 fn main() {
-    let toolchain = Toolchain::default();
+    // Preserve v1's compiler warning policy rather than v2's broader Cargo
+    // warning gate, which also rejects upstream future-incompatibility notices.
+    let toolchain = Step::new("Setup Rust Toolchain")
+        .uses("actions-rust-lang", "setup-rust-toolchain", "v2")
+        .add_with(("rustflags", "-D warnings"))
+        .add_with(("build-warnings", "warn"));
 
     let ci = Workflow::new("CI")
         .on(Event::default()
@@ -28,7 +32,7 @@ fn main() {
                     ),
                 ))
                 .runs_on("${{ matrix.os }}")
-                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v6"))
+                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v7"))
                 .add_step(toolchain.clone())
                 .add_step(Cargo::new("test")),
         )
@@ -36,7 +40,7 @@ fn main() {
             "checks",
             Job::new("Checks")
                 .runs_on_("ubuntu-latest")
-                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v6"))
+                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v7"))
                 .add_step(toolchain.clone())
                 .add_step(Step::install_action().add_tool("cargo-deny"))
                 .add_step(Step::setup_mdbook())
@@ -55,7 +59,7 @@ fn main() {
             "deploy-book",
             Job::new("Deploy book")
                 .runs_on_("ubuntu-latest")
-                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v6"))
+                .add_step(Step::new("Checkout Code").uses("actions", "checkout", "v7"))
                 .add_step(toolchain.clone())
                 .add_step(Step::setup_mdbook())
                 .add_step(Cargo::new("build").args("-p desert_book"))
@@ -85,7 +89,7 @@ fn main() {
                 .concurrency(Concurrency::default().group("release-plz-${{ github.ref }}").cancel_in_progress(true))
                 .add_step(
                     Step::new("Checkout Code")
-                        .uses("actions", "checkout", "v6")
+                        .uses("actions", "checkout", "v7")
                         .add_with(("fetch-depth", "0")),
                 )
                 .add_step(toolchain)

@@ -10,11 +10,11 @@ name = "mdbook-desert"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1"
-bigdecimal = "0.4"
-bit-vec = "0.6"
-bytes = "1.10"
-chrono = "0.4"
+anyhow = "1.0.104"
+bigdecimal = "0.4.11"
+bit-vec = "0.10.2"
+bytes = "1.12.1"
+chrono = "0.4.45"
 desert_rust = { path = "../desert", features = [
     "bigdecimal",
     "bit-vec",
@@ -25,9 +25,9 @@ desert_rust = { path = "../desert", features = [
     "url",
     "uuid",
 ] }
-flate2 = "1.1"
-mac_address = "1.1"
-nonempty-collections = "1.2.1"
-serde_json = "1"
-url = "2.5"
-uuid = "1.18"
+flate2 = "1.1.11"
+mac_address = "1.2.1"
+nonempty-collections = "1.4.0"
+serde_json = "1.0.154"
+url = "2.5.8"
+uuid = "1.29.2"

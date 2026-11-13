@@ -1,5 +1,14 @@
 use desert_core::{deserialize, serialize_to_byte_vec, BinaryDeserializer, BinarySerializer};
+use proptest::prelude::*;
 use std::fmt::Debug;
+
+pub fn arb<T: for<'a> arbitrary::Arbitrary<'a> + Debug>() -> impl Strategy<Value = T> {
+    // Keep the former interop adapter's 256-byte input budget, while letting
+    // proptest shrink the input and reject invalid arbitrary values.
+    any::<[u8; 256]>().prop_filter_map("valid arbitrary value", |bytes| {
+        T::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).ok()
+    })
+}
 
 pub fn roundtrip<T: BinarySerializer + BinaryDeserializer + Debug + Clone + PartialEq>(value: T) {
     roundtrip_custom(value, |a, b| assert_eq!(a, b));

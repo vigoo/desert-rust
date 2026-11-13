@@ -180,10 +180,10 @@ mod collections {
 }
 
 mod adding_new_field {
+    use crate::serialization_properties::arb;
     use crate::serialization_properties::{compatibility_test, roundtrip};
     use crate::{ProdV1, ProdV2};
     use proptest::proptest;
-    use proptest_arbitrary_interop::arb;
     use test_r::test;
 
     proptest! {
@@ -223,10 +223,10 @@ mod adding_new_field {
 }
 
 mod making_a_field_optional {
+    use crate::serialization_properties::arb;
     use crate::serialization_properties::{compatibility_test, incompatibility_test, roundtrip};
     use crate::{ProdV1, ProdV2, ProdV3};
     use proptest::proptest;
-    use proptest_arbitrary_interop::arb;
     use test_r::test;
 
     proptest! {
@@ -306,10 +306,10 @@ mod making_a_field_optional {
 }
 
 mod removing_a_field {
+    use crate::serialization_properties::arb;
     use crate::serialization_properties::{compatibility_test, incompatibility_test, roundtrip};
     use crate::{ProdV1, ProdV2, ProdV3, ProdV4};
     use proptest::proptest;
-    use proptest_arbitrary_interop::arb;
     use test_r::test;
 
     proptest! {
@@ -394,12 +394,12 @@ mod removing_a_field {
 }
 
 mod making_a_field_transient {
+    use crate::serialization_properties::arb;
     use crate::serialization_properties::{
         compatibility_test, incompatibility_test, roundtrip_custom,
     };
     use crate::{ProdV1, ProdV2, ProdV3, ProdV4, ProdV5};
     use proptest::proptest;
-    use proptest_arbitrary_interop::arb;
     use test_r::test;
 
     proptest! {

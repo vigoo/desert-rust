@@ -10,7 +10,7 @@ use desert_rust::{
     BinarySerializer, DeserializationContext, SerializationContext,
 };
 use rand::distr::Alphanumeric;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize, Serializer};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};

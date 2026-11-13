@@ -268,13 +268,12 @@ impl BinaryDeserializer for DateTime<Tz> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::roundtrip;
+    use crate::tests::{arb, roundtrip};
     use chrono::{
         DateTime, FixedOffset, Local, Month, NaiveDate, NaiveDateTime, TimeZone, Utc, Weekday,
     };
     use chrono_tz::Tz;
     use proptest::prelude::*;
-    use proptest_arbitrary_interop::arb;
     use test_r::test;
 
     fn datetime_tz_strategy() -> impl Strategy<Value = DateTime<Tz>> {
