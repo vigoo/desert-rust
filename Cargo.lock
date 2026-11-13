@@ -808,7 +808,6 @@ dependencies = [
  "arbitrary",
  "assert2",
  "bytes",
- "desert_core 0.2.3",
  "lazy_static",
  "proc-macro2",
  "proptest",

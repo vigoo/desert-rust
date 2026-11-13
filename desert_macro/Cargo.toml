@@ -12,8 +12,6 @@ readme = "../README.md"
 proc-macro = true
 
 [dependencies]
-desert_core = { path = "../desert_core", version = "0.2.3" }
-
 bytes = "1.12.1"
 lazy_static = "1.5.1"
 proc-macro2 = "1.0.107"
