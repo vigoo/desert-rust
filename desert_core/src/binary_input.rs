@@ -128,7 +128,7 @@ impl BinaryInput for SliceInput<'_> {
     }
 
     fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
-        if self.pos + count > self.data.len() {
+        if count > self.data.len() - self.pos {
             Err(Error::InputEndedUnexpectedly)
         } else {
             let result = &self.data[self.pos..self.pos + count];
@@ -138,7 +138,7 @@ impl BinaryInput for SliceInput<'_> {
     }
 
     fn skip(&mut self, count: usize) -> Result<()> {
-        if self.pos + count > self.data.len() {
+        if count > self.data.len() - self.pos {
             Err(Error::InputEndedUnexpectedly)
         } else {
             self.pos += count;
@@ -170,7 +170,7 @@ impl BinaryInput for OwnedInput {
     }
 
     fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
-        if self.pos + count > self.data.len() {
+        if count > self.data.len() - self.pos {
             Err(Error::InputEndedUnexpectedly)
         } else {
             let result = &self.data[self.pos..self.pos + count];
@@ -180,7 +180,7 @@ impl BinaryInput for OwnedInput {
     }
 
     fn skip(&mut self, count: usize) -> Result<()> {
-        if self.pos + count > self.data.len() {
+        if count > self.data.len() - self.pos {
             Err(Error::InputEndedUnexpectedly)
         } else {
             self.pos += count;

@@ -14,7 +14,9 @@ struct StringsState {
 
 #[derive(Default)]
 struct RefsState {
-    refs_by_id: HashMap<RefId, *const dyn Any>,
+    /// Deserialization: values that later references resolve to, owned by the state.
+    values_by_id: HashMap<RefId, Box<dyn Any>>,
+    /// Serialization: addresses of values already written. Only compared, never dereferenced.
     ids_by_ref: HashMap<*const dyn Any, RefId>,
     last_ref_id: RefId,
 }
@@ -45,7 +47,10 @@ impl State {
         }
     }
 
-    pub fn store_ref(&mut self, value: &impl Any) -> StoreRefResult {
+    /// Assigns the next reference id to a value written during serialization, or returns the id
+    /// it already has. Values are identified by address, so they must stay alive while the
+    /// serialization runs.
+    pub fn store_ref_identity(&mut self, value: &impl Any) -> StoreRefResult {
         self.refs.get_or_init(RefsState::default);
         let refs = unsafe { self.refs.get_mut().unwrap_unchecked() };
         match refs.ids_by_ref.entry(value) {
@@ -53,12 +58,23 @@ impl State {
             Entry::Vacant(entry) => {
                 refs.last_ref_id.next();
                 let id = refs.last_ref_id;
-                refs.refs_by_id.insert(id, value);
                 let result = StoreRefResult::RefIsNew { new_id: id, value };
                 entry.insert(id);
                 result
             }
         }
+    }
+
+    /// Stores a deserialized value under the next reference id, so that later references to it
+    /// resolve through `get_ref_by_id`. The state keeps the value until the deserialization ends,
+    /// so store a cheap handle to shared data, such as a clone of an `Rc`.
+    pub fn store_ref<T: Any>(&mut self, value: T) -> RefId {
+        self.refs.get_or_init(RefsState::default);
+        let refs = unsafe { self.refs.get_mut().unwrap_unchecked() };
+        refs.last_ref_id.next();
+        let id = refs.last_ref_id;
+        refs.values_by_id.insert(id, Box::new(value));
+        id
     }
 
     pub fn get_string_by_id(&self, id: StringId) -> Option<&str> {
@@ -70,14 +86,10 @@ impl State {
     }
 
     pub fn get_ref_by_id(&self, id: RefId) -> Option<&dyn Any> {
-        let ptr = self
-            .refs
+        self.refs
             .get_or_init(RefsState::default)
-            .refs_by_id
-            .get(&id);
-        match ptr {
-            Some(ptr) => unsafe { ptr.as_ref() },
-            None => None,
-        }
+            .values_by_id
+            .get(&id)
+            .map(|value| &**value)
     }
 }

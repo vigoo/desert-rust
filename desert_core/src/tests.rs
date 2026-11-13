@@ -520,7 +520,7 @@ impl BinaryDeserializer for Rc<RefCell<Node>> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> crate::Result<Self> {
         let label = String::deserialize(context)?;
         let result = Rc::new(RefCell::new(Node { label, next: None }));
-        context.state_mut().store_ref(&result);
+        context.state_mut().store_ref(result.clone());
         let has_next = bool::deserialize(context)?;
         if has_next {
             match context.try_read_ref()? {
@@ -639,4 +639,32 @@ fn array_rejects_wrong_element_count() {
             ["s2", "s3"].map(String::from)
         ]
     );
+}
+
+#[test]
+fn reference_tracking_resolves_values_already_returned() {
+    // Two nodes: "a" without next, then "b" whose next is ref id 1, the already returned "a".
+    let bytes = [0x04, 0x02, b'a', 0x00, 0x02, b'b', 0x01, 0x01];
+    let nodes = deserialize::<Vec<Rc<RefCell<Node>>>>(&bytes).unwrap();
+
+    let next = nodes[1].borrow().next.clone().unwrap();
+    assert!(Rc::ptr_eq(&next, &nodes[0]));
+    assert_eq!(next.borrow().label, "a");
+}
+
+#[test]
+fn malformed_lengths_return_errors() {
+    let minus_one = [0x01];
+    let minus_two = [0x03];
+    let i32_max = [0xfe, 0xff, 0xff, 0xff, 0x0f];
+    let i32_min = [0xff, 0xff, 0xff, 0xff, 0x0f];
+
+    assert!(deserialize::<String>(&minus_one).is_err());
+    assert!(deserialize::<Vec<String>>(&minus_two).is_err());
+    assert!(deserialize::<std::collections::VecDeque<String>>(&minus_two).is_err());
+    assert!(deserialize::<std::collections::HashSet<String>>(&minus_two).is_err());
+    assert!(deserialize::<std::collections::HashMap<String, u8>>(&minus_two).is_err());
+    assert!(deserialize::<Vec<String>>(&i32_max).is_err());
+    assert!(deserialize::<std::collections::HashMap<String, u8>>(&i32_max).is_err());
+    assert!(deserialize::<crate::DeduplicatedString>(&i32_min).is_err());
 }
