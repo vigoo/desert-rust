@@ -17,6 +17,15 @@ use std::ops::Range;
 use std::rc::Rc;
 use test_r::test;
 
+#[cfg(any(feature = "chrono", feature = "uuid"))]
+pub(crate) fn arb<T: for<'a> arbitrary::Arbitrary<'a> + Debug>() -> impl Strategy<Value = T> {
+    // Keep the former interop adapter's 256-byte input budget, while letting
+    // proptest shrink the input and reject invalid arbitrary values.
+    any::<[u8; 256]>().prop_filter_map("valid arbitrary value", |bytes| {
+        T::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).ok()
+    })
+}
+
 pub(crate) fn roundtrip<T: BinarySerializer + BinaryDeserializer + Debug + Clone + PartialEq>(
     value: T,
 ) {

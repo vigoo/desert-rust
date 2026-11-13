@@ -17,15 +17,13 @@ desert_macro = { path = "../desert_macro", version = "0.1.11" }
 im = { version = "15.1", optional = true }
 
 [dev-dependencies]
-arbitrary = { version = "1.4.2", features = ["derive"] }
-assert2 = "0.3"
-bytes = "1.10"
-lazy_static = "1.5"
-# proptest-arbitrary-interop 0.1 does not compile with proptest 1.12 (rand 0.10).
-proptest = ">=1.9, <1.12"
-proptest-arbitrary-interop = "0.1"
+arbitrary = { version = "1.5.0", features = ["derive"] }
+assert2 = "0.4.1"
+bytes = "1.12.1"
+lazy_static = "1.5.1"
+proptest = "1.12.0"
 test-r = { workspace = true }
-uuid = { version = "1.18", features = ["v4"] }
+uuid = { version = "1.29.2", features = ["v4"] }
 
 [[test]]
 name = "coproduct"

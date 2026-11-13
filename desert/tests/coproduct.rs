@@ -1,7 +1,7 @@
+use crate::serialization_properties::arb;
 use arbitrary::Arbitrary;
 use desert_rust::*;
 use proptest::prelude::*;
-use proptest_arbitrary_interop::arb;
 use test_r::test;
 
 #[allow(dead_code)]
