@@ -603,3 +603,40 @@ fn reference_tracking_serializes_cycles() {
     let d = c.borrow().next.clone().unwrap();
     assert!(std::ptr::eq(d.borrow().deref(), a.borrow().deref()));
 }
+
+#[test]
+fn array_rejects_wrong_element_count() {
+    let strings = |n: usize| (0..n).map(|i| format!("s{i}")).collect::<Vec<_>>();
+    let unknown_size = |items: &[String]| {
+        let mut bytes = vec![0x01]; // element count -1: Option-terminated sequence
+        for item in items {
+            bytes.push(1);
+            bytes.extend(serialize_to_byte_vec(item).unwrap());
+        }
+        bytes.push(0);
+        bytes
+    };
+
+    assert!(deserialize::<[u64; 4]>(&[0x00]).is_err());
+    assert!(deserialize::<[String; 1]>(&[0x00]).is_err());
+    assert!(deserialize::<[u8; 4]>(&serialize_to_byte_vec(&[1u8, 2, 3]).unwrap()).is_err());
+
+    let two = serialize_to_byte_vec(&<[String; 2]>::try_from(strings(2)).unwrap()).unwrap();
+    assert!(deserialize::<[String; 3]>(&two).is_err());
+    assert!(deserialize::<[String; 1]>(&two).is_err());
+
+    assert!(deserialize::<[String; 3]>(&unknown_size(&strings(2))).is_err());
+    assert!(deserialize::<[String; 1]>(&unknown_size(&strings(2))).is_err());
+
+    // An exactly-sized Option-terminated array consumes its terminator, so the next value decodes.
+    let mut bytes = vec![0x04]; // element count 2
+    bytes.extend(unknown_size(&strings(2)));
+    bytes.extend(unknown_size(&strings(4)[2..]));
+    assert_eq!(
+        deserialize::<Vec<[String; 2]>>(&bytes).unwrap(),
+        vec![
+            ["s0", "s1"].map(String::from),
+            ["s2", "s3"].map(String::from)
+        ]
+    );
+}

@@ -144,6 +144,14 @@ fn bench_deserialize_linked_list(c: &mut Criterion) {
 fn bench_deserialize_array(c: &mut Criterion) {
     let data: [u32; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     bench_deserialize("array u32 (10 elements)", data, c);
+    bench_deserialize("array u64 (3 elements)", [1u64, 2, 3], c);
+    bench_deserialize("array u8 (32 elements)", [7u8; 32], c);
+    bench_deserialize(
+        "array string (16 elements)",
+        std::array::from_fn::<String, 16, _>(|i| format!("item{i}")),
+        c,
+    );
+    bench_deserialize("array u32 (256 elements)", [9u32; 256], c);
 }
 
 fn bench_deserialize_enum(c: &mut Criterion) {

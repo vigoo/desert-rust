@@ -439,17 +439,58 @@ impl<T: BinaryDeserializer + 'static, const L: usize> BinaryDeserializer for [T;
         if TypeId::of::<T>() == TypeId::of::<u8>() {
             let length = context.read_var_u32()?; // NOTE: this is inconsistent with the generic case, but this way it is compatible with the Scala version's Chunk serializer
             let bytes = context.read_bytes(length as usize)?;
-            let array: [u8; L] = bytes.try_into().unwrap();
+            let array: [u8; L] = bytes
+                .try_into()
+                .map_err(|_| array_length_mismatch::<L>(length))?;
             Ok(unsafe { std::mem::transmute_copy(&array) })
         } else {
-            let mut array: [MaybeUninit<T>; L] = unsafe { MaybeUninit::uninit().assume_init() };
-            for (target, item) in array.iter_mut().zip(deserialize_iterator(context).0) {
-                *target = MaybeUninit::new(item?);
+            let (mut iter, size) = deserialize_iterator(context);
+            if let Some(size) = size.filter(|size| *size != L) {
+                return Err(array_length_mismatch::<L>(size));
             }
-            let array: [T; L] = unsafe { std::mem::transmute_copy(&array) };
-            Ok(array)
+            let mut array = [const { MaybeUninit::<T>::uninit() }; L];
+            let mut guard = PartialArrayGuard {
+                array: &mut array,
+                initialized: 0,
+            };
+            for item in iter.by_ref().take(L) {
+                guard.array[guard.initialized].write(item?);
+                guard.initialized += 1;
+            }
+            if guard.initialized < L {
+                return Err(array_length_mismatch::<L>(guard.initialized));
+            }
+            if iter.next().transpose()?.is_some() {
+                return Err(Error::DeserializationFailure(format!(
+                    "Failed to deserialize array: expected {L} elements, got more"
+                )));
+            }
+            std::mem::forget(guard);
+            // SAFETY: the loop above initialized all L elements.
+            Ok(unsafe { std::mem::transmute_copy(&array) })
         }
     }
+}
+
+/// Drops the initialized prefix of an array that failed to deserialize.
+struct PartialArrayGuard<'a, T, const L: usize> {
+    array: &'a mut [MaybeUninit<T>; L],
+    initialized: usize,
+}
+
+impl<T, const L: usize> Drop for PartialArrayGuard<'_, T, L> {
+    fn drop(&mut self) {
+        for item in &mut self.array[..self.initialized] {
+            // SAFETY: the first `initialized` elements were written.
+            unsafe { item.assume_init_drop() }
+        }
+    }
+}
+
+fn array_length_mismatch<const L: usize>(length: impl std::fmt::Display) -> Error {
+    Error::DeserializationFailure(format!(
+        "Failed to deserialize array: expected {L} elements, got {length}"
+    ))
 }
 
 impl<T: BinaryDeserializer + 'static> BinaryDeserializer for Vec<T> {
