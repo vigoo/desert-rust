@@ -651,3 +651,20 @@ fn reference_tracking_resolves_values_already_returned() {
     assert!(Rc::ptr_eq(&next, &nodes[0]));
     assert_eq!(next.borrow().label, "a");
 }
+
+#[test]
+fn malformed_lengths_return_errors() {
+    let minus_one = [0x01];
+    let minus_two = [0x03];
+    let i32_max = [0xfe, 0xff, 0xff, 0xff, 0x0f];
+    let i32_min = [0xff, 0xff, 0xff, 0xff, 0x0f];
+
+    assert!(deserialize::<String>(&minus_one).is_err());
+    assert!(deserialize::<Vec<String>>(&minus_two).is_err());
+    assert!(deserialize::<std::collections::VecDeque<String>>(&minus_two).is_err());
+    assert!(deserialize::<std::collections::HashSet<String>>(&minus_two).is_err());
+    assert!(deserialize::<std::collections::HashMap<String, u8>>(&minus_two).is_err());
+    assert!(deserialize::<Vec<String>>(&i32_max).is_err());
+    assert!(deserialize::<std::collections::HashMap<String, u8>>(&i32_max).is_err());
+    assert!(deserialize::<crate::DeduplicatedString>(&i32_min).is_err());
+}

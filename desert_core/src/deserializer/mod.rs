@@ -95,6 +95,10 @@ impl<'a> DeserializationContext<'a> {
     pub(crate) fn pos(&self) -> usize {
         self.current.pos
     }
+
+    pub(crate) fn remaining_bytes(&self) -> usize {
+        self.current.end - self.current.pos
+    }
 }
 
 impl BinaryInput for DeserializationContext<'_> {
@@ -108,7 +112,7 @@ impl BinaryInput for DeserializationContext<'_> {
     }
 
     fn read_bytes(&mut self, count: usize) -> Result<&[u8]> {
-        if self.current.pos + count > self.current.end {
+        if count > self.current.end - self.current.pos {
             Err(Error::InputEndedUnexpectedly)
         } else {
             let start = self.current.start + self.current.pos;
@@ -118,7 +122,7 @@ impl BinaryInput for DeserializationContext<'_> {
     }
 
     fn skip(&mut self, count: usize) -> Result<()> {
-        if self.current.pos + count > self.current.end {
+        if count > self.current.end - self.current.pos {
             Err(Error::InputEndedUnexpectedly)
         } else {
             self.current.pos += count;
@@ -357,7 +361,11 @@ impl BinaryDeserializer for DeduplicatedString {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
         let count_or_id = context.read_var_i32()?;
         if count_or_id < 0 {
-            let id = StringId(-count_or_id);
+            let id = StringId(
+                count_or_id
+                    .checked_neg()
+                    .ok_or(Error::InvalidStringId(StringId(count_or_id)))?,
+            );
             match context.state().get_string_by_id(id) {
                 Some(s) => Ok(DeduplicatedString(s.to_string())),
                 None => Err(Error::InvalidStringId(id)),
@@ -502,8 +510,8 @@ impl<T: BinaryDeserializer + 'static> BinaryDeserializer for Vec<T> {
         } else if let Some(vec) = try_deserialize_fixed_width_vec(context)? {
             Ok(vec)
         } else {
-            let (iter, maybe_size) = deserialize_iterator(context);
-            let mut vec = Vec::with_capacity(maybe_size.unwrap_or_default());
+            let (iter, _) = deserialize_iterator(context);
+            let mut vec = Vec::with_capacity(iter.size_hint().0);
             for item in iter {
                 vec.push(item?);
             }
@@ -570,8 +578,8 @@ fn deserialize_fixed_width_vec<T: BinaryDeserializer, const WIDTH: usize>(
 
 impl<T: BinaryDeserializer + 'static> BinaryDeserializer for VecDeque<T> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        let (iter, maybe_size) = deserialize_iterator(context);
-        let mut vec = VecDeque::with_capacity(maybe_size.unwrap_or_default());
+        let (iter, _) = deserialize_iterator(context);
+        let mut vec = VecDeque::with_capacity(iter.size_hint().0);
         for item in iter {
             vec.push_back(item?);
         }
@@ -581,8 +589,8 @@ impl<T: BinaryDeserializer + 'static> BinaryDeserializer for VecDeque<T> {
 
 impl<T: BinaryDeserializer + Eq + Hash> BinaryDeserializer for HashSet<T> {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        let (iter, maybe_size) = deserialize_iterator(context);
-        let mut set = HashSet::with_capacity(maybe_size.unwrap_or_default());
+        let (iter, _) = deserialize_iterator(context);
+        let mut set = HashSet::with_capacity(iter.size_hint().0);
         for item in iter {
             set.insert(item?);
         }
@@ -600,8 +608,8 @@ impl<K: BinaryDeserializer + Eq + Hash, V: BinaryDeserializer> BinaryDeserialize
     for HashMap<K, V>
 {
     fn deserialize(context: &mut DeserializationContext<'_>) -> Result<Self> {
-        let (iter, maybe_size) = deserialize_iterator(context);
-        let mut map = HashMap::with_capacity(maybe_size.unwrap_or_default());
+        let (iter, _) = deserialize_iterator(context);
+        let mut map = HashMap::with_capacity(iter.size_hint().0);
         for item in iter {
             let (key, value) = item?;
             map.insert(key, value);
@@ -681,6 +689,7 @@ pub fn deserialize_iterator<'a, 'b, T: BinaryDeserializer + 'a>(
             },
             None,
         ),
+        Ok(length) if length < 0 => (DeserializerIterator::InvalidLength(length), None),
         Ok(length) => {
             let length = length as usize;
             (
@@ -706,6 +715,7 @@ pub enum DeserializerIterator<'a, 'b, T: BinaryDeserializer + 'a> {
         element: PhantomData<T>,
     },
     InputEndedUnexpectedly,
+    InvalidLength(i32),
 }
 
 impl<'a, T: BinaryDeserializer + 'a> Iterator for DeserializerIterator<'a, '_, T> {
@@ -716,6 +726,7 @@ impl<'a, T: BinaryDeserializer + 'a> Iterator for DeserializerIterator<'a, '_, T
             DeserializerIterator::InputEndedUnexpectedly => {
                 Some(Err(Error::InputEndedUnexpectedly))
             }
+            DeserializerIterator::InvalidLength(length) => Some(Err(invalid_length(*length))),
             DeserializerIterator::KnownSize {
                 ref mut context,
                 remaining,
@@ -737,6 +748,26 @@ impl<'a, T: BinaryDeserializer + 'a> Iterator for DeserializerIterator<'a, '_, T
             },
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            // Collections preallocate the lower bound, and the length prefix is untrusted, so it
+            // is capped by the input left: almost every element takes at least one byte.
+            DeserializerIterator::KnownSize {
+                context, remaining, ..
+            } => (
+                (*remaining).min(context.remaining_bytes()),
+                Some(*remaining),
+            ),
+            _ => (0, None),
+        }
+    }
+}
+
+// Out of line so the error formatting does not stop `DeserializerIterator::next` from inlining.
+#[cold]
+fn invalid_length(length: i32) -> Error {
+    Error::DeserializationFailure(format!("Invalid sequence length: {length}"))
 }
 
 #[derive(Copy, Clone, Debug)]

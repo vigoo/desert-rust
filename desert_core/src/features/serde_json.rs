@@ -133,7 +133,7 @@ fn deserialize_binary_json_value(context: &mut DeserializationContext<'_>) -> Re
         JSON_STRING => Ok(Value::String(String::deserialize(context)?)),
         JSON_ARRAY => {
             let length = read_json_collection_len(context)?;
-            let mut values = Vec::with_capacity(length);
+            let mut values = Vec::with_capacity(length.min(context.remaining_bytes()));
             for _ in 0..length {
                 values.push(deserialize_binary_json_value(context)?);
             }

@@ -33,8 +33,8 @@ impl<T: BinaryDeserializer + 'static> BinaryDeserializer for NEVec<T> {
             Ok(NEVec::try_from_vec(vec)
                 .ok_or_else(|| DeserializationFailure("NEVec was empty".to_string()))?)
         } else {
-            let (iter, maybe_size) = deserialize_iterator(context);
-            let mut vec = Vec::with_capacity(maybe_size.unwrap_or_default());
+            let (iter, _) = deserialize_iterator(context);
+            let mut vec = Vec::with_capacity(iter.size_hint().0);
             for item in iter {
                 vec.push(item?);
             }
