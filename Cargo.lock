@@ -699,7 +699,7 @@ dependencies = [
  "bytes",
  "chrono",
  "criterion",
- "desert_rust 0.1.11",
+ "desert_rust 0.1.12",
  "dlhn",
  "iso8601-timestamp",
  "lazy_static",
@@ -725,36 +725,11 @@ dependencies = [
  "bit-vec",
  "bytes",
  "chrono",
- "desert_rust 0.1.11",
+ "desert_rust 0.1.12",
  "flate2",
  "mac_address",
  "nonempty-collections",
  "serde_json",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "desert_core"
-version = "0.2.2"
-dependencies = [
- "arbitrary",
- "bigdecimal 0.4.11",
- "bit-vec",
- "bytes",
- "castaway",
- "chrono",
- "chrono-tz",
- "flate2",
- "hashbrown 0.17.1",
- "im",
- "lazy_static",
- "mac_address",
- "nonempty-collections",
- "once_cell",
- "proptest",
- "serde_json",
- "test-r",
  "url",
  "uuid",
 ]
@@ -780,6 +755,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "desert_core"
+version = "0.2.3"
+dependencies = [
+ "arbitrary",
+ "bigdecimal 0.4.11",
+ "bit-vec",
+ "bytes",
+ "castaway",
+ "chrono",
+ "chrono-tz",
+ "flate2",
+ "hashbrown 0.17.1",
+ "im",
+ "lazy_static",
+ "mac_address",
+ "nonempty-collections",
+ "once_cell",
+ "proptest",
+ "serde_json",
+ "test-r",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "desert_github"
 version = "0.1.0"
 dependencies = [
@@ -790,11 +790,25 @@ dependencies = [
 [[package]]
 name = "desert_macro"
 version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4573798d7c0123902a9fc19f43c1c0dd2daf587c121119fd5ebcdab46f4e984a"
+dependencies = [
+ "bytes",
+ "desert_core 0.2.2",
+ "lazy_static",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "desert_macro"
+version = "0.1.12"
 dependencies = [
  "arbitrary",
  "assert2",
  "bytes",
- "desert_core 0.2.2",
+ "desert_core 0.2.3",
  "lazy_static",
  "proc-macro2",
  "proptest",
@@ -805,43 +819,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "desert_macro"
-version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4573798d7c0123902a9fc19f43c1c0dd2daf587c121119fd5ebcdab46f4e984a"
-dependencies = [
- "bytes",
- "desert_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "desert_rust"
-version = "0.1.11"
-dependencies = [
- "arbitrary",
- "assert2",
- "bytes",
- "desert_core 0.2.2",
- "desert_macro 0.1.11",
- "im",
- "lazy_static",
- "proptest",
- "test-r",
- "uuid",
-]
-
-[[package]]
 name = "desert_rust"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88084a4ce8019c315bcc0142f2fa97c1d7b389a96cfadea6f07a5607126667a0"
 dependencies = [
- "desert_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "desert_macro 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "desert_core 0.2.2",
+ "desert_macro 0.1.11",
+]
+
+[[package]]
+name = "desert_rust"
+version = "0.1.12"
+dependencies = [
+ "arbitrary",
+ "assert2",
+ "bytes",
+ "desert_core 0.2.3",
+ "desert_macro 0.1.12",
+ "im",
+ "lazy_static",
+ "proptest",
+ "test-r",
+ "uuid",
 ]
 
 [[package]]
@@ -2275,7 +2275,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ctrf-rs",
- "desert_rust 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "desert_rust 0.1.11",
  "escape8259",
  "futures",
  "interprocess",
