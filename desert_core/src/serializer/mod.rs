@@ -55,7 +55,7 @@ impl<Output: BinaryOutput> SerializationContext<Output> {
     }
 
     pub fn store_ref_or_object(&mut self, value: &impl Any) -> Result<bool> {
-        match self.state_mut().store_ref(value) {
+        match self.state_mut().store_ref_identity(value) {
             StoreRefResult::RefAlreadyStored { id } => {
                 self.write_var_u32(id.0);
                 Ok(false)
