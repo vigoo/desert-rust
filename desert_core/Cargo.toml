@@ -34,7 +34,8 @@ serde_json = { version = "1", optional = true }
 [dev-dependencies]
 chrono = { version = "0.4", features = ["arbitrary"] }
 chrono-tz = { version = "0.10", features = ["arbitrary"] }
-proptest = "1.9"
+# proptest-arbitrary-interop 0.1 does not compile with proptest 1.12 (rand 0.10).
+proptest = ">=1.9, <1.12"
 proptest-arbitrary-interop = "0.1"
 test-r = { workspace = true }
 uuid = { version = "1.18", features = ["arbitrary"] }
