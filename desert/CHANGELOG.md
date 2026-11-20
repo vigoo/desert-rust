@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.13...desert_rust-v0.2.0) - 2026-11-20
+
+### Other
+
+- Replace deprecated chrono integration with Jiff
+- Let users disable desert_core default features through desert_rust
+
 ## [0.1.13](https://github.com/vigoo/desert-rust/compare/desert_rust-v0.1.12...desert_rust-v0.1.13) - 2026-11-13
 
 ### Other
