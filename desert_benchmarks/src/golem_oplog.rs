@@ -9,11 +9,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
 use desert_rust::{
     deserialize, serialize, serialize_to_byte_vec, BinaryCodec, BinaryDeserializer, BinaryInput,
     BinaryOutput, BinarySerializer, DeserializationContext, Error, SerializationContext,
 };
+use jiff::civil::Date;
 use uuid::Uuid;
 
 use crate::golem_schema::{
@@ -255,7 +255,7 @@ pub enum SerializableDbValue {
     Bytes(Vec<u8>),
     Json(serde_json::Value),
     Numeric(BigDecimal),
-    Date(NaiveDate),
+    Date(Date),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, BinaryCodec)]

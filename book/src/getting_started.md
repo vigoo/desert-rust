@@ -14,21 +14,21 @@ Add the public crate to `Cargo.toml`:
 
 ```toml
 [dependencies]
-desert_rust = "0.1.8"
+desert_rust = "0.2.0"
 ```
 
 Additional codecs are controlled with crate features:
 
 ```toml
 [dependencies]
-desert_rust = { version = "0.1.8", features = ["uuid", "chrono", "url"] }
+desert_rust = { version = "0.2.0", features = ["uuid", "jiff", "url"] }
 ```
 
 Feature flags exposed by the public crate are:
 
 - `bigdecimal`
 - `bit-vec`
-- `chrono`
+- `jiff`
 - `im`
 - `mac_address`
 - `nonempty-collections`
@@ -36,9 +36,10 @@ Feature flags exposed by the public crate are:
 - `url`
 - `uuid`
 
-The current `desert_core` default features already enable `bigdecimal`,
-`chrono`, `uuid`, `nonempty-collections`, and `serde-json`. Features such as
-`url`, `mac_address`, `bit-vec`, and `im` must be enabled explicitly.
+The default features enable `bigdecimal`, `jiff`, `uuid`,
+`nonempty-collections`, and `serde-json`. Set `default-features = false` on
+`desert_rust` to disable these integrations. Features such as `url`,
+`mac_address`, `bit-vec`, and `im` must be enabled explicitly.
 
 ## Serialize and deserialize a known type
 

@@ -4,8 +4,8 @@ mod bigdecimal;
 #[cfg(feature = "bit-vec")]
 mod bit_vec;
 
-#[cfg(feature = "chrono")]
-mod chrono;
+#[cfg(feature = "jiff")]
+mod jiff;
 
 #[cfg(feature = "im")]
 mod im;

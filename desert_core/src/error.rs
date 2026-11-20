@@ -112,13 +112,6 @@ impl From<TryFromIntError> for Error {
     }
 }
 
-#[cfg(feature = "chrono")]
-impl From<chrono_tz::ParseError> for Error {
-    fn from(msg: chrono_tz::ParseError) -> Self {
-        Error::InvalidTimeZone(msg.to_string())
-    }
-}
-
 impl From<TryFromSliceError> for Error {
     fn from(_: TryFromSliceError) -> Self {
         Error::InputEndedUnexpectedly
