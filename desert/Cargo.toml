@@ -1,6 +1,6 @@
 [package]
 name = "desert_rust"
-version = "0.1.13"
+version = "0.2.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "Binary serialization library for Rust"
@@ -12,7 +12,7 @@ readme = "../README.md"
 path = "src/lib.rs"
 
 [dependencies]
-desert_core = { path = "../desert_core", version = "0.3.0", default-features = false }
+desert_core = { path = "../desert_core", version = "0.4.0", default-features = false }
 desert_macro = { path = "../desert_macro", version = "0.1.13" }
 im = { version = "15.1", optional = true }
 
@@ -51,10 +51,10 @@ name = "string_deduplication"
 harness = false
 
 [features]
-default = ["bigdecimal", "chrono", "uuid", "nonempty-collections", "serde-json"]
+default = ["bigdecimal", "jiff", "uuid", "nonempty-collections", "serde-json"]
 bigdecimal = ["desert_core/bigdecimal"]
 bit-vec = ["desert_core/bit-vec"]
-chrono = ["desert_core/chrono"]
+jiff = ["desert_core/jiff"]
 im = ["dep:im", "desert_core/im"]
 mac_address = ["desert_core/mac_address"]
 nonempty-collections = ["desert_core/nonempty-collections"]

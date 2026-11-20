@@ -37,7 +37,7 @@ struct Point {
 ```
 
 Third-party Rust codecs are controlled by Cargo feature flags, for example
-`uuid`, `chrono`, and `serde-json`.
+`uuid`, `jiff`, and `serde-json`.
 
 ## Codec discovery
 

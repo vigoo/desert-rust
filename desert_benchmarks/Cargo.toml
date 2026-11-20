@@ -9,7 +9,7 @@ readme = "README.md"
 desert_rust = { path = "../desert", features = [
     "bigdecimal",
     "bit-vec",
-    "chrono",
+    "jiff",
     "mac_address",
     "nonempty-collections",
     "serde-json",
@@ -23,7 +23,7 @@ bigdecimal = "0.4.11"
 bitcode = { version = "0.6.9", features = ["serde"] }
 bit-vec = "0.10.2"
 bytes = "1.12.1"
-chrono = "0.4.45"
+jiff = "1.0.1"
 dlhn = "0.1.7"
 iso8601-timestamp = "0.4.0"
 lazy_static = "1.5.1"

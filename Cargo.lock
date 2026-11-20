@@ -372,7 +372,6 @@ version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
- "arbitrary",
  "iana-time-zone",
  "js-sys",
  "num-traits",
@@ -386,7 +385,6 @@ version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6139a8597ed92cf816dfb33f5dd6cf0bb93a6adc938f11039f371bc5bcd26c3"
 dependencies = [
- "arbitrary",
  "chrono",
  "phf",
 ]
@@ -697,11 +695,11 @@ dependencies = [
  "bit-vec",
  "bitcode",
  "bytes",
- "chrono",
  "criterion",
- "desert_rust 0.1.13",
+ "desert_rust 0.2.0",
  "dlhn",
  "iso8601-timestamp",
+ "jiff",
  "lazy_static",
  "mac_address",
  "nonempty-collections",
@@ -724,9 +722,9 @@ dependencies = [
  "bigdecimal 0.4.11",
  "bit-vec",
  "bytes",
- "chrono",
- "desert_rust 0.1.13",
+ "desert_rust 0.2.0",
  "flate2",
+ "jiff",
  "mac_address",
  "nonempty-collections",
  "serde_json",
@@ -756,18 +754,17 @@ dependencies = [
 
 [[package]]
 name = "desert_core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "arbitrary",
  "bigdecimal 0.4.11",
  "bit-vec",
  "bytes",
  "castaway",
- "chrono",
- "chrono-tz",
  "flate2",
  "hashbrown 0.17.1",
  "im",
+ "jiff",
  "lazy_static",
  "mac_address",
  "nonempty-collections",
@@ -829,12 +826,12 @@ dependencies = [
 
 [[package]]
 name = "desert_rust"
-version = "0.1.13"
+version = "0.2.0"
 dependencies = [
  "arbitrary",
  "assert2",
  "bytes",
- "desert_core 0.3.0",
+ "desert_core 0.4.0",
  "desert_macro 0.1.13",
  "im",
  "lazy_static",
@@ -1412,6 +1409,58 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bd1574e617a9a6c1f8f8181bd7e841e1f20e4277607ef28945765188d6284d4"
 
 [[package]]
+name = "jiff"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5d126d72eb017f10b302e73bdeca446bea405ee449af4d9e7866d6b082d83e"
+dependencies = [
+ "jiff-core",
+ "jiff-static",
+ "jiff-tzdb-platform",
+ "log",
+ "portable-atomic",
+ "portable-atomic-util",
+ "serde_core",
+ "windows-link",
+]
+
+[[package]]
+name = "jiff-core"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6b46a105a9874634dd96231021526bf24ca04955a5998c59a9c7666e634b7b8"
+dependencies = [
+ "log",
+]
+
+[[package]]
+name = "jiff-static"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0127e9bde3c6130d6169e7d8d68676e4be69c4bf7573c308b6f960a5089c428"
+dependencies = [
+ "jiff-core",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
+]
+
+[[package]]
+name = "jiff-tzdb"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12e71a1b68a875a44a33bb7a1dd84392cb77145a3367a552a3cfe6a4f5cf3afc"
+
+[[package]]
+name = "jiff-tzdb-platform"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc65b284afcfa8f6cf189c7274c805505314a7ab975c60e1f548bff56525420e"
+dependencies = [
+ "jiff-tzdb",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1702,6 +1751,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51bae2ac328883f7acdfea3d66a7c35751187f870bc81f94563733a154d7a670"
 dependencies = [
  "plotters-backend",
+]
+
+[[package]]
+name = "portable-atomic"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85"
+
+[[package]]
+name = "portable-atomic-util"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10ab3eb7f3becc3a1cbc4f2c6f20267996cfc1a6467a873763411b136a122715"
+dependencies = [
+ "portable-atomic",
 ]
 
 [[package]]

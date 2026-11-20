@@ -5,12 +5,12 @@ use anyhow::{anyhow, bail, Context};
 use bigdecimal::BigDecimal;
 use bit_vec::BitVec;
 use bytes::Bytes;
-use chrono::{NaiveDate, NaiveTime};
 use desert_rust::{
     serialize_to_byte_vec, BinaryCodec, BinaryOutput, BinarySerializer, DeduplicatedString,
     Options, SerializationContext,
 };
 use flate2::Compression;
+use jiff::civil::{Date, Time};
 use mac_address::MacAddress;
 use nonempty_collections::NEVec;
 use serde_json::{json, Value};
@@ -150,8 +150,8 @@ pub fn all_examples() -> anyhow::Result<Vec<Example>> {
         derived_enum()?,
         string_dedup()?,
         feature_uuid()?,
-        feature_chrono_date()?,
-        feature_chrono_time()?,
+        feature_jiff_date()?,
+        feature_jiff_time()?,
         feature_bigdecimal()?,
         feature_bit_vec()?,
         feature_mac_address()?,
@@ -643,12 +643,12 @@ fn feature_uuid() -> anyhow::Result<Example> {
     )
 }
 
-fn feature_chrono_date() -> anyhow::Result<Example> {
+fn feature_jiff_date() -> anyhow::Result<Example> {
     example(
-        "feature.chrono_date",
-        "chrono::NaiveDate",
-        "let value = chrono::NaiveDate::from_ymd_opt(2024, 6, 22).unwrap();\nlet bytes = desert_rust::serialize_to_byte_vec(&value)?;",
-        NaiveDate::from_ymd_opt(2024, 6, 22).unwrap(),
+        "feature.jiff_date",
+        "jiff::civil::Date",
+        "let value = jiff::civil::Date::new(2024, 6, 22)?;\nlet bytes = desert_rust::serialize_to_byte_vec(&value)?;",
+        Date::new(2024, 6, 22)?,
         vec![
             Segment::new("year", 2, "year as var_u32"),
             Segment::new("month", 1, "month byte"),
@@ -657,12 +657,12 @@ fn feature_chrono_date() -> anyhow::Result<Example> {
     )
 }
 
-fn feature_chrono_time() -> anyhow::Result<Example> {
+fn feature_jiff_time() -> anyhow::Result<Example> {
     example(
-        "feature.chrono_time",
-        "chrono::NaiveTime",
-        "let value = chrono::NaiveTime::from_hms_nano_opt(9, 30, 5, 125).unwrap();\nlet bytes = desert_rust::serialize_to_byte_vec(&value)?;",
-        NaiveTime::from_hms_nano_opt(9, 30, 5, 125).unwrap(),
+        "feature.jiff_time",
+        "jiff::civil::Time",
+        "let value = jiff::civil::Time::new(9, 30, 5, 125)?;\nlet bytes = desert_rust::serialize_to_byte_vec(&value)?;",
+        Time::new(9, 30, 5, 125)?,
         vec![
             Segment::new("hour", 1, "hour byte"),
             Segment::new("minute", 1, "minute byte"),

@@ -37,7 +37,7 @@ Feature flags control codecs for third-party types:
 | --- | --- |
 | `bigdecimal` | `bigdecimal::BigDecimal`, `bigdecimal::num_bigint::BigInt` |
 | `bit-vec` | `bit_vec::BitVec` |
-| `chrono` | `chrono` dates, times, offsets, `chrono_tz::Tz` |
+| `jiff` | `jiff::civil::{Date, Time, DateTime, Weekday}`, `jiff::{Timestamp, ZonedDateTime}`, `jiff::tz::{Offset, TimeZone}` |
 | `im` | `im::Vector<T>`, `im::OrdMap<K, V>` |
 | `mac_address` | `mac_address::MacAddress` |
 | `nonempty-collections` | `nonempty_collections::NEVec<T>` |
@@ -45,18 +45,45 @@ Feature flags control codecs for third-party types:
 | `url` | `url::Url` |
 | `uuid` | `uuid::Uuid` |
 
-The facade currently pulls in the `desert_core` default feature set, so
-`bigdecimal`, `chrono`, `uuid`, `nonempty-collections`, and `serde-json` are
-enabled by default. Enable `bit-vec`, `im`, `mac_address`, or `url` explicitly
-when you need those codecs.
+`bigdecimal`, `jiff`, `uuid`, `nonempty-collections`, and `serde-json` are
+enabled by default. Set `default-features = false` to disable them. Enable
+`bit-vec`, `im`, `mac_address`, or `url` explicitly when you need those codecs.
+
+### Migrating from chrono (0.2)
+
+The unmaintained `chrono` and `chrono-tz` integrations have been removed.
+Use Jiff 1 and the `jiff` feature instead. Within Jiff's supported range, these
+replacements keep the former wire layout:
+
+| Former type | Replacement |
+| --- | --- |
+| `chrono::NaiveDate` | `jiff::civil::Date` |
+| `chrono::NaiveTime` | `jiff::civil::Time` |
+| `chrono::NaiveDateTime` | `jiff::civil::DateTime` |
+| `chrono::Weekday` | `jiff::civil::Weekday` |
+| `chrono::DateTime<Utc>` | `jiff::Timestamp` |
+| `chrono::FixedOffset` | `jiff::tz::Offset` |
+| `chrono_tz::Tz` | `jiff::tz::TimeZone` |
+| `chrono::DateTime<chrono_tz::Tz>` | `jiff::ZonedDateTime` |
+
+Jiff does not represent chrono's leap seconds or dates outside its supported
+range; deserializing those values returns an error. There is no standalone
+Jiff month type. Replace `chrono::Month` with a numeric month where appropriate.
+The former `DateTime<Local>` and `DateTime<FixedOffset>` layouts are **not** the
+`ZonedDateTime` layout: migrate those records explicitly using the old reader.
+`ZonedDateTime` always stores UTC civil time followed by the time zone, so DST
+overlaps preserve the instant. Fixed offsets and named IANA zones are supported;
+unknown zones, unnamed TZif data, and POSIX rule zones return `Error::InvalidTimeZone` rather
+than losing their transition rules. Named zones require an available Jiff time
+zone database on the decoding platform.
 
 The same generator is used for optional third-party codecs:
 
 {{#desert-bytes feature.uuid}}
 
-{{#desert-bytes feature.chrono_date}}
+{{#desert-bytes feature.jiff_date}}
 
-{{#desert-bytes feature.chrono_time}}
+{{#desert-bytes feature.jiff_time}}
 
 {{#desert-bytes feature.bigdecimal}}
 

@@ -17,7 +17,7 @@ use std::ops::Range;
 use std::rc::Rc;
 use test_r::test;
 
-#[cfg(any(feature = "chrono", feature = "uuid"))]
+#[cfg(feature = "uuid")]
 pub(crate) fn arb<T: for<'a> arbitrary::Arbitrary<'a> + Debug>() -> impl Strategy<Value = T> {
     // Keep the former interop adapter's 256-byte input budget, while letting
     // proptest shrink the input and reject invalid arbitrary values.

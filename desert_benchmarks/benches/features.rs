@@ -1,10 +1,10 @@
 use bigdecimal::BigDecimal;
 use bit_vec::BitVec;
-use chrono::{NaiveDate, TimeZone, Utc};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use desert_rust::{
     deserialize_with_options, serialize_to_byte_vec_with_options, BinaryCodec, Options,
 };
+use jiff::{civil::Date, Timestamp};
 use mac_address::MacAddress;
 use nonempty_collections::NEVec;
 use serde_json::json;
@@ -54,17 +54,13 @@ fn bench_bit_vec(c: &mut Criterion) {
     bench_feature_roundtrip("bit_vec_4096", bits, c);
 }
 
-fn bench_chrono(c: &mut Criterion) {
+fn bench_jiff(c: &mut Criterion) {
     bench_feature_roundtrip(
-        "chrono_datetime_utc",
-        Utc.timestamp_opt(1_700_000_000, 123_456_789).unwrap(),
+        "jiff_timestamp",
+        Timestamp::new(1_700_000_000, 123_456_789).unwrap(),
         c,
     );
-    bench_feature_roundtrip(
-        "chrono_naive_date",
-        NaiveDate::from_ymd_opt(2026, 6, 22).unwrap(),
-        c,
-    );
+    bench_feature_roundtrip("jiff_date", Date::new(2026, 6, 22).unwrap(), c);
 }
 
 fn bench_mac_address(c: &mut Criterion) {
@@ -114,7 +110,7 @@ criterion_group!(
     benches,
     bench_bigdecimal,
     bench_bit_vec,
-    bench_chrono,
+    bench_jiff,
     bench_mac_address,
     bench_nonempty_collections,
     bench_serde_json,

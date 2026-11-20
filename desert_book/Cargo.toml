@@ -14,11 +14,11 @@ anyhow = "1.0.104"
 bigdecimal = "0.4.11"
 bit-vec = "0.10.2"
 bytes = "1.12.1"
-chrono = "0.4.45"
+jiff = "1.0.1"
 desert_rust = { path = "../desert", features = [
     "bigdecimal",
     "bit-vec",
-    "chrono",
+    "jiff",
     "mac_address",
     "nonempty-collections",
     "serde-json",

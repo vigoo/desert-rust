@@ -3,8 +3,8 @@
 //! This mirrors the `value-type-refactoring-5` branch enough to benchmark
 //! Desert binary serialization costs without adding Golem as a dependency.
 
-use chrono::{DateTime, TimeZone, Utc};
 use desert_rust::BinaryCodec;
+use jiff::Timestamp;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, BinaryCodec)]
 #[desert(transparent)]
@@ -494,7 +494,7 @@ pub enum SchemaValue {
         url: String,
     },
     Datetime {
-        value: DateTime<Utc>,
+        value: Timestamp,
     },
     Duration(DurationValuePayload),
     Quantity(QuantityValue),
@@ -557,7 +557,7 @@ pub struct QuotaTokenValuePayload {
     pub resource_name: String,
     pub expected_use: u64,
     pub last_credit: i64,
-    pub last_credit_at: DateTime<Utc>,
+    pub last_credit_at: Timestamp,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, BinaryCodec)]
@@ -843,7 +843,7 @@ pub fn semantic_typed_value() -> TypedSchemaValue {
             },
         ),
     ]);
-    let timestamp = Utc.timestamp_opt(1_700_000_000, 123_000_000).unwrap();
+    let timestamp = Timestamp::new(1_700_000_000, 123_000_000).unwrap();
     let value = SchemaValue::Record {
         fields: vec![
             SchemaValue::Datetime { value: timestamp },
