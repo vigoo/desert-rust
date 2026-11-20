@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7ad4f950.js";
+            window.path_to_searchindex_js = "searchindex-c0c496f9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-bc47af81.js"></script>
@@ -185,17 +185,17 @@ derive macros, feature flags, and explicit error handling.</p>
 <h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
 <p>Add the public crate to <code>Cargo.toml</code>:</p>
 <pre><code class="language-toml">[dependencies]
-desert_rust = "0.1.8"
+desert_rust = "0.2.0"
 </code></pre>
 <p>Additional codecs are controlled with crate features:</p>
 <pre><code class="language-toml">[dependencies]
-desert_rust = { version = "0.1.8", features = ["uuid", "chrono", "url"] }
+desert_rust = { version = "0.2.0", features = ["uuid", "jiff", "url"] }
 </code></pre>
 <p>Feature flags exposed by the public crate are:</p>
 <ul>
 <li><code>bigdecimal</code></li>
 <li><code>bit-vec</code></li>
-<li><code>chrono</code></li>
+<li><code>jiff</code></li>
 <li><code>im</code></li>
 <li><code>mac_address</code></li>
 <li><code>nonempty-collections</code></li>
@@ -203,9 +203,10 @@ desert_rust = { version = "0.1.8", features = ["uuid", "chrono", "url"] }
 <li><code>url</code></li>
 <li><code>uuid</code></li>
 </ul>
-<p>The current <code>desert_core</code> default features already enable <code>bigdecimal</code>,
-<code>chrono</code>, <code>uuid</code>, <code>nonempty-collections</code>, and <code>serde-json</code>. Features such as
-<code>url</code>, <code>mac_address</code>, <code>bit-vec</code>, and <code>im</code> must be enabled explicitly.</p>
+<p>The default features enable <code>bigdecimal</code>, <code>jiff</code>, <code>uuid</code>,
+<code>nonempty-collections</code>, and <code>serde-json</code>. Set <code>default-features = false</code> on
+<code>desert_rust</code> to disable these integrations. Features such as <code>url</code>,
+<code>mac_address</code>, <code>bit-vec</code>, and <code>im</code> must be enabled explicitly.</p>
 <h2 id="serialize-and-deserialize-a-known-type"><a class="header" href="#serialize-and-deserialize-a-known-type">Serialize and deserialize a known type</a></h2>
 <p>The most direct API works with a <code>Vec&lt;u8&gt;</code> or <code>bytes::Bytes</code>:</p>
 <pre><code class="language-rust ignore">use desert_rust::{deserialize, serialize_to_byte_vec, Result};

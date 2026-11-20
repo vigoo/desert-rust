@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7ad4f950.js";
+            window.path_to_searchindex_js = "searchindex-c0c496f9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-bc47af81.js"></script>
@@ -210,7 +210,7 @@ available codecs include:</p>
 <tbody>
 <tr><td><code>bigdecimal</code></td><td><code>bigdecimal::BigDecimal</code>, <code>bigdecimal::num_bigint::BigInt</code></td></tr>
 <tr><td><code>bit-vec</code></td><td><code>bit_vec::BitVec</code></td></tr>
-<tr><td><code>chrono</code></td><td><code>chrono</code> dates, times, offsets, <code>chrono_tz::Tz</code></td></tr>
+<tr><td><code>jiff</code></td><td><code>jiff::civil::{Date, Time, DateTime, Weekday}</code>, <code>jiff::{Timestamp, ZonedDateTime}</code>, <code>jiff::tz::{Offset, TimeZone}</code></td></tr>
 <tr><td><code>im</code></td><td><code>im::Vector&lt;T&gt;</code>, <code>im::OrdMap&lt;K, V&gt;</code></td></tr>
 <tr><td><code>mac_address</code></td><td><code>mac_address::MacAddress</code></td></tr>
 <tr><td><code>nonempty-collections</code></td><td><code>nonempty_collections::NEVec&lt;T&gt;</code></td></tr>
@@ -220,10 +220,40 @@ available codecs include:</p>
 </tbody>
 </table>
 </div>
-<p>The facade currently pulls in the <code>desert_core</code> default feature set, so
-<code>bigdecimal</code>, <code>chrono</code>, <code>uuid</code>, <code>nonempty-collections</code>, and <code>serde-json</code> are
-enabled by default. Enable <code>bit-vec</code>, <code>im</code>, <code>mac_address</code>, or <code>url</code> explicitly
-when you need those codecs.</p>
+<p><code>bigdecimal</code>, <code>jiff</code>, <code>uuid</code>, <code>nonempty-collections</code>, and <code>serde-json</code> are
+enabled by default. Set <code>default-features = false</code> to disable them. Enable
+<code>bit-vec</code>, <code>im</code>, <code>mac_address</code>, or <code>url</code> explicitly when you need those codecs.</p>
+<h3 id="migrating-from-chrono-02"><a class="header" href="#migrating-from-chrono-02">Migrating from chrono (0.2)</a></h3>
+<p>The unmaintained <code>chrono</code> and <code>chrono-tz</code> integrations have been removed.
+Use Jiff 1 and the <code>jiff</code> feature instead. Within Jiff’s supported range, these
+replacements keep the former wire layout:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Former type</th><th>Replacement</th></tr>
+</thead>
+<tbody>
+<tr><td><code>chrono::NaiveDate</code></td><td><code>jiff::civil::Date</code></td></tr>
+<tr><td><code>chrono::NaiveTime</code></td><td><code>jiff::civil::Time</code></td></tr>
+<tr><td><code>chrono::NaiveDateTime</code></td><td><code>jiff::civil::DateTime</code></td></tr>
+<tr><td><code>chrono::Weekday</code></td><td><code>jiff::civil::Weekday</code></td></tr>
+<tr><td><code>chrono::DateTime&lt;Utc&gt;</code></td><td><code>jiff::Timestamp</code></td></tr>
+<tr><td><code>chrono::FixedOffset</code></td><td><code>jiff::tz::Offset</code></td></tr>
+<tr><td><code>chrono_tz::Tz</code></td><td><code>jiff::tz::TimeZone</code></td></tr>
+<tr><td><code>chrono::DateTime&lt;chrono_tz::Tz&gt;</code></td><td><code>jiff::ZonedDateTime</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Jiff does not represent chrono’s leap seconds or dates outside its supported
+range; deserializing those values returns an error. There is no standalone
+Jiff month type. Replace <code>chrono::Month</code> with a numeric month where appropriate.
+The former <code>DateTime&lt;Local&gt;</code> and <code>DateTime&lt;FixedOffset&gt;</code> layouts are <strong>not</strong> the
+<code>ZonedDateTime</code> layout: migrate those records explicitly using the old reader.
+<code>ZonedDateTime</code> always stores UTC civil time followed by the time zone, so DST
+overlaps preserve the instant. Fixed offsets and named IANA zones are supported;
+unknown zones, unnamed TZif data, and POSIX rule zones return <code>Error::InvalidTimeZone</code> rather
+than losing their transition rules. Named zones require an available Jiff time
+zone database on the decoding platform.</p>
 <p>The same generator is used for optional third-party codecs:</p>
 <h3 id="uuid"><a class="header" href="#uuid">uuid</a></h3>
 <pre><code class="language-rust ignore">let value = uuid::Uuid::from_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
@@ -245,8 +275,8 @@ let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
 
 </div>
 
-<h3 id="chrononaivedate"><a class="header" href="#chrononaivedate">chrono::NaiveDate</a></h3>
-<pre><code class="language-rust ignore">let value = chrono::NaiveDate::from_ymd_opt(2024, 6, 22).unwrap();
+<h3 id="jiffcivildate"><a class="header" href="#jiffcivildate">jiff::civil::Date</a></h3>
+<pre><code class="language-rust ignore">let value = jiff::civil::Date::new(2024, 6, 22)?;
 let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
 <pre><code class="language-text">[0xE8, 0x0F, 0x06, 0x16]
 </code></pre>
@@ -265,8 +295,8 @@ let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
 
 </div>
 
-<h3 id="chrononaivetime"><a class="header" href="#chrononaivetime">chrono::NaiveTime</a></h3>
-<pre><code class="language-rust ignore">let value = chrono::NaiveTime::from_hms_nano_opt(9, 30, 5, 125).unwrap();
+<h3 id="jiffciviltime"><a class="header" href="#jiffciviltime">jiff::civil::Time</a></h3>
+<pre><code class="language-rust ignore">let value = jiff::civil::Time::new(9, 30, 5, 125)?;
 let bytes = desert_rust::serialize_to_byte_vec(&amp;value)?;</code></pre>
 <pre><code class="language-text">[0x09, 0x1E, 0x05, 0x7D]
 </code></pre>
